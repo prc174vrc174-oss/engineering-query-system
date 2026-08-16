@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BD扣除展開計算</title>
+  <style>
+    :root{color-scheme:light;--slate-900:#0f172a;--slate-700:#334155;--slate-600:#475569;--slate-500:#64748b;--slate-400:#94a3b8;--slate-300:#cbd5e1;--slate-200:#e2e8f0;--slate-100:#f1f5f9;--orange:#c2410c}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:0;background:#e9eef4;color:#111827;font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+    body{padding:14px}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    .calculator{width:min(405px,100%);margin:0 auto;border:1px solid #aeb9c8;border-radius:12px;background:#f8fafc;box-shadow:0 18px 46px rgba(15,23,42,.18);overflow:hidden}
+    .head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--slate-300);background:var(--slate-700);color:#fff}
+    h1{margin:0;font-size:18px;font-weight:850}
+    .body{padding:14px 16px 16px}
+    .context{display:flex;align-items:center;justify-content:center;gap:3px;min-height:34px;margin-bottom:10px;padding:5px 16px 5px 4px;border:1px solid var(--slate-300);border-radius:7px;background:#fff;color:var(--slate-600);font-size:12.5px;font-weight:700;text-align:center;white-space:nowrap}
+    .context-choice{display:inline-flex;align-items:center;min-width:0}
+    .context-choice select{field-sizing:content;width:auto;min-width:52px;max-width:116px;height:24px;padding:0 4px;border:1px solid #2563eb;border-radius:5px;background:#dbeafe;background-image:none;color:#1d4ed8;font-size:12.5px;font-weight:900;appearance:none;-webkit-appearance:none;-moz-appearance:none}
+    .context-choice.material select{min-width:60px}
+    .thickness-control{position:relative;display:inline-flex;width:32px;height:24px}
+    .context-choice #thickness{width:100%;min-width:0;max-width:none;padding:0;border-color:#ea580c;background:#ffedd5;color:transparent;text-align:center;text-align-last:center}
+    .context-choice #thickness option{color:#111827}
+    .thickness-display{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#c2410c;font-size:12.5px;font-weight:900;line-height:1;pointer-events:none}
+    .context-choice select:focus{outline:2px solid var(--slate-600);outline-offset:1px}
+    .context-unit{margin-left:2px;color:#111827;font-weight:800}
+    .context-separator{color:var(--slate-400)}
+    #context{display:inline-flex;align-items:center}
+    .metric-angle{color:#7c3aed}
+    .metric-radius{color:#047857}
+    .metric-m{color:#be185d}
+    .metric-bd{color:#1d4ed8}
+    .metric-f{color:#dc2626}
+    .metric-separator{color:var(--slate-400)}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    .memory-nav{display:grid;grid-template-columns:38px 1fr 38px;align-items:center;gap:8px;margin:0 0 10px}
+    .memory-arrow{width:38px;height:34px;padding:0;border:1px solid var(--slate-400);border-radius:7px;background:#fff;color:var(--slate-700);font-size:22px;font-weight:850;line-height:1}
+    .memory-arrow:hover,.memory-arrow:focus-visible{border-color:var(--slate-600);background:var(--slate-200);color:var(--slate-900)}
+    .memory-label{color:var(--slate-700);font-size:13.5px;font-weight:850;text-align:center}
+    table{width:100%;min-width:0;border-collapse:collapse;border:2px solid var(--slate-600);table-layout:fixed}
+    th,td{height:39px;padding:0;border:1px solid var(--slate-500);vertical-align:middle}
+    th{width:32%;background:var(--slate-100);color:#1e293b;font-size:14px;font-weight:750;text-align:center}
+    .bend-type-cell{width:27.2%;padding:4px;background:#f8fafc}
+    .bend-toggle{display:flex;justify-content:center;padding:2px;border-radius:6px;background:var(--slate-200)}
+    .bend-toggle button{min-width:0;height:27px;padding:0 5px;border:0;border-radius:4px;background:#fff;color:var(--slate-500);font-size:12px;font-weight:750}
+    .bend-toggle button{width:100%}
+    .bend-toggle button.active,.bend-toggle button[aria-pressed="true"]{background:var(--orange);color:#fff}
+    .result{background:#fff56b;color:#111827;font-size:21px;font-weight:900;text-align:center}
+    .folds{background:var(--slate-200);color:#111827;font-size:17px;font-weight:850;text-align:center}
+    .size,.compensation{width:100%;height:38px;padding:5px 10px;border:0;border-radius:0;background:#fff;color:#111827;font-size:16px;font-weight:700;text-align:center;appearance:textfield;-moz-appearance:textfield}
+    .size::-webkit-outer-spin-button,.size::-webkit-inner-spin-button{margin:0;-webkit-appearance:none}
+    .size:focus,.compensation:focus{position:relative;z-index:1;outline:2px solid var(--slate-600);outline-offset:-2px}
+    .add-wrap{display:flex;justify-content:center;margin-top:10px}
+    .add{height:36px;padding:0 18px;border:1px dashed var(--slate-400);border-radius:7px;background:#fff;color:var(--slate-600);font-size:13px;font-weight:750}
+    .add:hover,.add:focus-visible{border-color:var(--slate-700);background:var(--slate-100);color:#1e293b}
+    .note{min-height:20px;margin:10px 0 0;color:var(--slate-500);font-size:12.5px;font-weight:650;text-align:center}
+    .note.error{color:var(--orange)}
+    .actions{display:flex;justify-content:center;gap:9px;margin-top:12px}
+    .actions button{height:38px;padding:0 15px;border:1px solid var(--slate-300);border-radius:7px;background:#fff;color:var(--slate-600);font-weight:750}
+    .actions .clear-all{border-color:#fecaca;color:#dc2626}
+    .site-version{position:absolute;right:14px;top:50%;color:#cbd5e1;font-size:10px;font-weight:650;line-height:1;opacity:.78;transform:translateY(-50%);pointer-events:none;user-select:none;white-space:nowrap}
+    [hidden]{display:none!important}
+    @media(max-width:420px){body{padding:0}.calculator{border:0;border-radius:0;box-shadow:none}.body{padding:12px}.context{gap:2px;padding:5px 8px 5px 3px;font-size:11.5px}.context-choice select{max-width:88px;font-size:11.5px}.context-choice.material select{min-width:52px}.thickness-control{width:29px}.thickness-display{font-size:11.5px}.bend-type-cell{width:27.2%}.bend-toggle button{padding:0 3px;font-size:11.5px}}
+  </style>
+</head>
+<body>
+  <main class="calculator">
+    <header class="head">
+      <h1>BD扣除展開計算</h1>
+      <span class="site-version" aria-label="網站版次 Version 149 測試">Version 149 測試</span>
+    </header>
+    <div class="body">
+      <div class="context" aria-label="目前展開計算條件">
+        <label class="context-choice material" for="material"><span class="sr-only">材質</span><select id="material" aria-label="材質"></select></label>
+        <span class="context-separator" aria-hidden="true">｜</span>
+        <label class="context-choice" for="thickness"><span class="sr-only">板厚</span><span class="thickness-control"><select id="thickness" aria-label="板厚"></select><span class="thickness-display" id="thicknessDisplay" aria-hidden="true"></span></span><span class="context-unit">T</span></label>
+        <span class="context-separator" aria-hidden="true">｜</span>
+        <span id="context"><span class="metric-angle">90°</span><span class="metric-separator">｜</span><span class="metric-radius">R0</span><span class="metric-separator">｜</span><span class="metric-m">M －</span><span class="metric-separator">｜</span><span class="metric-bd">BD －</span><span class="metric-separator">｜</span><span class="metric-f">F －</span></span>
+      </div>
+      <div class="memory-nav" aria-label="切換包外尺寸記憶組">
+        <button type="button" class="memory-arrow" aria-label="上一組包外尺寸" data-memory="-1">‹</button>
+        <div class="memory-label" id="memoryLabel" aria-live="polite">尺寸組 1／3</div>
+        <button type="button" class="memory-arrow" aria-label="下一組包外尺寸" data-memory="1">›</button>
+      </div>
+      <table aria-label="包外尺寸展開計算表">
+        <tbody id="calcRows">
+          <tr><th scope="row">展開計算</th><td colspan="2" class="result" id="result">－</td></tr>
+          <tr><th scope="row">折數</th><td colspan="2" class="folds" id="folds">0（一般0／反折0）</td></tr>
+          <tr><th scope="row">係數補償</th><td colspan="2"><input class="compensation" id="compensation" type="text" inputmode="decimal" autocomplete="off" placeholder="+0.1 / -0.1" aria-label="係數補償"></td></tr>
+        </tbody>
+      </table>
+      <div class="add-wrap" id="addWrap"><button type="button" class="add" id="addRow">＋ 新增尺寸</button></div>
+      <p class="note" id="note">僅適用全部為包外尺寸、90°、內R0的折彎</p>
+      <div class="actions">
+        <button type="button" id="clearGroup">清除此組</button>
+        <button type="button" class="clear-all" id="clearAll">清除全部</button>
+      </div>
+    </div>
+  </main>
+  <script src="/engineering-coefficients.js"></script>
+  <script>
+    const $=id=>document.getElementById(id);
+    const COUNT=3;
+    const MAX_ROWS=10;
+    const BASE_ROWS=6;
+    const numberFormat=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:4});
+    const compact2=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2});
+    const fixed2=new Intl.NumberFormat('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const coefficients=window.EngineeringCoefficients||null;
+    let context={mat:'',thick:'',angle:'90',radius:'',bd:'',m:'',f:'',materials:[],thicknesses:[]};
+    let memoryIndex=0;
+    let applying=false;
+    let groups=Array.from({length:COUNT},blankGroup);
+    let fitFrame=0;
+    const POPUP_SIZE_KEY='engineering-developed-popup-size-v3';
+    let hasSavedPopupSize=false;
+    let popupReadyForManualResize=false;
+    let autoResizingUntil=0;
+    let manualResizeTimer=0;
+
+    function blankGroup(){return{compensation:'',sizes:Array(MAX_ROWS).fill(''),types:Array(MAX_ROWS).fill('normal'),visibleCount:BASE_ROWS}}
+    function parseNumber(value){const text=String(value??'').trim();return text===''?NaN:Number(text)}
+    function readSavedPopupSize(){try{const saved=JSON.parse(localStorage.getItem(POPUP_SIZE_KEY)||'null');hasSavedPopupSize=Number.isFinite(saved?.width)&&Number.isFinite(saved?.height);return hasSavedPopupSize?saved:null}catch(error){return null}}
+    function savePopupSize(){try{localStorage.setItem(POPUP_SIZE_KEY,JSON.stringify({width:Math.round(window.outerWidth),height:Math.round(window.outerHeight)}));hasSavedPopupSize=true}catch(error){}}
+    function fitPopupToCalculator(){if(hasSavedPopupSize||typeof window.resizeTo!=='function')return;cancelAnimationFrame(fitFrame);fitFrame=requestAnimationFrame(()=>{const calculator=document.querySelector('.calculator');if(!calculator)return;const bodyStyle=getComputedStyle(document.body);const desiredInnerWidth=Math.ceil(calculator.getBoundingClientRect().width+parseFloat(bodyStyle.paddingLeft)+parseFloat(bodyStyle.paddingRight));const desiredInnerHeight=Math.ceil(calculator.getBoundingClientRect().height+parseFloat(bodyStyle.paddingTop)+parseFloat(bodyStyle.paddingBottom));const chromeWidth=Math.max(0,window.outerWidth-window.innerWidth);const chromeHeight=Math.max(0,window.outerHeight-window.innerHeight);const maxWidth=Math.max(420,(screen.availWidth||desiredInnerWidth)-24);const maxHeight=Math.max(520,(screen.availHeight||desiredInnerHeight)-24);const targetWidth=Math.min(desiredInnerWidth+chromeWidth,maxWidth);const targetHeight=Math.min(desiredInnerHeight+chromeHeight,maxHeight);if(Math.abs(targetWidth-window.outerWidth)>1||Math.abs(targetHeight-window.outerHeight)>1){autoResizingUntil=Date.now()+800;window.resizeTo(targetWidth,targetHeight)}})}
+    function handlePopupResize(){if(!popupReadyForManualResize||Date.now()<autoResizingUntil)return;clearTimeout(manualResizeTimer);manualResizeTimer=setTimeout(()=>{if(Date.now()<autoResizingUntil)return;savePopupSize()},350)}
+    function normalizeGroup(group){const blank=blankGroup();const sizes=Array.isArray(group?.sizes)?group.sizes.slice(0,MAX_ROWS).map(value=>value==null?'':String(value)):blank.sizes;const types=Array.isArray(group?.types)?group.types.slice(0,MAX_ROWS).map(type=>type==='reverse'?'reverse':'normal'):blank.types;while(sizes.length<MAX_ROWS)sizes.push('');while(types.length<MAX_ROWS)types.push('normal');return{compensation:group?.compensation==null?'':String(group.compensation),sizes,types,visibleCount:Math.min(MAX_ROWS,Math.max(BASE_ROWS,Number(group?.visibleCount)||BASE_ROWS))}}
+    function rows(){return[...document.querySelectorAll('[data-size-row]')]}
+    function visibleInputs(){return rows().filter(row=>!row.hidden).map(row=>row.querySelector('.size'))}
+    function capture(){if(applying)return;groups[memoryIndex]=normalizeGroup({compensation:$('compensation').value,sizes:rows().map(row=>row.querySelector('.size').value),types:rows().map(row=>row.dataset.type),visibleCount:rows().filter(row=>!row.hidden).length})}
+    function apply(){const group=normalizeGroup(groups[memoryIndex]);groups[memoryIndex]=group;applying=true;$('compensation').value=group.compensation;rows().forEach((row,index)=>{row.dataset.type=group.types[index];row.querySelector('.size').value=group.sizes[index];const button=row.querySelector('[data-reverse-toggle]'),selected=group.types[index]==='reverse';button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));row.hidden=index>=group.visibleCount});applying=false;$('memoryLabel').textContent='尺寸組 '+(memoryIndex+1)+'／'+COUNT;updateAddButton()}
+    function switchMemory(direction){capture();memoryIndex=(memoryIndex+direction+COUNT)%COUNT;apply();calculate();setTimeout(()=>visibleInputs()[0]?.focus(),0)}
+    function updateAddButton(){$('addWrap').hidden=!rows().some(row=>row.hidden)}
+    function addRow(){const row=rows().find(item=>item.hidden);if(!row)return;row.hidden=false;capture();updateAddButton();calculate();row.querySelector('.size')?.focus()}
+    function toggleReverse(button){const row=button.closest('[data-size-row]');if(!row)return;const selected=row.dataset.type!=='reverse';row.dataset.type=selected?'reverse':'normal';button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));calculate()}
+    function clearGroup(){groups[memoryIndex]=blankGroup();apply();calculate();visibleInputs()[0]?.focus()}
+    function clearAll(){groups=Array.from({length:COUNT},blankGroup);memoryIndex=0;apply();calculate();visibleInputs()[0]?.focus()}
+    function normalizeOptions(options,current){const normalized=Array.isArray(options)?options.map(option=>typeof option==='object'?{value:String(option.value??''),label:String(option.label??option.value??'')}:{value:String(option),label:String(option)}):[];if(current&&!normalized.some(option=>option.value===String(current)))normalized.unshift({value:String(current),label:String(current)});if(!normalized.some(option=>option.value===''))normalized.unshift({value:'',label:''});return normalized}
+    function fillSelect(select,options,value){const previous=String(value??'');select.innerHTML='';options.forEach(option=>{const item=document.createElement('option');item.value=option.value;item.textContent=option.label;select.appendChild(item)});select.value=[...select.options].some(option=>option.value===previous)?previous:'';if(select.id==='thickness')$('thicknessDisplay').textContent=select.selectedOptions[0]?.textContent||''}
+    function refreshSelectionControls(){applying=true;fillSelect($('material'),normalizeOptions(context.materials,context.mat),context.mat);fillSelect($('thickness'),normalizeOptions(context.thicknesses,context.thick),context.thick);applying=false}
+    function updateLocalCoefficients(validateThickness=true){if(!coefficients)return;if(validateThickness&&context.thick&&!coefficients.hasThickness(context.mat,context.thick))context.thick='';context.materials=coefficients.materialOptions();context.thicknesses=coefficients.thicknessOptions(context.mat);const values=coefficients.lookup(context.mat,context.thick);context.m=Number.isFinite(values.m)?String(values.m):'';context.bd=Number.isFinite(values.bd)?String(values.bd):'';context.f=Number.isFinite(values.f)?String(values.f):''}
+    function setContext(next){const incoming=next||{};context={...context,...incoming,mat:incoming.mat==null?context.mat:String(incoming.mat),thick:incoming.thick==null?context.thick:String(incoming.thick),angle:incoming.angle==null?context.angle:String(incoming.angle),radius:incoming.radius==null?context.radius:String(incoming.radius),bd:incoming.bd==null?context.bd:String(incoming.bd),m:incoming.m==null?context.m:String(incoming.m),f:incoming.f==null?context.f:String(incoming.f),materials:Array.isArray(incoming.materials)?incoming.materials:context.materials,thicknesses:Array.isArray(incoming.thicknesses)?incoming.thicknesses:context.thicknesses};updateLocalCoefficients();refreshSelectionControls();calculate()}
+    function notifySelection(){if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'engineering-developed-selection',payload:{mat:context.mat,thick:context.thick}},location.origin)}
+    function handleMaterialChange(){if(applying)return;context.mat=$('material').value;updateLocalCoefficients();refreshSelectionControls();calculate();notifySelection()}
+    function handleThicknessChange(){if(applying)return;context.thick=$('thickness').value;updateLocalCoefficients(false);refreshSelectionControls();calculate();notifySelection()}
+    function calculate(){capture();const mat=context.mat;const thick=context.thick;const angle=parseNumber(context.angle);const radiusText=String(context.radius||'').trim();const radius=radiusText===''?0:parseNumber(radiusText);const bd=parseNumber(context.bd);const bendM=parseNumber(context.m);const reverseF=parseNumber(context.f);const compensationRaw=$('compensation').value.trim();const compensation=compensationRaw===''?0:Number(compensationRaw);$('context').innerHTML='<span class="metric-angle">'+(Number.isFinite(angle)?numberFormat.format(angle):'－')+'°</span><span class="metric-separator">｜</span><span class="metric-radius">R'+(Number.isFinite(radius)?numberFormat.format(radius):'－')+'</span><span class="metric-separator">｜</span><span class="metric-m">M '+(Number.isFinite(bendM)?compact2.format(bendM):'－')+'</span><span class="metric-separator">｜</span><span class="metric-bd">BD '+(Number.isFinite(bd)?compact2.format(bd):'－')+'</span><span class="metric-separator">｜</span><span class="metric-f">F '+(Number.isFinite(reverseF)?compact2.format(reverseF):'－')+'</span>';const entries=rows().filter(row=>!row.hidden).map(row=>{const raw=row.querySelector('.size').value.trim();return{raw,value:Number(raw),type:row.dataset.type||'normal'}}).filter(entry=>entry.raw);const valid=entries.filter(entry=>Number.isFinite(entry.value)&&entry.value>0);const foldCount=Math.max(0,valid.length-1);
+    const reverseCount=valid.filter(entry=>entry.type==='reverse').length;
+    const normalCount=foldCount-reverseCount;$('folds').textContent=foldCount+'（一般'+Math.max(0,normalCount)+'／反折'+reverseCount+'）';
+    $('result').textContent='－';const note=$('note');note.classList.remove('error');if(!mat||!thick){note.textContent='請選擇材質與板厚';note.classList.add('error');return}if(angle!==90||radius!==0){note.textContent='此計算僅適用全部為包外尺寸、90°、內R0的折彎';note.classList.add('error');return}if(!Number.isFinite(bd)){note.textContent='目前條件無法取得 BD';note.classList.add('error');return}if(!Number.isFinite(compensation)){note.textContent='係數補償請輸入數字，例如 +0.1 或 -0.1';note.classList.add('error');return}if(entries.length!==valid.length){note.textContent='包外尺寸必須大於 0';note.classList.add('error');return}if(valid.length<2){note.textContent='請至少輸入 2 個包外尺寸';return}
+    if(reverseCount>foldCount){note.textContent='反折數不可超過總折數';note.classList.add('error');return}if(reverseCount>0&&!Number.isFinite(reverseF)){note.textContent='目前材質與板厚無反折 F 值';note.classList.add('error');return}const total=valid.reduce((sum,entry)=>sum+entry.value,0);const developed=total-bd*normalCount-(Number.isFinite(reverseF)?reverseF*reverseCount:0)+compensation;$('result').textContent=fixed2.format(developed);note.textContent='外尺寸總和 '+fixed2.format(total)+' − BD '+fixed2.format(bd)+' × '+normalCount+(reverseCount?' − F '+fixed2.format(reverseF)+' × '+reverseCount:'')+(compensation>0?' ＋ 補償 '+fixed2.format(compensation):compensation<0?' − 補償 '+fixed2.format(Math.abs(compensation)):'')}
+    function buildRows(){for(let index=0;index<MAX_ROWS;index+=1){const number=String(index+1).padStart(2,'0');const row=document.createElement('tr');row.dataset.sizeRow='';row.dataset.type='normal';if(index>=BASE_ROWS)row.hidden=true;row.innerHTML='<th scope="row">包外尺寸</th><td class="bend-type-cell"><div class="bend-toggle"><button type="button" data-reverse-toggle aria-pressed="false" aria-label="包外尺寸 '+number+' 後一折設為反折">反折</button></div></td><td><input class="size" type="number" inputmode="decimal" min="0" step="any" autocomplete="off" aria-label="包外尺寸 '+number+'"></td>';$('calcRows').appendChild(row)}}
+    function handleEnter(event){if(event.key!=='Enter')return;if(event.target===$('compensation')){event.preventDefault();const first=visibleInputs()[0];first?.focus();first?.select();return}if(!event.target.classList.contains('size'))return;event.preventDefault();const inputs=visibleInputs();const next=inputs[inputs.indexOf(event.target)+1];next?.focus();next?.select()}
+
+    readSavedPopupSize();
+    buildRows();
+    document.querySelectorAll('[data-memory]').forEach(button=>button.addEventListener('click',()=>switchMemory(Number(button.dataset.memory))));
+    document.querySelectorAll('[data-reverse-toggle]').forEach(button=>button.addEventListener('click',()=>toggleReverse(button)));
+    document.querySelectorAll('.size').forEach(input=>input.addEventListener('input',calculate));
+    $('compensation').addEventListener('input',calculate);
+    $('addRow').addEventListener('click',addRow);
+    $('clearGroup').addEventListener('click',clearGroup);
+    $('clearAll').addEventListener('click',clearAll);
+    $('material').addEventListener('change',handleMaterialChange);
+    $('thickness').addEventListener('change',handleThicknessChange);
+    document.addEventListener('keydown',handleEnter);
+    window.addEventListener('message',event=>{if(event.origin!==location.origin||event.data?.type!=='engineering-developed-context')return;setContext(event.data.payload)});
+    setContext(Object.fromEntries(new URLSearchParams(location.search)));
+    apply();
+    calculate();
+    new ResizeObserver(fitPopupToCalculator).observe(document.querySelector('.calculator'));
+    window.addEventListener('resize',handlePopupResize);
+    window.addEventListener('load',fitPopupToCalculator);
+    document.fonts?.ready.then(fitPopupToCalculator);
+    fitPopupToCalculator();
+    if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'engineering-developed-ready'},location.origin);
+    setTimeout(()=>{popupReadyForManualResize=true},1200);
+    setTimeout(()=>visibleInputs()[0]?.focus(),0);
+  </script>
+</body>
+</html>
