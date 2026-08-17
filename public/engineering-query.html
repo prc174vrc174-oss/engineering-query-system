@@ -2475,7 +2475,7 @@ h3 {
                 <button class="tab-btn" data-sys="nail">釘子查詢系統</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 150 測試">Version 150 測試</span>
+<span class="site-version" aria-label="網站版次 Version 151 測試">Version 151 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -2948,10 +2948,15 @@ init();
 				finished = true;
 				cleanup();
 				useLastKnownTime();
-			}, 10000);
+			}, 45000);
 
 			script.src = metadataWebAppUrl + '?callback=' + encodeURIComponent(callbackName) + '&_=' + Date.now();
 			document.head.appendChild(script);
+		}
+
+		if (/\.github\.io$/i.test(window.location.hostname)) {
+			tryDirectMetadata();
+			return;
 		}
 
 		var controller = new AbortController();
