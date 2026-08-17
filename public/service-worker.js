@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v151';
+const CACHE_NAME = 'engineering-query-pwa-v152';
 const APP_SHELL = [
   './',
   './engineering-query.html',

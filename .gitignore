@@ -40,3 +40,18 @@ next-env.d.ts
 /.sites-runtime/
 /outputs/
 /work/
+
+# Local work files that must not be published with the web application
+/Excel_Files/
+/Stock_Scripts/
+/skills/
+/server.js
+/check_outlook.ps1
+/*.bat
+/*.vbs
+/*.msg
+/*.pdf
+/*.xlsx
+/*.xlsm
+/工程查詢系統.html
+/antigravity2-cn

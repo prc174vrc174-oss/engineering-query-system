@@ -131,7 +131,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(calculator, /<strong>角度與R變化<\/strong>/);
   assert.match(calculator, /zeroTotal\+total\+comp/);
   assert.match(calculator, /total\+=val-m/);
-  assert.match(calculator, /Version 151 測試/);
+  assert.match(calculator, /Version 152 測試/);
   assert.match(calculator, /zero:value-tc\*\(t\+radius\)/);
   assert.match(calculator, /compact2=new Intl\.NumberFormat\('zh-TW',\{maximumFractionDigits:2\}\)/);
   assert.match(calculator, /Number\.isFinite\(e\.zero\)\?compact2\.format\(e\.zero\):'－'/);
@@ -174,7 +174,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(source, /let popupWidth=450,popupHeight=710/);
 });
 
-test("Version 151 test labels live in the requested header areas", async () => {
+test("Version 152 test labels live in the requested header areas", async () => {
   const source = await readFile(
     new URL("../public/engineering-query.html", import.meta.url),
     "utf8",
@@ -186,14 +186,14 @@ test("Version 151 test labels live in the requested header areas", async () => {
 
   assert.match(
     source,
-    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 151 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 152 測試<\/span>[\s\S]*?<\/header>/,
   );
   assert.match(
     standalone,
-    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 151 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 152 測試<\/span>[\s\S]*?<\/header>/,
   );
-  assert.equal((source.match(/Version 151 測試/g) || []).length, 2);
-  assert.equal((standalone.match(/Version 151 測試/g) || []).length, 2);
+  assert.equal((source.match(/Version 152 測試/g) || []).length, 2);
+  assert.equal((standalone.match(/Version 152 測試/g) || []).length, 2);
 });
 
 test("GitHub Pages build is installable and supports direct Apps Script upload", async () => {
@@ -210,7 +210,7 @@ test("GitHub Pages build is installable and supports direct Apps Script upload",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v151/);
+  assert.match(serviceWorker, /engineering-query-pwa-v152/);
   assert.match(upload, /isGitHubPages/);
   assert.match(upload, /DIRECT_SYNC_URL/);
   assert.match(upload, /mode: 'no-cors'/);
@@ -221,8 +221,21 @@ test("GitHub Pages build is installable and supports direct Apps Script upload",
 
 test("GitHub Pages reads sheet metadata directly with a mobile-safe timeout", async () => {
   const source = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
-  assert.match(source, /if \(\/\\\.github\\\.io\$\/i\.test\(window\.location\.hostname\)\) \{[\s\S]*?tryDirectMetadata\(\);[\s\S]*?return;/);
+  assert.match(source, /fetch\(metadataWebAppUrl \+ '\?_=' \+ Date\.now\(\), \{[\s\S]*?mode: 'cors'/);
+  assert.match(source, /setTimeout\(function \(\) \{ controller\.abort\(\); \}, 30000\)/);
+  assert.match(source, /if \(!\/\\\.github\\\.io\$\/i\.test\(window\.location\.hostname\)\)/);
+  assert.match(source, /tryDirectMetadata\(\)/);
   assert.match(source, /\}, 45000\);/);
+});
+
+test("nail data cache and active tab are restored before background refresh", async () => {
+  const source = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
+  assert.match(source, /function loadCachedData\(\)/);
+  assert.match(source, /localStorage\.getItem\('nailSheetCachedHeaders'\)/);
+  assert.match(source, /localStorage\.setItem\('nailSheetCachedRows', JSON\.stringify\(rawRows\)\)/);
+  assert.match(source, /loadCachedData\(\);[\s\S]*?loadSheet\(initialUrl\);/);
+  assert.match(source, /localStorage\.setItem\('engineeringActiveTab', target\)/);
+  assert.match(source, /localStorage\.getItem\('engineeringActiveTab'\)/);
 });
 
 test("custom inner R values can be committed with Enter", async () => {

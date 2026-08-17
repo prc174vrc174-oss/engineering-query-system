@@ -2475,7 +2475,7 @@ h3 {
                 <button class="tab-btn" data-sys="nail">釘子查詢系統</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 151 測試">Version 151 測試</span>
+<span class="site-version" aria-label="網站版次 Version 152 測試">Version 152 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -2902,7 +2902,15 @@ init();
 	function loadSheetModifiedTime() {
 		var updateEl = document.getElementById('sheetUpdateValue');
 		if (!updateEl) return;
-		updateEl.textContent = '讀取中…';
+
+		// 若已有快取時間，立即顯示，不讓畫面閃爍「讀取中…」
+		var initialCached = '';
+		try { initialCached = localStorage.getItem('nailSheetLastModified') || ''; } catch (e) {}
+		if (initialCached) {
+			updateEl.textContent = initialCached;
+		} else {
+			updateEl.textContent = '讀取中…';
+		}
 
 		function applyModifiedTime(value) {
 			if (!value) return false;
@@ -2954,14 +2962,12 @@ init();
 			document.head.appendChild(script);
 		}
 
-		if (/\.github\.io$/i.test(window.location.hostname)) {
-			tryDirectMetadata();
-			return;
-		}
-
 		var controller = new AbortController();
-		var timer = setTimeout(function () { controller.abort(); }, 12000);
-		fetch('/api/sheet-metadata?_=' + Date.now(), {
+		var timer = setTimeout(function () { controller.abort(); }, 30000);
+
+		// 優先直接以 CORS fetch 呼叫 Google Apps Script (手機與電腦瀏覽器皆支援良好)
+		fetch(metadataWebAppUrl + '?_=' + Date.now(), {
+			mode: 'cors',
 			cache: 'no-store',
 			signal: controller.signal
 		})
@@ -2970,11 +2976,30 @@ init();
 				return response.json();
 			})
 			.then(function (result) {
-				if (!result || !result.ok || !result.formattedLastUpdated) throw new Error('沒有修改時間');
-				applyModifiedTime(result.formattedLastUpdated);
+				if (!result || !result.ok || !applyModifiedTime(result.formattedLastUpdated)) {
+					throw new Error('無效的修改時間格式');
+				}
 			})
 			.catch(function () {
-				tryDirectMetadata();
+				// 若直接 fetch 失敗，且非 GitHub Pages 則嘗試本機/後端 API
+				if (!/\.github\.io$/i.test(window.location.hostname)) {
+					fetch('/api/sheet-metadata?_=' + Date.now(), { cache: 'no-store' })
+						.then(function (response) {
+							if (!response.ok) throw new Error('HTTP ' + response.status);
+							return response.json();
+						})
+						.then(function (result) {
+							if (!result || !result.ok || !applyModifiedTime(result.formattedLastUpdated)) {
+								tryDirectMetadata();
+							}
+						})
+						.catch(function () {
+							tryDirectMetadata();
+						});
+				} else {
+					// GitHub Pages 環境下以 JSONP 作為備援
+					tryDirectMetadata();
+				}
 			})
 			.finally(function () { clearTimeout(timer); });
 	}
@@ -3288,6 +3313,23 @@ init();
 		applyFilters();
 	}
 
+	function loadCachedData() {
+		try {
+			var ch = localStorage.getItem('nailSheetCachedHeaders');
+			var cr = localStorage.getItem('nailSheetCachedRows');
+			if (ch && cr) {
+				var h = JSON.parse(ch);
+				var r = JSON.parse(cr);
+				if (h && r && r.length > 0) {
+					setData(h, r);
+					setStatus('已載入本機快取資料（' + allRows.length + ' 筆），正在同步最新…');
+					return true;
+				}
+			}
+		} catch(e) {}
+		return false;
+	}
+
 	function renderData(table) {
 		var hasLabels = table.cols && table.cols.some(function (c) { return (c.label || '').trim() !== ''; });
 		var rawHeaders = [];
@@ -3312,6 +3354,10 @@ init();
 			rawHeaders = table.cols ? table.cols.map(function (c) { return (c.label || '').trim(); }) : [];
 		}
 		setData(rawHeaders, rawRows);
+		try {
+			localStorage.setItem('nailSheetCachedHeaders', JSON.stringify(rawHeaders));
+			localStorage.setItem('nailSheetCachedRows', JSON.stringify(rawRows));
+		} catch (e) {}
 		setStatus('已載入 Google 試算表即時資料（' + allRows.length + ' 筆）。');
 	}
 
@@ -4261,6 +4307,7 @@ init();
 
 	urlInput.value = initialUrl;
 	loadLastUploadResult();
+	loadCachedData();
 	loadSheet(initialUrl);
 })();
 
@@ -4293,6 +4340,7 @@ init();
                     btn.classList.add('active');
                     
                     var target = btn.dataset.sys;
+                    try { localStorage.setItem('engineeringActiveTab', target); } catch (e) {}
                     if (target === 'bend') {
                         panels.bend.style.display = 'block';
                         panels.nail.style.display = 'none';
@@ -4305,6 +4353,15 @@ init();
                     if (bendBackTop && target !== 'bend') bendBackTop.classList.remove('show');
                 });
             });
+
+            // 恢復上次使用的分頁標籤（例如重開時直接停在釘子查詢系統，不需手動再切換）
+            try {
+                var savedActiveTab = localStorage.getItem('engineeringActiveTab');
+                if (savedActiveTab && panels[savedActiveTab]) {
+                    var targetTabBtn = document.querySelector('.tab-btn[data-sys="' + savedActiveTab + '"]');
+                    if (targetTabBtn) targetTabBtn.click();
+                }
+            } catch (e) {}
 
             // Mobile swipe navigation: left to Nail, right to Bend.
             // Interactive controls and the nail results table are excluded to avoid accidental switches.
