@@ -3,6 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1459c8">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="工程查詢系統">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./app-icon-192.png">
     <title>工程查詢系統</title>
     <style>
         
@@ -2370,6 +2378,18 @@ h3 {
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .nail-upload-direct-token {
+            display: grid;
+            gap: 6px;
+            padding: 12px;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            background: #eff6ff;
+        }
+        .nail-upload-direct-token[hidden] { display: none !important; }
+        .nail-upload-direct-token label { margin: 0; color: #1e3a8a; font-weight: 700; }
+        .nail-upload-direct-token input { height: 38px; background: #fff; }
+        .nail-upload-direct-token small { color: #475569; }
         .nail-upload-switch-account {
             flex: 0 0 auto;
             height: 30px;
@@ -2455,7 +2475,7 @@ h3 {
                 <button class="tab-btn" data-sys="nail">釘子查詢系統</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 149 測試">Version 149 測試</span>
+<span class="site-version" aria-label="網站版次 Version 150 測試">Version 150 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -2627,10 +2647,15 @@ h3 {
 				<div class="nail-upload-check" id="nailUploadRangeCheck"><span>資料範圍</span><strong id="nailUploadRangeValue">－</strong></div>
 				<div class="nail-upload-check" id="nailUploadHeaderCheck"><span>欄位檢查</span><strong id="nailUploadHeaderValue">－</strong></div>
             </div>
-			<div class="nail-upload-account">
+			<div class="nail-upload-account" id="nailUploadAccountRow">
 				<span>登入帳號</span>
 				<strong id="nailUploadAccountValue">已授權帳號</strong>
 				<button type="button" class="nail-upload-switch-account" id="nailUploadSwitchAccountBtn">更換登入帳號</button>
+			</div>
+			<div class="nail-upload-direct-token" id="nailUploadDirectTokenRow" hidden>
+				<label for="nailUploadDirectToken">Google Sheet 更新密鑰</label>
+				<input type="password" id="nailUploadDirectToken" autocomplete="off" placeholder="請輸入更新密鑰">
+				<small>只暫存在目前瀏覽器分頁，關閉分頁後即清除，不會上傳到 GitHub。</small>
 			</div>
 			<p class="nail-upload-warning">確認後會以這份 Excel 的「釘子自動彙總」內容覆蓋 Google Sheet；不會執行 Power Query 或巨集。</p>
 			<div class="nail-upload-status is-loading" id="nailUploadStatus" role="status" aria-live="polite">正在讀取 Excel…</div>
@@ -2849,7 +2874,19 @@ init();
 	var lanWebUpdateOrigin = 'http://192.168.0.52:8767';
 	var lanWebUpdateUrl = lanWebUpdateOrigin + '/update-web';
 	var webUpdateFrame = null;
-	var lanWebUpdateToken = '1cfa2021a21b58b9e1689c6a17dbfd3152f61b4911a341acce4d8f8834b51cc9';
+	var lanWebUpdateToken = '';
+
+	function getLanWebUpdateToken() {
+		if (lanWebUpdateToken) return lanWebUpdateToken;
+		try { lanWebUpdateToken = sessionStorage.getItem('engineeringSheetUpdateToken') || ''; } catch (e) {}
+		if (!lanWebUpdateToken) {
+			lanWebUpdateToken = window.prompt('請輸入更新密鑰（只保留到目前分頁關閉）') || '';
+			try {
+				if (lanWebUpdateToken) sessionStorage.setItem('engineeringSheetUpdateToken', lanWebUpdateToken);
+			} catch (e) {}
+		}
+		return lanWebUpdateToken;
+	}
 
 	function setStatus(msg, isError) {
 		statusEl.textContent = msg || '';
@@ -3034,6 +3071,11 @@ init();
 	}
 
 	function submitWebUpdate() {
+		var updateToken = getLanWebUpdateToken();
+		if (!updateToken) {
+			setWebUpdateState('error', '未輸入更新密鑰，已取消更新。');
+			return;
+		}
 		webUpdateFrame = document.getElementById('nailUpdateFrame');
 		if (!webUpdateFrame) {
 			webUpdateFrame = document.createElement('iframe');
@@ -3050,7 +3092,7 @@ init();
 		var tokenInput = document.createElement('input');
 		tokenInput.type = 'hidden';
 		tokenInput.name = 'token';
-		tokenInput.value = lanWebUpdateToken;
+		tokenInput.value = updateToken;
 		form.appendChild(tokenInput);
 		document.body.appendChild(form);
 		form.submit();
@@ -4299,5 +4341,12 @@ init();
         })();
     </script>
     <script src="/nail-excel-upload.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(function () {});
+            });
+        }
+    </script>
 </body>
 </html>

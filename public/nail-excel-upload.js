@@ -3,6 +3,9 @@
 
   var TARGET_SHEET = '釘子自動彙總';
   var SYNC_URL = '/api/nail-upload';
+  var DIRECT_SYNC_URL = 'https://script.google.com/macros/s/AKfycbzQueEqjZkPiTkNJ9G6-_m5Qgr4-Yg7kxhRXh3H_2rVVVfl3Hmr2LWI8sz4DmRi2Qe0ZQ/exec';
+  var DIRECT_SPREADSHEET_ID = '1uUZgtiScqYtEqcDF8JjvROHwBkjlZ2IniGLhFUwMp-4';
+  var isGitHubPages = /\.github\.io$/i.test(window.location.hostname);
   var MAX_FILE_BYTES = 25 * 1024 * 1024;
   var EXPECTED_HEADERS = [
     '工作表', '品號', '區域', '規格', '廠商圖號料號', '數量', '材質', '實量ø徑',
@@ -23,7 +26,10 @@
   var rangeValue = document.getElementById('nailUploadRangeValue');
   var headerValue = document.getElementById('nailUploadHeaderValue');
   var accountValue = document.getElementById('nailUploadAccountValue');
+  var accountRow = document.getElementById('nailUploadAccountRow');
   var switchAccountButton = document.getElementById('nailUploadSwitchAccountBtn');
+  var directTokenRow = document.getElementById('nailUploadDirectTokenRow');
+  var directTokenInput = document.getElementById('nailUploadDirectToken');
   var statusEl = document.getElementById('nailUploadStatus');
   var parsedWorkbook = null;
   var authorizedEmail = '';
@@ -85,6 +91,17 @@
     if (uploading) return;
     button.disabled = true;
     try {
+      if (isGitHubPages) {
+        authorizedEmail = 'GitHub Pages 直接更新';
+        if (accountRow) accountRow.hidden = true;
+        if (directTokenRow) directTokenRow.hidden = false;
+        if (directTokenInput && !directTokenInput.value) {
+          try { directTokenInput.value = sessionStorage.getItem('engineeringSheetUpdateToken') || ''; } catch (error) {}
+        }
+        fileInput.value = '';
+        fileInput.click();
+        return;
+      }
       var response = await fetch(SYNC_URL, { cache: 'no-store', credentials: 'same-origin' });
       var result = await response.json();
       if (response.status === 401 && result && result.signInUrl) {
@@ -385,27 +402,58 @@
         worksheet: parsedWorkbook.sheetName,
         tsv: parsedWorkbook.tsv
       };
-      var response = await fetch(SYNC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json;charset=UTF-8' },
-        body: JSON.stringify(payload),
-        cache: 'no-store',
-        credentials: 'same-origin',
-        signal: controller.signal
-      });
-      var responseText = await response.text();
       var result;
-      try { result = JSON.parse(responseText); }
-      catch (error) { throw new Error('雲端程式回應格式不正確。'); }
-      if (response.status === 401 && result && result.signInUrl) {
-        openSignInAtTop(result.signInUrl);
-        return;
-      }
-      if (!response.ok || !result || !result.ok) throw new Error((result && result.error) || 'Google Sheet 更新失敗。');
 
-      setStatus('更新成功：' + (result.rows || parsedWorkbook.rows) + ' 列 × ' + (result.columns || parsedWorkbook.columns) + ' 欄。正在重新載入查詢資料…', 'success');
+      if (isGitHubPages) {
+        var directToken = directTokenInput ? directTokenInput.value.trim() : '';
+        if (!directToken) {
+          if (directTokenInput) directTokenInput.focus();
+          throw new Error('請先輸入 Google Sheet 更新密鑰。');
+        }
+        try { sessionStorage.setItem('engineeringSheetUpdateToken', directToken); } catch (error) {}
+        await fetch(DIRECT_SYNC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify({
+            token: directToken,
+            spreadsheetId: DIRECT_SPREADSHEET_ID,
+            worksheet: payload.worksheet,
+            tsv: payload.tsv
+          }),
+          cache: 'no-store',
+          mode: 'no-cors',
+          credentials: 'omit',
+          redirect: 'follow',
+          signal: controller.signal
+        });
+        result = { ok: true, rows: parsedWorkbook.rows, columns: parsedWorkbook.columns, direct: true };
+      } else {
+        var response = await fetch(SYNC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+          body: JSON.stringify(payload),
+          cache: 'no-store',
+          credentials: 'same-origin',
+          signal: controller.signal
+        });
+        var responseText = await response.text();
+        try { result = JSON.parse(responseText); }
+        catch (error) { throw new Error('雲端程式回應格式不正確。'); }
+        if (response.status === 401 && result && result.signInUrl) {
+          openSignInAtTop(result.signInUrl);
+          return;
+        }
+        if (!response.ok || !result || !result.ok) throw new Error((result && result.error) || 'Google Sheet 更新失敗。');
+      }
+
+      setStatus(
+        result.direct
+          ? '更新資料已送出：' + result.rows + ' 列 × ' + result.columns + ' 欄。正在重新載入查詢資料，請再確認 Google Sheet。'
+          : '更新成功：' + (result.rows || parsedWorkbook.rows) + ' 列 × ' + (result.columns || parsedWorkbook.columns) + ' 欄。正在重新載入查詢資料…',
+        'success'
+      );
       var loadButton = document.getElementById('loadBtn');
-      if (loadButton) setTimeout(function () { loadButton.click(); }, 900);
+      if (loadButton) setTimeout(function () { loadButton.click(); }, result.direct ? 3500 : 900);
     } catch (error) {
       var message = error && error.name === 'AbortError' ? '更新逾時，請稍後確認 Google Sheet 狀態。' : (error && error.message ? error.message : 'Google Sheet 更新失敗。');
       setStatus(message, 'error');

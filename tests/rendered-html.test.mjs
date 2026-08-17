@@ -131,7 +131,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(calculator, /<strong>角度與R變化<\/strong>/);
   assert.match(calculator, /zeroTotal\+total\+comp/);
   assert.match(calculator, /total\+=val-m/);
-  assert.match(calculator, /Version 149 測試/);
+  assert.match(calculator, /Version 150 測試/);
   assert.match(calculator, /zero:value-tc\*\(t\+radius\)/);
   assert.match(calculator, /compact2=new Intl\.NumberFormat\('zh-TW',\{maximumFractionDigits:2\}\)/);
   assert.match(calculator, /Number\.isFinite\(e\.zero\)\?compact2\.format\(e\.zero\):'－'/);
@@ -174,7 +174,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(source, /let popupWidth=450,popupHeight=710/);
 });
 
-test("Version 149 test labels live in the requested header areas", async () => {
+test("Version 150 test labels live in the requested header areas", async () => {
   const source = await readFile(
     new URL("../public/engineering-query.html", import.meta.url),
     "utf8",
@@ -186,14 +186,37 @@ test("Version 149 test labels live in the requested header areas", async () => {
 
   assert.match(
     source,
-    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 149 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 150 測試<\/span>[\s\S]*?<\/header>/,
   );
   assert.match(
     standalone,
-    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 149 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 150 測試<\/span>[\s\S]*?<\/header>/,
   );
-  assert.equal((source.match(/Version 149 測試/g) || []).length, 2);
-  assert.equal((standalone.match(/Version 149 測試/g) || []).length, 2);
+  assert.equal((source.match(/Version 150 測試/g) || []).length, 2);
+  assert.equal((standalone.match(/Version 150 測試/g) || []).length, 2);
+});
+
+test("GitHub Pages build is installable and supports direct Apps Script upload", async () => {
+  const source = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
+  const upload = await readFile(new URL("../public/nail-excel-upload.js", import.meta.url), "utf8");
+  const manifest = JSON.parse(await readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"));
+  const serviceWorker = await readFile(new URL("../public/service-worker.js", import.meta.url), "utf8");
+
+  assert.match(source, /rel="manifest" href="\.\/manifest\.webmanifest"/);
+  assert.match(source, /serviceWorker\.register\('\.\/service-worker\.js'/);
+  assert.equal(manifest.name, "工程查詢系統");
+  assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.start_url, "./");
+  assert.equal(manifest.scope, "./");
+  assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
+  assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
+  assert.match(serviceWorker, /engineering-query-pwa-v150/);
+  assert.match(upload, /isGitHubPages/);
+  assert.match(upload, /DIRECT_SYNC_URL/);
+  assert.match(upload, /mode: 'no-cors'/);
+  assert.match(source, /id="nailUploadDirectToken"/);
+  assert.match(upload, /sessionStorage\.setItem\('engineeringSheetUpdateToken'/);
+  assert.doesNotMatch(source, /lanWebUpdateToken = '[a-f0-9]{32,}'/);
 });
 
 test("custom inner R values can be committed with Enter", async () => {
