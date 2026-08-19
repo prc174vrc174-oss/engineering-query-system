@@ -35,12 +35,6 @@ export default function Home() {
       });
       resultTabs.appendChild(link);
     }
-
-    const version = doc.querySelector<HTMLElement>(".site-version");
-    if (version) {
-      version.textContent = "Version 153 測試";
-      version.setAttribute("aria-label", "網站版次 Version 153 測試");
-    }
   }
 
   return (
