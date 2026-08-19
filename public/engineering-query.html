@@ -2642,6 +2642,24 @@ h3 {
             opacity: 1;
             transform: translateY(0);
         }
+        .gallery-card-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(15, 23, 42, 0.75);
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            backdrop-filter: blur(4px);
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            pointer-events: none;
+            z-index: 2;
+        }
         .gallery-card-body {
             padding: 8px 14px 12px;
             display: flex;
@@ -2728,58 +2746,103 @@ h3 {
             color: #0f172a;
         }
         .gallery-lightbox-img-wrap {
+            position: relative;
             background: #ffffff;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 24px;
+            min-height: 260px;
             max-height: 60vh;
             overflow: hidden;
             border-bottom: 1px solid var(--notion-border-soft);
+            user-select: none;
         }
         .gallery-lightbox-img-wrap img {
             max-width: 100%;
             max-height: 52vh;
             object-fit: contain;
             border-radius: 6px;
+            transition: opacity 0.15s ease;
+        }
+        .gallery-lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.65);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 30px;
+            font-weight: 300;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+        .gallery-lightbox-nav.prev {
+            left: 12px;
+            padding-right: 3px;
+        }
+        .gallery-lightbox-nav.next {
+            right: 12px;
+            padding-left: 3px;
+        }
+        .gallery-lightbox-nav:hover {
+            background: rgba(15, 23, 42, 0.92);
+            transform: translateY(-50%) scale(1.08);
+        }
+        .gallery-lightbox-nav:active {
+            transform: translateY(-50%) scale(0.95);
         }
         .gallery-lightbox-info {
-            padding: 18px 20px;
+            padding: 14px 20px;
             background: #f8fafc;
             display: flex;
-            flex-direction: column;
-            gap: 6px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
         }
         .gallery-lightbox-info h3 {
             margin: 0;
-            font-size: 18px;
-            font-weight: 800;
+            font-size: 16.5px;
+            font-weight: 750;
             color: #0f172a;
         }
-        .gallery-lightbox-info p {
-            margin: 0;
-            font-size: 13.5px;
-            color: #64748b;
-        }
-        .gallery-lightbox-actions {
-            margin-top: 10px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        .gallery-lightbox-action-btn {
-            background: #2563eb;
-            color: #ffffff;
-            border: 1px solid #2563eb;
-            font-size: 13px;
+        .gallery-lightbox-counter {
+            font-size: 12.5px;
             font-weight: 700;
-            padding: 8px 16px;
-            border-radius: 7px;
-            cursor: pointer;
+            color: #2563eb;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 2px 10px;
+            border-radius: 999px;
         }
-        .gallery-lightbox-action-btn:hover {
-            background: #1d4ed8;
-            border-color: #1d4ed8;
+        .gallery-lightbox-dots {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .gallery-lightbox-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #cbd5e1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .gallery-lightbox-dot.active {
+            background: #2563eb;
+            width: 18px;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -2793,7 +2856,7 @@ h3 {
                 <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 161 測試">Version 161 測試</span>
+<span class="site-version" aria-label="網站版次 Version 162 測試">Version 162 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3037,11 +3100,17 @@ h3 {
             <div class="gallery-lightbox-backdrop" onclick="closeGalleryLightbox()"></div>
             <div class="gallery-lightbox-content" role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
                 <button type="button" class="gallery-lightbox-close" aria-label="關閉" onclick="closeGalleryLightbox()">×</button>
-                <div class="gallery-lightbox-img-wrap">
+                <div class="gallery-lightbox-img-wrap" id="lightboxImgContainer">
+                    <button type="button" class="gallery-lightbox-nav prev" id="lightboxPrevBtn" aria-label="上一張照片" onclick="prevGalleryImage()" style="display:none">‹</button>
                     <img id="lightboxImg" src="" alt="釘子大圖">
+                    <button type="button" class="gallery-lightbox-nav next" id="lightboxNextBtn" aria-label="下一張照片" onclick="nextGalleryImage()" style="display:none">›</button>
                 </div>
                 <div class="gallery-lightbox-info">
                     <h3 id="lightboxTitle"></h3>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div class="gallery-lightbox-dots" id="lightboxDots" style="display:none"></div>
+                        <div class="gallery-lightbox-counter" id="lightboxCounter" style="display:none"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4673,7 +4742,7 @@ init();
         (function() {
             var NAIL_GALLERY_ITEMS = [
                 { id: "pf", name: "手旋(PF)", image: "./images/nails/手旋(PF).png" },
-                { id: "pf11", name: "手旋(PF11)(廠內一般的)", image: "./images/nails/手旋(PF11).png" },
+                { id: "pf11", name: "手旋(PF11)(廠內一般的)", images: ["./images/nails/手旋(PF11).png", "./images/nails/手旋(PF11)-2.png"] },
                 { id: "pfhv", name: "手旋(PFHV)(沒有彈簧的)", image: "./images/nails/手旋(PFHV).png" },
                 { id: "as", name: "AS(浮動螺絲)", image: "./images/nails/AS.png" },
                 { id: "bs", name: "BS", image: "./images/nails/BS.png" },
@@ -4690,9 +4759,16 @@ init();
                 { id: "td", name: "TD", image: "./images/nails/TD.png" }
             ];
 
-            var GALLERY_VERSION = '20260819_1526';
+            var GALLERY_VERSION = '20260819_1545';
             function getImageUrl(imgPath) {
                 return imgPath + '?v=' + GALLERY_VERSION;
+            }
+
+            function getItemImages(item) {
+                if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+                    return item.images;
+                }
+                return item.image ? [item.image] : [];
             }
 
             var grid = document.getElementById('galleryCardsGrid');
@@ -4719,10 +4795,13 @@ init();
 
                 var html = '';
                 filtered.forEach(function(item) {
-                    var fullImgUrl = getImageUrl(item.image);
+                    var imgs = getItemImages(item);
+                    var coverImgUrl = imgs.length > 0 ? getImageUrl(imgs[0]) : '';
+                    var badgeHtml = imgs.length > 1 ? '<span class="gallery-card-badge">📷 ' + imgs.length + '</span>' : '';
                     html += '<div class="gallery-card" data-id="' + item.id + '" onclick="window.openGalleryLightbox(\'' + item.id + '\')">';
                     html += '  <div class="gallery-card-img-wrap">';
-                    html += '    <img class="gallery-card-img" src="' + fullImgUrl + '" alt="' + escapeHtml(item.name) + '" loading="lazy">';
+                    html += '    <img class="gallery-card-img" src="' + coverImgUrl + '" alt="' + escapeHtml(item.name) + '" loading="lazy">';
+                    html += '    ' + badgeHtml;
                     html += '    <span class="gallery-card-zoom-hint">🔍 點擊放大</span>';
                     html += '  </div>';
                     html += '  <div class="gallery-card-body">';
@@ -4755,22 +4834,114 @@ init();
                 });
             }
 
-            window.openGalleryLightbox = function(id) {
+            var currentLightboxItem = null;
+            var currentLightboxImgIndex = 0;
+
+            function updateLightboxDisplay() {
+                if (!currentLightboxItem) return;
+                var imgs = getItemImages(currentLightboxItem);
+                var total = imgs.length;
+                if (total === 0) return;
+
+                if (currentLightboxImgIndex < 0) currentLightboxImgIndex = total - 1;
+                if (currentLightboxImgIndex >= total) currentLightboxImgIndex = 0;
+
+                var imgEl = document.getElementById('lightboxImg');
+                var prevBtn = document.getElementById('lightboxPrevBtn');
+                var nextBtn = document.getElementById('lightboxNextBtn');
+                var counterEl = document.getElementById('lightboxCounter');
+                var dotsEl = document.getElementById('lightboxDots');
+
+                if (imgEl) {
+                    imgEl.style.opacity = '0.4';
+                    imgEl.src = getImageUrl(imgs[currentLightboxImgIndex]);
+                    setTimeout(function() { imgEl.style.opacity = '1'; }, 40);
+                }
+
+                if (total > 1) {
+                    if (prevBtn) prevBtn.style.display = 'flex';
+                    if (nextBtn) nextBtn.style.display = 'flex';
+                    if (counterEl) {
+                        counterEl.style.display = 'inline-block';
+                        counterEl.textContent = (currentLightboxImgIndex + 1) + ' / ' + total;
+                    }
+                    if (dotsEl) {
+                        dotsEl.style.display = 'flex';
+                        var dotsHtml = '';
+                        for (var i = 0; i < total; i++) {
+                            dotsHtml += '<span class="gallery-lightbox-dot' + (i === currentLightboxImgIndex ? ' active' : '') + '" onclick="window.switchGalleryImage(' + i + ')"></span>';
+                        }
+                        dotsEl.innerHTML = dotsHtml;
+                    }
+                } else {
+                    if (prevBtn) prevBtn.style.display = 'none';
+                    if (nextBtn) nextBtn.style.display = 'none';
+                    if (counterEl) counterEl.style.display = 'none';
+                    if (dotsEl) dotsEl.style.display = 'none';
+                }
+            }
+
+            window.openGalleryLightbox = function(id, initialIndex) {
                 var item = NAIL_GALLERY_ITEMS.find(function(x) { return x.id === id; });
                 if (!item) return;
-                var modal = document.getElementById('galleryLightboxModal');
-                var img = document.getElementById('lightboxImg');
-                var title = document.getElementById('lightboxTitle');
+                currentLightboxItem = item;
+                currentLightboxImgIndex = initialIndex || 0;
 
-                if (img) img.src = getImageUrl(item.image);
+                var modal = document.getElementById('galleryLightboxModal');
+                var title = document.getElementById('lightboxTitle');
                 if (title) title.textContent = item.name;
+
+                updateLightboxDisplay();
                 if (modal) modal.hidden = false;
             };
 
             window.closeGalleryLightbox = function() {
                 var modal = document.getElementById('galleryLightboxModal');
                 if (modal) modal.hidden = true;
+                currentLightboxItem = null;
             };
+
+            window.prevGalleryImage = function() {
+                if (!currentLightboxItem) return;
+                currentLightboxImgIndex--;
+                updateLightboxDisplay();
+            };
+
+            window.nextGalleryImage = function() {
+                if (!currentLightboxItem) return;
+                currentLightboxImgIndex++;
+                updateLightboxDisplay();
+            };
+
+            window.switchGalleryImage = function(index) {
+                if (!currentLightboxItem) return;
+                currentLightboxImgIndex = index;
+                updateLightboxDisplay();
+            };
+
+            // Touch swipe inside lightbox
+            var lightboxTouchStartX = 0;
+            var lightboxTouchStartY = 0;
+            var imgContainer = document.getElementById('lightboxImgContainer');
+            if (imgContainer) {
+                imgContainer.addEventListener('touchstart', function(e) {
+                    if (e.touches && e.touches[0]) {
+                        lightboxTouchStartX = e.touches[0].clientX;
+                        lightboxTouchStartY = e.touches[0].clientY;
+                    }
+                }, { passive: true });
+
+                imgContainer.addEventListener('touchend', function(e) {
+                    if (e.changedTouches && e.changedTouches[0]) {
+                        var dx = e.changedTouches[0].clientX - lightboxTouchStartX;
+                        var dy = e.changedTouches[0].clientY - lightboxTouchStartY;
+                        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+                            if (dx > 0) window.prevGalleryImage();
+                            else window.nextGalleryImage();
+                        }
+                    }
+                }, { passive: true });
+            }
 
             window.jumpToNailSearch = function(query) {
                 var nailTabBtn = document.querySelector('.tab-btn[data-sys="nail"]');
@@ -4786,8 +4957,15 @@ init();
             };
 
             document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    window.closeGalleryLightbox();
+                var modal = document.getElementById('galleryLightboxModal');
+                if (modal && !modal.hidden) {
+                    if (e.key === 'Escape') {
+                        window.closeGalleryLightbox();
+                    } else if (e.key === 'ArrowLeft') {
+                        window.prevGalleryImage();
+                    } else if (e.key === 'ArrowRight') {
+                        window.nextGalleryImage();
+                    }
                 }
             });
 
