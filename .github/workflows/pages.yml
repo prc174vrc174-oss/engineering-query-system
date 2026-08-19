@@ -32,6 +32,7 @@ jobs:
           touch _site/.nojekyll
           node --input-type=module <<'NODE'
           import { readdir, readFile, writeFile } from 'node:fs/promises';
+          const notebookUrl = 'https://notebook.google.com/notebook/e8e53926-d3a7-4808-9689-96879cabe4f4';
           for (const file of await readdir('_site')) {
             if (!file.endsWith('.html')) continue;
             const path = `_site/${file}`;
@@ -39,7 +40,16 @@ jobs:
             html = html
               .replaceAll('src="/', 'src="./')
               .replaceAll("window.open('/", "window.open('./")
-              .replaceAll("fetch('/api/", "fetch('./api/");
+              .replaceAll("fetch('/api/", "fetch('./api/")
+              .replaceAll('Version 152 測試', 'Version 153 測試');
+
+            if (file === 'engineering-query.html' || file === 'index.html') {
+              html = html.replace(
+                /(<nav class="nail-result-tabs"[\s\S]*?<button type="button" id="nailReportViewBtn"[\s\S]*?<\/button>)(\s*<\/nav>)/,
+                `$1\n\t<a id="geminiNotebookLink" href="${notebookUrl}" target="_blank" rel="noopener noreferrer" aria-label="開啟 Gemini notebook" style="margin-left:auto;display:inline-flex;align-items:center;min-height:34px;padding:0 10px;color:#1d4ed8;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;border-radius:6px;">Gemini notebook</a>$2`,
+              );
+            }
+
             await writeFile(path, html);
           }
           NODE
