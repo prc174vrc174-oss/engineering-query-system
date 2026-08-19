@@ -2787,7 +2787,7 @@ h3 {
                 <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 154 測試">Version 154 測試</span>
+<span class="site-version" aria-label="網站版次 Version 156 測試">Version 156 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3010,7 +3010,7 @@ h3 {
                     <h2 class="gallery-main-title"><span class="gallery-title-icon">🖼️</span>釘子圖片</h2>
                     <span class="gallery-count-badge" id="galleryCountBadge">共 14 種釘子圖</span>
                 </div>
-                <p class="gallery-sub-title">廠內常用鉚釘、螺柱、手旋螺絲等實物外觀對照與圖庫清單</p>
+                <p class="gallery-sub-title">廠內常用釘子實物外觀對照清單</p>
                 <div class="gallery-search-wrap">
                     <div class="gallery-search-box">
                         <span class="gallery-search-icon">🔍</span>
@@ -3036,10 +3036,6 @@ h3 {
                 </div>
                 <div class="gallery-lightbox-info">
                     <h3 id="lightboxTitle"></h3>
-                    <p id="lightboxDesc"></p>
-                    <div class="gallery-lightbox-actions">
-                        <button type="button" id="lightboxSearchBtn" class="gallery-lightbox-action-btn">🔍 在釘子查詢系統中搜尋此規格</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -4670,132 +4666,20 @@ init();
     <script>
         (function() {
             var NAIL_GALLERY_ITEMS = [
-                {
-                    id: "pf",
-                    name: "手旋(PF)",
-                    category: "手旋螺絲",
-                    desc: "手旋彈簧螺絲 (Thumbscrew)",
-                    keywords: "手旋 PF 彈簧 螺絲",
-                    image: "./images/nails/手旋(PF).png",
-                    searchKey: "PF"
-                },
-                {
-                    id: "pf11",
-                    name: "手旋(PF11)(廠內一般的)",
-                    category: "手旋螺絲",
-                    desc: "廠內常規使用款手旋螺絲",
-                    keywords: "手旋 PF11 廠內一般的 螺絲",
-                    image: "./images/nails/手旋(PF11).png",
-                    searchKey: "PF11"
-                },
-                {
-                    id: "pfhv",
-                    name: "手旋(PFHV)(沒有彈簧的)",
-                    category: "手旋螺絲",
-                    desc: "無彈簧結構手旋螺絲",
-                    keywords: "手旋 PFHV 沒有彈簧的 螺絲",
-                    image: "./images/nails/手旋(PFHV).png",
-                    searchKey: "PFHV"
-                },
-                {
-                    id: "as",
-                    name: "AS(浮動螺絲)",
-                    category: "浮動螺母",
-                    desc: "浮動螺母 / 螺絲 (Floating Fastener)",
-                    keywords: "AS 浮動螺絲 浮動螺母 螺母",
-                    image: "./images/nails/AS.png",
-                    searchKey: "AS"
-                },
-                {
-                    id: "bs",
-                    name: "BS",
-                    category: "盲孔支柱",
-                    desc: "盲孔螺母柱 (Blind Standoff)",
-                    keywords: "BS 盲孔 螺母柱 支柱",
-                    image: "./images/nails/BS.png",
-                    searchKey: "BS"
-                },
-                {
-                    id: "bso",
-                    name: "BSO",
-                    category: "通孔支柱",
-                    desc: "通孔螺母柱 (Thru-hole Standoff)",
-                    keywords: "BSO 通孔 螺母柱 支柱",
-                    image: "./images/nails/BSO.png",
-                    searchKey: "BSO"
-                },
-                {
-                    id: "bsor",
-                    name: "BSOR",
-                    category: "圓形支柱",
-                    desc: "圓形螺母柱 (Round Standoff)",
-                    keywords: "BSOR 圓形 螺母柱 支柱",
-                    image: "./images/nails/BSOR.png",
-                    searchKey: "BSOR"
-                },
-                {
-                    id: "fh",
-                    name: "FH",
-                    category: "壓鉚螺柱",
-                    desc: "壓鉚螺柱 (Flush-head Stud)",
-                    keywords: "FH 壓鉚螺柱 螺柱",
-                    image: "./images/nails/FH.png",
-                    searchKey: "FH"
-                },
-                {
-                    id: "foo",
-                    name: "FOO",
-                    category: "凸緣支柱",
-                    desc: "凸緣螺母柱 (Flanged Standoff)",
-                    keywords: "FOO 凸緣 支柱 螺母柱",
-                    image: "./images/nails/FOO.png",
-                    searchKey: "FOO"
-                },
-                {
-                    id: "hfh",
-                    name: "HFH(重型高強度)",
-                    category: "高強度螺柱",
-                    desc: "重型高強度壓鉚螺柱 (Heavy Duty Stud)",
-                    keywords: "HFH 重型高強度 重型 高強度 螺柱",
-                    image: "./images/nails/HFH(重型高強度).png",
-                    searchKey: "HFH"
-                },
-                {
-                    id: "nut",
-                    name: "NUT",
-                    category: "壓鉚螺母",
-                    desc: "壓鉚螺母 (Clenching Nut)",
-                    keywords: "NUT 壓鉚螺母 螺母",
-                    image: "./images/nails/NUT.png",
-                    searchKey: "NUT"
-                },
-                {
-                    id: "pin",
-                    name: "PIN",
-                    category: "定位銷",
-                    desc: "定位銷 / 導引銷 (Guide Pin)",
-                    keywords: "PIN 定位銷 導引銷 銷",
-                    image: "./images/nails/PIN.png",
-                    searchKey: "PIN"
-                },
-                {
-                    id: "pin-tps",
-                    name: "PIN(TPS)",
-                    category: "導向銷",
-                    desc: "TPS 導向銷 (Pilot Pin)",
-                    keywords: "PIN TPS 導向銷 定位銷 銷",
-                    image: "./images/nails/PIN(TPS).png",
-                    searchKey: "TPS"
-                },
-                {
-                    id: "td",
-                    name: "TD",
-                    category: "彈簧螺柱",
-                    desc: "彈簧螺柱 (Spring Standoff)",
-                    keywords: "TD 彈簧螺柱 螺柱",
-                    image: "./images/nails/TD.png",
-                    searchKey: "TD"
-                }
+                { id: "pf", name: "手旋(PF)", image: "./images/nails/手旋(PF).png" },
+                { id: "pf11", name: "手旋(PF11)(廠內一般的)", image: "./images/nails/手旋(PF11).png" },
+                { id: "pfhv", name: "手旋(PFHV)(沒有彈簧的)", image: "./images/nails/手旋(PFHV).png" },
+                { id: "as", name: "AS(浮動螺絲)", image: "./images/nails/AS.png" },
+                { id: "bs", name: "BS", image: "./images/nails/BS.png" },
+                { id: "bso", name: "BSO", image: "./images/nails/BSO.png" },
+                { id: "bsor", name: "BSOR", image: "./images/nails/BSOR.png" },
+                { id: "fh", name: "FH", image: "./images/nails/FH.png" },
+                { id: "foo", name: "FOO", image: "./images/nails/FOO.png" },
+                { id: "hfh", name: "HFH(重型高強度)", image: "./images/nails/HFH(重型高強度).png" },
+                { id: "nut", name: "NUT", image: "./images/nails/NUT.png" },
+                { id: "pin", name: "PIN", image: "./images/nails/PIN.png" },
+                { id: "pin-tps", name: "PIN(TPS)", image: "./images/nails/PIN(TPS).png" },
+                { id: "td", name: "TD", image: "./images/nails/TD.png" }
             ];
 
             var grid = document.getElementById('galleryCardsGrid');
@@ -4808,8 +4692,7 @@ init();
                 var q = (filterText || '').trim().toLowerCase();
                 var filtered = NAIL_GALLERY_ITEMS.filter(function(item) {
                     if (!q) return true;
-                    var matchTarget = (item.name + ' ' + item.category + ' ' + item.desc + ' ' + (item.keywords || '')).toLowerCase();
-                    return matchTarget.indexOf(q) !== -1;
+                    return item.name.toLowerCase().indexOf(q) !== -1;
                 });
 
                 if (countBadge) {
@@ -4864,18 +4747,9 @@ init();
                 var modal = document.getElementById('galleryLightboxModal');
                 var img = document.getElementById('lightboxImg');
                 var title = document.getElementById('lightboxTitle');
-                var desc = document.getElementById('lightboxDesc');
-                var searchBtn = document.getElementById('lightboxSearchBtn');
 
                 if (img) img.src = item.image;
-                if (title) title.textContent = item.name + ' (' + item.category + ')';
-                if (desc) desc.textContent = item.desc;
-                if (searchBtn) {
-                    searchBtn.onclick = function() {
-                        window.closeGalleryLightbox();
-                        window.jumpToNailSearch(item.searchKey);
-                    };
-                }
+                if (title) title.textContent = item.name;
                 if (modal) modal.hidden = false;
             };
 
