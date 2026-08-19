@@ -2793,7 +2793,7 @@ h3 {
                 <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 160 測試">Version 160 測試</span>
+<span class="site-version" aria-label="網站版次 Version 161 測試">Version 161 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -4690,6 +4690,11 @@ init();
                 { id: "td", name: "TD", image: "./images/nails/TD.png" }
             ];
 
+            var GALLERY_VERSION = '20260819_1526';
+            function getImageUrl(imgPath) {
+                return imgPath + '?v=' + GALLERY_VERSION;
+            }
+
             var grid = document.getElementById('galleryCardsGrid');
             var searchInput = document.getElementById('gallerySearchInput');
             var clearBtn = document.getElementById('gallerySearchClear');
@@ -4714,9 +4719,10 @@ init();
 
                 var html = '';
                 filtered.forEach(function(item) {
+                    var fullImgUrl = getImageUrl(item.image);
                     html += '<div class="gallery-card" data-id="' + item.id + '" onclick="window.openGalleryLightbox(\'' + item.id + '\')">';
                     html += '  <div class="gallery-card-img-wrap">';
-                    html += '    <img class="gallery-card-img" src="' + item.image + '" alt="' + escapeHtml(item.name) + '" loading="lazy">';
+                    html += '    <img class="gallery-card-img" src="' + fullImgUrl + '" alt="' + escapeHtml(item.name) + '" loading="lazy">';
                     html += '    <span class="gallery-card-zoom-hint">🔍 點擊放大</span>';
                     html += '  </div>';
                     html += '  <div class="gallery-card-body">';
@@ -4756,7 +4762,7 @@ init();
                 var img = document.getElementById('lightboxImg');
                 var title = document.getElementById('lightboxTitle');
 
-                if (img) img.src = item.image;
+                if (img) img.src = getImageUrl(item.image);
                 if (title) title.textContent = item.name;
                 if (modal) modal.hidden = false;
             };
