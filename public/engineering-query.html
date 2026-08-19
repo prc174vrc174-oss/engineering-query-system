@@ -4886,7 +4886,9 @@ init();
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
-                navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(function () {});
+                navigator.serviceWorker.register('./service-worker.js', { scope: './' }).then(function(reg) {
+                    if (reg) reg.update().catch(function() {});
+                }).catch(function () {});
             });
         }
     </script>
