@@ -2769,35 +2769,43 @@ h3 {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            width: 44px;
-            height: 44px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
-            background: rgba(15, 23, 42, 0.65);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            font-size: 30px;
-            font-weight: 300;
+            background: rgba(255, 255, 255, 0.4);
+            color: #334155;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            font-size: 26px;
+            font-weight: 350;
             line-height: 1;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 10;
+            opacity: 0.35;
+            backdrop-filter: blur(4px);
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             user-select: none;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
         }
         .gallery-lightbox-nav.prev {
-            left: 12px;
-            padding-right: 3px;
+            left: 8px;
+            padding-right: 2px;
         }
         .gallery-lightbox-nav.next {
-            right: 12px;
-            padding-left: 3px;
+            right: 8px;
+            padding-left: 2px;
+        }
+        .gallery-lightbox-img-wrap:hover .gallery-lightbox-nav {
+            opacity: 0.75;
+            background: rgba(255, 255, 255, 0.75);
         }
         .gallery-lightbox-nav:hover {
-            background: rgba(15, 23, 42, 0.92);
-            transform: translateY(-50%) scale(1.08);
+            opacity: 1 !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+            transform: translateY(-50%) scale(1.1);
         }
         .gallery-lightbox-nav:active {
             transform: translateY(-50%) scale(0.95);
@@ -2856,7 +2864,7 @@ h3 {
                 <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 162 測試">Version 162 測試</span>
+<span class="site-version" aria-label="網站版次 Version 163 測試">Version 163 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
