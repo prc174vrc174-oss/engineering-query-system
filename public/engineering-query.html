@@ -2464,6 +2464,366 @@ h3 {
         .hole-combo-option{padding:9px 11px;cursor:pointer;color:#1f2937}
         .hole-combo-option:hover,.hole-combo-option.active{background:#eaf2ff;color:#0f52bd}
         .hole-combo-empty{padding:9px 11px;color:#94a3b8;font-size:13px}
+
+        /* -- Nail Gallery Styles --------------------------------- */
+        #nail-gallery-panel .notion-shell {
+            padding-top: 16px;
+        }
+        .gallery-header-wrap {
+            margin-bottom: 24px;
+        }
+        .gallery-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .gallery-main-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--notion-text);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: -0.5px;
+        }
+        .gallery-title-icon {
+            font-size: 22px;
+            line-height: 1;
+        }
+        .gallery-count-badge {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #1d4ed8;
+            background: #eff6ff;
+            border: 1px solid #dbeafe;
+            padding: 4px 12px;
+            border-radius: 999px;
+        }
+        .gallery-sub-title {
+            color: var(--notion-text-soft);
+            font-size: 13.5px;
+            margin: 6px 0 16px;
+        }
+        .gallery-search-wrap {
+            position: relative;
+            max-width: 100%;
+        }
+        .gallery-search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .gallery-search-icon {
+            position: absolute;
+            left: 12px;
+            color: #9ca3af;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        #gallerySearchInput {
+            width: 100%;
+            height: 42px;
+            padding-left: 36px;
+            padding-right: 36px;
+            font-size: 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            transition: all 150ms ease;
+        }
+        #gallerySearchInput:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+        }
+        .gallery-search-clear {
+            position: absolute;
+            right: 8px;
+            width: 26px;
+            min-width: 26px;
+            height: 26px;
+            padding: 0;
+            border: none;
+            background: #f3f4f6;
+            color: #6b7280;
+            border-radius: 50%;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none;
+        }
+        .gallery-search-clear:hover {
+            background: #e5e7eb;
+            color: #111827;
+        }
+        .gallery-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .gallery-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+        }
+        @media (max-width: 580px) {
+            .gallery-cards-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+        }
+        .gallery-card {
+            background: #ffffff;
+            border: 1px solid var(--notion-border);
+            border-radius: var(--notion-radius);
+            overflow: hidden;
+            box-shadow: var(--notion-shadow);
+            transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            position: relative;
+        }
+        .gallery-card:hover {
+            transform: translateY(-4px);
+            border-color: #93c5fd;
+            box-shadow: 0 12px 28px -6px rgba(29, 78, 216, 0.12), 0 4px 12px -2px rgba(0,0,0,0.05);
+        }
+        .gallery-card-img-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            background: #ffffff;
+            border-bottom: 1px solid var(--notion-border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 10px;
+        }
+        .gallery-card-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: transform 0.25s ease;
+            border-radius: 4px;
+        }
+        .gallery-card:hover .gallery-card-img {
+            transform: scale(1.04);
+        }
+        .gallery-card-zoom-hint {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(17, 24, 39, 0.7);
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 4px;
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+        .gallery-card:hover .gallery-card-zoom-hint {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .gallery-card-body {
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+        .gallery-card-title {
+            font-size: 15.5px;
+            font-weight: 750;
+            color: var(--notion-text);
+            margin: 0;
+            line-height: 1.35;
+            font-family: var(--font-tech);
+        }
+        .gallery-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 2px;
+        }
+        .gallery-tag-cat {
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: var(--notion-blue-bg);
+            color: #1d4ed8;
+            border: 1px solid #dbeafe;
+        }
+        .gallery-tag-desc {
+            font-size: 12px;
+            color: var(--notion-text-soft);
+            line-height: 1.4;
+            margin-top: 2px;
+        }
+        .gallery-card-footer {
+            margin-top: auto;
+            padding-top: 10px;
+            border-top: 1px solid var(--notion-border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .gallery-jump-btn {
+            font-size: 12px;
+            font-weight: 650;
+            color: #2563eb;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: none;
+            transition: all 150ms ease;
+        }
+        .gallery-jump-btn:hover {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+        }
+        .gallery-empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 48px 16px;
+            color: var(--notion-text-faint);
+            font-size: 15px;
+        }
+
+        /* Lightbox Modal */
+        .gallery-lightbox-modal[hidden] {
+            display: none !important;
+        }
+        .gallery-lightbox-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .gallery-lightbox-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(6px);
+            cursor: pointer;
+        }
+        .gallery-lightbox-content {
+            position: relative;
+            z-index: 1;
+            background: #ffffff;
+            border-radius: 14px;
+            max-width: 680px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.4);
+            border: 1px solid #cbd5e1;
+            animation: galleryZoomIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes galleryZoomIn {
+            from { opacity: 0; transform: scale(0.94); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .gallery-lightbox-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            color: #334155;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        .gallery-lightbox-close:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .gallery-lightbox-img-wrap {
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            max-height: 60vh;
+            overflow: hidden;
+            border-bottom: 1px solid var(--notion-border-soft);
+        }
+        .gallery-lightbox-img-wrap img {
+            max-width: 100%;
+            max-height: 52vh;
+            object-fit: contain;
+            border-radius: 6px;
+        }
+        .gallery-lightbox-info {
+            padding: 18px 20px;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .gallery-lightbox-info h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .gallery-lightbox-info p {
+            margin: 0;
+            font-size: 13.5px;
+            color: #64748b;
+        }
+        .gallery-lightbox-actions {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .gallery-lightbox-action-btn {
+            background: #2563eb;
+            color: #ffffff;
+            border: 1px solid #2563eb;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+        }
+        .gallery-lightbox-action-btn:hover {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+        }
     </style>
 </head>
 <body>
@@ -2473,9 +2833,10 @@ h3 {
             <nav class="tabs-nav">
                 <button class="tab-btn active" data-sys="bend">係數與開孔查詢</button>
                 <button class="tab-btn" data-sys="nail">釘子查詢系統</button>
+                <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 152 測試">Version 152 測試</span>
+<span class="site-version" aria-label="網站版次 Version 154 測試">Version 154 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -2688,8 +3049,49 @@ h3 {
 
 <button type="button" id="backToTopBtn" class="back-to-top-btn" aria-label="返回頁面最頂端">↑ 回到頂端</button>
 
+    </div>
 
+    <!-- 3. 釘子圖畫廊系統 -->
+    <div id="nail-gallery-panel" class="sys-panel" style="display:none">
+        <main class="notion-shell">
+            <div class="gallery-header-wrap">
+                <div class="gallery-title-row">
+                    <h2 class="gallery-main-title"><span class="gallery-title-icon">🖼️</span>釘子圖片</h2>
+                    <span class="gallery-count-badge" id="galleryCountBadge">共 14 種釘子圖</span>
+                </div>
+                <p class="gallery-sub-title">廠內常用鉚釘、螺柱、手旋螺絲等實物外觀對照與圖庫清單</p>
+                <div class="gallery-search-wrap">
+                    <div class="gallery-search-box">
+                        <span class="gallery-search-icon">🔍</span>
+                        <input id="gallerySearchInput" type="text" placeholder="快速搜尋釘子名稱、代號（例：手旋、BSO、AS、PIN）..." aria-label="搜尋釘子圖庫">
+                        <button type="button" id="gallerySearchClear" class="gallery-search-clear" aria-label="清除搜尋" style="display:none">✕</button>
+                    </div>
+                </div>
+            </div>
 
+            <!-- 卡片網格 -->
+            <div class="gallery-cards-grid" id="galleryCardsGrid"></div>
+
+            <p class="notion-footer">釘子實物圖片展示・點擊任意卡片可放大查看高解析細節。</p>
+        </main>
+
+        <!-- 圖片放大預覽 Lightbox Modal -->
+        <div id="galleryLightboxModal" class="gallery-lightbox-modal" hidden>
+            <div class="gallery-lightbox-backdrop" onclick="closeGalleryLightbox()"></div>
+            <div class="gallery-lightbox-content" role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
+                <button type="button" class="gallery-lightbox-close" aria-label="關閉" onclick="closeGalleryLightbox()">×</button>
+                <div class="gallery-lightbox-img-wrap">
+                    <img id="lightboxImg" src="" alt="釘子大圖">
+                </div>
+                <div class="gallery-lightbox-info">
+                    <h3 id="lightboxTitle"></h3>
+                    <p id="lightboxDesc"></p>
+                    <div class="gallery-lightbox-actions">
+                        <button type="button" id="lightboxSearchBtn" class="gallery-lightbox-action-btn">🔍 在釘子查詢系統中搜尋此規格</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Bending System Data & Logic -->
@@ -2902,7 +3304,7 @@ init();
 	function loadSheetModifiedTime() {
 		var updateEl = document.getElementById('sheetUpdateValue');
 		if (!updateEl) return;
-
+		
 		// 若已有快取時間，立即顯示，不讓畫面閃爍「讀取中…」
 		var initialCached = '';
 		try { initialCached = localStorage.getItem('nailSheetLastModified') || ''; } catch (e) {}
@@ -2963,7 +3365,7 @@ init();
 		}
 
 		var controller = new AbortController();
-		var timer = setTimeout(function () { controller.abort(); }, 30000);
+		var timer = setTimeout(function () { controller.abort(); }, 12000);
 
 		// 優先直接以 CORS fetch 呼叫 Google Apps Script (手機與電腦瀏覽器皆支援良好)
 		fetch(metadataWebAppUrl + '?_=' + Date.now(), {
@@ -4313,6 +4715,256 @@ init();
 
     </script>
 
+    <!-- Nail Gallery Logic -->
+    <script>
+        (function() {
+            var NAIL_GALLERY_ITEMS = [
+                {
+                    id: "pf",
+                    name: "手旋(PF)",
+                    category: "手旋螺絲",
+                    desc: "手旋彈簧螺絲 (Thumbscrew)",
+                    keywords: "手旋 PF 彈簧 螺絲",
+                    image: "./images/nails/手旋(PF).png",
+                    searchKey: "PF"
+                },
+                {
+                    id: "pf11",
+                    name: "手旋(PF11)(廠內一般的)",
+                    category: "手旋螺絲",
+                    desc: "廠內常規使用款手旋螺絲",
+                    keywords: "手旋 PF11 廠內一般的 螺絲",
+                    image: "./images/nails/手旋(PF11).png",
+                    searchKey: "PF11"
+                },
+                {
+                    id: "pfhv",
+                    name: "手旋(PFHV)(沒有彈簧的)",
+                    category: "手旋螺絲",
+                    desc: "無彈簧結構手旋螺絲",
+                    keywords: "手旋 PFHV 沒有彈簧的 螺絲",
+                    image: "./images/nails/手旋(PFHV).png",
+                    searchKey: "PFHV"
+                },
+                {
+                    id: "as",
+                    name: "AS(浮動螺絲)",
+                    category: "浮動螺母",
+                    desc: "浮動螺母 / 螺絲 (Floating Fastener)",
+                    keywords: "AS 浮動螺絲 浮動螺母 螺母",
+                    image: "./images/nails/AS.png",
+                    searchKey: "AS"
+                },
+                {
+                    id: "bs",
+                    name: "BS",
+                    category: "盲孔支柱",
+                    desc: "盲孔螺母柱 (Blind Standoff)",
+                    keywords: "BS 盲孔 螺母柱 支柱",
+                    image: "./images/nails/BS.png",
+                    searchKey: "BS"
+                },
+                {
+                    id: "bso",
+                    name: "BSO",
+                    category: "通孔支柱",
+                    desc: "通孔螺母柱 (Thru-hole Standoff)",
+                    keywords: "BSO 通孔 螺母柱 支柱",
+                    image: "./images/nails/BSO.png",
+                    searchKey: "BSO"
+                },
+                {
+                    id: "bsor",
+                    name: "BSOR",
+                    category: "圓形支柱",
+                    desc: "圓形螺母柱 (Round Standoff)",
+                    keywords: "BSOR 圓形 螺母柱 支柱",
+                    image: "./images/nails/BSOR.png",
+                    searchKey: "BSOR"
+                },
+                {
+                    id: "fh",
+                    name: "FH",
+                    category: "壓鉚螺柱",
+                    desc: "壓鉚螺柱 (Flush-head Stud)",
+                    keywords: "FH 壓鉚螺柱 螺柱",
+                    image: "./images/nails/FH.png",
+                    searchKey: "FH"
+                },
+                {
+                    id: "foo",
+                    name: "FOO",
+                    category: "凸緣支柱",
+                    desc: "凸緣螺母柱 (Flanged Standoff)",
+                    keywords: "FOO 凸緣 支柱 螺母柱",
+                    image: "./images/nails/FOO.png",
+                    searchKey: "FOO"
+                },
+                {
+                    id: "hfh",
+                    name: "HFH(重型高強度)",
+                    category: "高強度螺柱",
+                    desc: "重型高強度壓鉚螺柱 (Heavy Duty Stud)",
+                    keywords: "HFH 重型高強度 重型 高強度 螺柱",
+                    image: "./images/nails/HFH(重型高強度).png",
+                    searchKey: "HFH"
+                },
+                {
+                    id: "nut",
+                    name: "NUT",
+                    category: "壓鉚螺母",
+                    desc: "壓鉚螺母 (Clenching Nut)",
+                    keywords: "NUT 壓鉚螺母 螺母",
+                    image: "./images/nails/NUT.png",
+                    searchKey: "NUT"
+                },
+                {
+                    id: "pin",
+                    name: "PIN",
+                    category: "定位銷",
+                    desc: "定位銷 / 導引銷 (Guide Pin)",
+                    keywords: "PIN 定位銷 導引銷 銷",
+                    image: "./images/nails/PIN.png",
+                    searchKey: "PIN"
+                },
+                {
+                    id: "pin-tps",
+                    name: "PIN(TPS)",
+                    category: "導向銷",
+                    desc: "TPS 導向銷 (Pilot Pin)",
+                    keywords: "PIN TPS 導向銷 定位銷 銷",
+                    image: "./images/nails/PIN(TPS).png",
+                    searchKey: "TPS"
+                },
+                {
+                    id: "td",
+                    name: "TD",
+                    category: "彈簧螺柱",
+                    desc: "彈簧螺柱 (Spring Standoff)",
+                    keywords: "TD 彈簧螺柱 螺柱",
+                    image: "./images/nails/TD.png",
+                    searchKey: "TD"
+                }
+            ];
+
+            var grid = document.getElementById('galleryCardsGrid');
+            var searchInput = document.getElementById('gallerySearchInput');
+            var clearBtn = document.getElementById('gallerySearchClear');
+            var countBadge = document.getElementById('galleryCountBadge');
+
+            function renderGallery(filterText) {
+                if (!grid) return;
+                var q = (filterText || '').trim().toLowerCase();
+                var filtered = NAIL_GALLERY_ITEMS.filter(function(item) {
+                    if (!q) return true;
+                    var matchTarget = (item.name + ' ' + item.category + ' ' + item.desc + ' ' + (item.keywords || '')).toLowerCase();
+                    return matchTarget.indexOf(q) !== -1;
+                });
+
+                if (countBadge) {
+                    countBadge.textContent = q ? ('顯示 ' + filtered.length + ' / ' + NAIL_GALLERY_ITEMS.length + ' 項') : ('共 ' + NAIL_GALLERY_ITEMS.length + ' 種釘子圖');
+                }
+
+                if (filtered.length === 0) {
+                    grid.innerHTML = '<div class="gallery-empty-state">查無符合「' + escapeHtml(q) + '」的釘子圖片</div>';
+                    return;
+                }
+
+                var html = '';
+                filtered.forEach(function(item) {
+                    html += '<div class="gallery-card" data-id="' + item.id + '" onclick="window.openGalleryLightbox(\'' + item.id + '\')">';
+                    html += '  <div class="gallery-card-img-wrap">';
+                    html += '    <img class="gallery-card-img" src="' + item.image + '" alt="' + escapeHtml(item.name) + '" loading="lazy">';
+                    html += '    <span class="gallery-card-zoom-hint">🔍 點擊放大</span>';
+                    html += '  </div>';
+                    html += '  <div class="gallery-card-body">';
+                    html += '    <div class="gallery-card-title">' + escapeHtml(item.name) + '</div>';
+                    html += '    <div class="gallery-card-tags">';
+                    html += '      <span class="gallery-tag-cat">' + escapeHtml(item.category) + '</span>';
+                    html += '    </div>';
+                    html += '    <div class="gallery-tag-desc">' + escapeHtml(item.desc) + '</div>';
+                    html += '    <div class="gallery-card-footer">';
+                    html += '      <span style="font-size:11px;color:#9ca3af;">圖庫預覽</span>';
+                    html += '      <button type="button" class="gallery-jump-btn" onclick="event.stopPropagation(); window.jumpToNailSearch(\'' + item.searchKey + '\')">🔍 查詢規格</button>';
+                    html += '    </div>';
+                    html += '  </div>';
+                    html += '</div>';
+                });
+                grid.innerHTML = html;
+            }
+
+            function escapeHtml(str) {
+                return String(str || '').replace(/[&<>"']/g, function(m) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+                });
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    var val = searchInput.value;
+                    if (clearBtn) clearBtn.style.display = val ? 'flex' : 'none';
+                    renderGallery(val);
+                });
+            }
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function() {
+                    searchInput.value = '';
+                    clearBtn.style.display = 'none';
+                    renderGallery('');
+                    searchInput.focus();
+                });
+            }
+
+            window.openGalleryLightbox = function(id) {
+                var item = NAIL_GALLERY_ITEMS.find(function(x) { return x.id === id; });
+                if (!item) return;
+                var modal = document.getElementById('galleryLightboxModal');
+                var img = document.getElementById('lightboxImg');
+                var title = document.getElementById('lightboxTitle');
+                var desc = document.getElementById('lightboxDesc');
+                var searchBtn = document.getElementById('lightboxSearchBtn');
+
+                if (img) img.src = item.image;
+                if (title) title.textContent = item.name + ' (' + item.category + ')';
+                if (desc) desc.textContent = item.desc;
+                if (searchBtn) {
+                    searchBtn.onclick = function() {
+                        window.closeGalleryLightbox();
+                        window.jumpToNailSearch(item.searchKey);
+                    };
+                }
+                if (modal) modal.hidden = false;
+            };
+
+            window.closeGalleryLightbox = function() {
+                var modal = document.getElementById('galleryLightboxModal');
+                if (modal) modal.hidden = true;
+            };
+
+            window.jumpToNailSearch = function(query) {
+                var nailTabBtn = document.querySelector('.tab-btn[data-sys="nail"]');
+                if (nailTabBtn) nailTabBtn.click();
+                setTimeout(function() {
+                    var searchEl = document.getElementById('search');
+                    if (searchEl) {
+                        searchEl.value = query || '';
+                        searchEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        searchEl.focus();
+                    }
+                }, 80);
+            };
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    window.closeGalleryLightbox();
+                }
+            });
+
+            // 初始渲染
+            renderGallery('');
+        })();
+    </script>
+
     <!-- Tab Switching logic -->
     <script>
         (function() {
@@ -4331,7 +4983,8 @@ init();
             var tabs = document.querySelectorAll('.tab-btn');
             var panels = {
                 bend: document.getElementById('bend-sys-panel'),
-                nail: document.getElementById('nail-sys-panel')
+                nail: document.getElementById('nail-sys-panel'),
+                'nail-gallery': document.getElementById('nail-gallery-panel')
             };
             
             tabs.forEach(function(btn) {
@@ -4341,13 +4994,13 @@ init();
                     
                     var target = btn.dataset.sys;
                     try { localStorage.setItem('engineeringActiveTab', target); } catch (e) {}
-                    if (target === 'bend') {
-                        panels.bend.style.display = 'block';
-                        panels.nail.style.display = 'none';
-                    } else {
-                        panels.bend.style.display = 'none';
-                        panels.nail.style.display = 'block';
-                    }
+                    
+                    Object.keys(panels).forEach(function(key) {
+                        if (panels[key]) {
+                            panels[key].style.display = (key === target) ? 'block' : 'none';
+                        }
+                    });
+
                     if (window.updateNailBackToTopButton) window.updateNailBackToTopButton();
                     var bendBackTop = document.getElementById('backTop');
                     if (bendBackTop && target !== 'bend') bendBackTop.classList.remove('show');
@@ -4363,7 +5016,7 @@ init();
                 }
             } catch (e) {}
 
-            // Mobile swipe navigation: left to Nail, right to Bend.
+            // Mobile swipe navigation: left to Next, right to Previous.
             // Interactive controls and the nail results table are excluded to avoid accidental switches.
             var swipeStart = null;
             var swipeExcluded = 'input, select, textarea, button, a, table, .table-wrap, [contenteditable="true"], .dia-help-tip';
@@ -4390,7 +5043,9 @@ init();
                 var current = activeTab ? activeTab.dataset.sys : 'bend';
                 var target = null;
                 if (dx < 0 && current === 'bend') target = document.querySelector('.tab-btn[data-sys="nail"]');
-                if (dx > 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="bend"]');
+                else if (dx < 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
+                else if (dx > 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="nail"]');
+                else if (dx > 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="bend"]');
                 if (!target) return;
 
                 target.click();
