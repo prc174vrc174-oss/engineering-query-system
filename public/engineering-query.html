@@ -2852,79 +2852,6 @@ h3 {
             width: 18px;
             border-radius: 4px;
         }
-
-        /* Lightbox Note Annotation Area */
-        .gallery-lightbox-note-container {
-            padding: 12px 20px 16px 20px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .gallery-lightbox-note-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-        }
-        .gallery-lightbox-note-title {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 700;
-            color: #334155;
-            user-select: none;
-        }
-        .gallery-lightbox-note-icon {
-            font-size: 14px;
-            line-height: 1;
-        }
-        .gallery-lightbox-note-status {
-            font-size: 11.5px;
-            font-weight: 600;
-            color: #64748b;
-            background: #f1f5f9;
-            padding: 2px 8px;
-            border-radius: 999px;
-            border: 1px solid #e2e8f0;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-            user-select: none;
-        }
-        .gallery-lightbox-note-status.saved {
-            color: #15803d;
-            background: #dcfce7;
-            border-color: #86efac;
-            transform: scale(1.04);
-        }
-        .gallery-lightbox-note-textarea {
-            width: 100%;
-            box-sizing: border-box;
-            min-height: 60px;
-            max-height: 140px;
-            padding: 8px 12px;
-            font-size: 13.5px;
-            line-height: 1.5;
-            color: #0f172a;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            resize: vertical;
-            outline: none;
-            font-family: inherit;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) inset;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .gallery-lightbox-note-textarea:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 1px 2px rgba(0, 0, 0, 0.04) inset;
-            background: #ffffff;
-        }
-        .gallery-lightbox-note-textarea::placeholder {
-            color: #94a3b8;
-            font-size: 13px;
-        }
     </style>
 </head>
 <body>
@@ -2937,7 +2864,7 @@ h3 {
                 <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 164 測試">Version 164 測試</span>
+<span class="site-version" aria-label="網站版次 Version 165 測試">Version 165 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3192,17 +3119,6 @@ h3 {
                         <div class="gallery-lightbox-dots" id="lightboxDots" style="display:none"></div>
                         <div class="gallery-lightbox-counter" id="lightboxCounter" style="display:none"></div>
                     </div>
-                </div>
-                <!-- 圖片註解欄位 -->
-                <div class="gallery-lightbox-note-container">
-                    <div class="gallery-lightbox-note-header">
-                        <div class="gallery-lightbox-note-title">
-                            <span class="gallery-lightbox-note-icon">📝</span>
-                            <span class="gallery-lightbox-note-label" id="lightboxNoteLabel">圖片註解 / 說明</span>
-                        </div>
-                        <span id="lightboxNoteStatus" class="gallery-lightbox-note-status">自動儲存</span>
-                    </div>
-                    <textarea id="lightboxNoteInput" class="gallery-lightbox-note-textarea" placeholder="點此輸入這張圖片的備註、使用重點或工程注意事項（自動即時儲存）..." rows="2"></textarea>
                 </div>
             </div>
         </div>
@@ -4930,52 +4846,8 @@ init();
             var currentLightboxImgIndex = 0;
             var noteSaveTimer = null;
 
-            function getNoteKey(itemId, imgIdx) {
-                return 'nail_gallery_note_' + itemId + '_' + (imgIdx || 0);
-            }
-
-            function getSavedNote(itemId, imgIdx) {
-                var idx = imgIdx || 0;
-                try {
-                    var key = getNoteKey(itemId, idx);
-                    var val = localStorage.getItem(key);
-                    if (val !== null) return val;
-                    if (idx === 0) {
-                        var singleVal = localStorage.getItem('nail_gallery_note_' + itemId);
-                        if (singleVal !== null) return singleVal;
-                    }
-                    var item = NAIL_GALLERY_ITEMS.find(function(x) { return x.id === itemId; });
-                    if (item) {
-                        if (item.notes && item.notes[idx]) return item.notes[idx];
-                        if (item.note && idx === 0) return item.note;
-                    }
-                } catch(e) {}
-                return '';
-            }
-
-            function saveCurrentNote(text) {
-                if (!currentLightboxItem) return;
-                var itemId = currentLightboxItem.id;
-                var idx = currentLightboxImgIndex || 0;
-                try {
-                    var key = getNoteKey(itemId, idx);
-                    if (text && text.trim()) {
-                        localStorage.setItem(key, text);
-                    } else {
-                        localStorage.removeItem(key);
-                    }
-                    var statusEl = document.getElementById('lightboxNoteStatus');
-                    if (statusEl) {
-                        statusEl.textContent = '已儲存 ✓';
-                        statusEl.classList.add('saved');
-                        clearTimeout(noteSaveTimer);
-                        noteSaveTimer = setTimeout(function() {
-                            statusEl.textContent = '自動儲存';
-                            statusEl.classList.remove('saved');
-                        }, 1800);
-                    }
-                } catch(e) {}
-            }
+            var currentLightboxItem = null;
+            var currentLightboxImgIndex = 0;
 
             function updateLightboxDisplay() {
                 if (!currentLightboxItem) return;
@@ -4991,29 +4863,11 @@ init();
                 var nextBtn = document.getElementById('lightboxNextBtn');
                 var counterEl = document.getElementById('lightboxCounter');
                 var dotsEl = document.getElementById('lightboxDots');
-                var noteInput = document.getElementById('lightboxNoteInput');
-                var noteLabel = document.getElementById('lightboxNoteLabel');
-                var noteStatus = document.getElementById('lightboxNoteStatus');
 
                 if (imgEl) {
                     imgEl.style.opacity = '0.4';
                     imgEl.src = getImageUrl(imgs[currentLightboxImgIndex]);
                     setTimeout(function() { imgEl.style.opacity = '1'; }, 40);
-                }
-
-                if (noteInput) {
-                    noteInput.value = getSavedNote(currentLightboxItem.id, currentLightboxImgIndex);
-                }
-                if (noteStatus) {
-                    noteStatus.textContent = '自動儲存';
-                    noteStatus.classList.remove('saved');
-                }
-                if (noteLabel) {
-                    if (total > 1) {
-                        noteLabel.textContent = '第 ' + (currentLightboxImgIndex + 1) + ' 張圖片註解 / 說明';
-                    } else {
-                        noteLabel.textContent = '圖片註解 / 說明';
-                    }
                 }
 
                 if (total > 1) {
@@ -5037,13 +4891,6 @@ init();
                     if (counterEl) counterEl.style.display = 'none';
                     if (dotsEl) dotsEl.style.display = 'none';
                 }
-            }
-
-            var noteInputEl = document.getElementById('lightboxNoteInput');
-            if (noteInputEl) {
-                noteInputEl.addEventListener('input', function() {
-                    saveCurrentNote(this.value);
-                });
             }
 
             window.openGalleryLightbox = function(id, initialIndex) {
@@ -5124,19 +4971,12 @@ init();
             document.addEventListener('keydown', function(e) {
                 var modal = document.getElementById('galleryLightboxModal');
                 if (modal && !modal.hidden) {
-                    var isTyping = e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT');
                     if (e.key === 'Escape') {
-                        if (isTyping) {
-                            e.target.blur();
-                        } else {
-                            window.closeGalleryLightbox();
-                        }
-                    } else if (!isTyping) {
-                        if (e.key === 'ArrowLeft') {
-                            window.prevGalleryImage();
-                        } else if (e.key === 'ArrowRight') {
-                            window.nextGalleryImage();
-                        }
+                        window.closeGalleryLightbox();
+                    } else if (e.key === 'ArrowLeft') {
+                        window.prevGalleryImage();
+                    } else if (e.key === 'ArrowRight') {
+                        window.nextGalleryImage();
                     }
                 }
             });
