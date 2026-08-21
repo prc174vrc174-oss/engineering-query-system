@@ -2933,20 +2933,6 @@ h3 {
             font-size: 15px;
             font-weight: 750;
         }
-        .fold-tool-expand-btn {
-            flex: 0 0 auto;
-            min-height: 32px;
-            padding: 5px 11px;
-            border-color: #bfdbfe;
-            background: #eff6ff;
-            color: #1d4ed8;
-            box-shadow: none;
-        }
-        .fold-tool-expand-btn:hover {
-            border-color: #60a5fa;
-            background: #dbeafe;
-            color: #1e40af;
-        }
         .fold-tool-frame-wrap {
             position: relative;
             width: 100%;
@@ -2962,33 +2948,26 @@ h3 {
             border: 0;
             background: #ffffff;
         }
-        body.fold-tool-expanded {
-            overflow: hidden;
+        .angle-reset-control {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 6px;
         }
-        body.fold-tool-expanded::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            z-index: 2999;
-            background: rgba(15, 23, 42, 0.72);
-            backdrop-filter: blur(3px);
+        .angle-reset-btn {
+            width: 44px;
+            height: 42px;
+            padding: 0;
+            border-color: #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-weight: 800;
+            box-shadow: none;
         }
-        .fold-tool-card.is-expanded {
-            position: fixed;
-            inset: 12px;
-            z-index: 3000;
-            display: flex;
-            flex-direction: column;
-            border-radius: 12px;
-            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
-        }
-        .fold-tool-card.is-expanded .fold-tool-card-head {
-            flex: 0 0 auto;
-        }
-        .fold-tool-card.is-expanded .fold-tool-frame-wrap {
-            flex: 1 1 auto;
-            min-height: 0;
-            aspect-ratio: auto;
+        .angle-reset-btn:hover,
+        .angle-reset-btn:focus-visible {
+            border-color: #60a5fa;
+            background: #dbeafe;
+            color: #1e40af;
         }
         @media (max-width: 560px) {
             #fold-tool-panel .fold-tool-shell {
@@ -3007,14 +2986,6 @@ h3 {
             .fold-tool-card-title {
                 font-size: 14px;
             }
-            .fold-tool-card.is-expanded {
-                inset: 0;
-                border: 0;
-                border-radius: 0;
-            }
-            .fold-tool-expand-btn {
-                padding-inline: 9px;
-            }
         }
     </style>
 </head>
@@ -3029,7 +3000,7 @@ h3 {
                 <button class="tab-btn" data-sys="fold-tool">折刀座標圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 168 測試">Version 168 測試</span>
+<span class="site-version" aria-label="網站版次 Version 169 測試">Version 169 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3042,7 +3013,7 @@ h3 {
       <div class="calc-input-row"><div class="fields">
         <div class="mat-combo"><label for="mat">&#x6750;&#x8CEA;</label><select id="mat"></select><div class="mat-menu" id="matMenu" style="display:none" aria-hidden="true"></div></div>
         <div class="thick-combo"><label for="thick">&#x677F;&#x539A; T</label><select id="thick"></select><div class="thick-menu" id="thickMenu" style="display:none" aria-hidden="true"></div></div>
-        <div><label>&#x6298;&#x5F4E;&#x89D2;&#x5EA6; &#x3B8;</label><input id="angle" type="number" step="0.1" value="90"></div>
+        <div><label for="angle">&#x6298;&#x5F4E;&#x89D2;&#x5EA6; &#x3B8;</label><div class="angle-reset-control"><input id="angle" type="number" step="0.1" value="90"><button id="angleReset90Btn" class="angle-reset-btn" type="button" aria-label="重設折彎角度為90度" title="回到90度">90°</button></div></div>
         <div class="r-combo"><label>&#x5167; R</label><input id="radius" type="text" inputmode="decimal" autocomplete="off" value=""><div class="r-menu" id="radiusMenu"></div></div>
       </div></div>
       <div class="group-box result-panel result-panel-wide"><div class="group-title">折彎係數</div><div class="out-grid bend-results" id="bendOut"></div></div>
@@ -3306,7 +3277,6 @@ h3 {
                 <section id="pointedFoldToolView" class="fold-tool-card fold-tool-view" data-fold-tool-content="pointed" role="tabpanel" aria-labelledby="pointedFoldToolTitle">
                     <div class="fold-tool-card-head">
                         <h3 id="pointedFoldToolTitle" class="fold-tool-card-title">尖刀｜雙側 L 線互動座標</h3>
-                        <button type="button" class="fold-tool-expand-btn" aria-expanded="false">⛶ 放大檢視</button>
                     </div>
                     <div class="fold-tool-frame-wrap">
                         <iframe class="fold-tool-frame" src="./fold-tool-pointed.html" title="尖刀雙側 L 線互動座標圖" loading="lazy"></iframe>
@@ -3316,7 +3286,6 @@ h3 {
                 <section id="curved117FoldToolView" class="fold-tool-card fold-tool-view" data-fold-tool-content="curved117" role="tabpanel" aria-labelledby="curved117FoldToolTitle" hidden>
                     <div class="fold-tool-card-head">
                         <h3 id="curved117FoldToolTitle" class="fold-tool-card-title">彎刀 117｜雙側 L 線互動座標</h3>
-                        <button type="button" class="fold-tool-expand-btn" aria-expanded="false">⛶ 放大檢視</button>
                     </div>
                     <div class="fold-tool-frame-wrap">
                         <iframe class="fold-tool-frame" src="./fold-tool-117.html" title="彎刀 117 雙側 L 線互動座標圖" loading="lazy"></iframe>
@@ -3359,7 +3328,7 @@ function exactRow(rows,field,value){return rows.find(r=>String(r[field])===Strin
 function thicknessList(mat){if(!mat)return [''];const list=D.commonLists&&D.commonLists[mat]&&D.commonLists[mat].length?D.commonLists[mat]:D.bendRows.map(r=>r.t);return [''].concat([...new Set(list.filter(valid))].sort((a,b)=>n(a)-n(b)))}
 function rValues(){return [""].concat([...new Set(D.rKnives.map(x=>String(x.r)).filter(valid))].sort((a,b)=>n(a)-n(b)))}
 function init(){opt($('mat'),[''].concat(VISIBLE_MATERIALS),'');opt($('holeType'),[''].concat(D.holeTypes),'');const skOption=[...$('mat').options].find(function(o){return o.value==='SK'});if(skOption){skOption.textContent='SK（僅用於簡模）';skOption.label='SK（僅用於簡模）';skOption.setAttribute('label','SK（僅用於簡模）')}updateThicknessOptions();updateHoleSpecs();renderRadiusMenu();renderSheetMenus();bind();calcAll();renderRefTabs()}
-function bind(){document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab,.panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.panel).classList.add('active')});['mat','thick','angle','radius','offsetH','partX','partY','sheetX','sheetY'].forEach(id=>$(id)?.addEventListener('input',()=>{if(id==='mat')updateThicknessOptions();calcAll()}));$('holeType').addEventListener('change',()=>{updateHoleSpecs();calcHole()});$('holeSpec').addEventListener('change',calcHole);$('radius').addEventListener('focus',showRadiusMenu);$('radius').addEventListener('click',showRadiusMenu);$('radius').addEventListener('keydown',handleRadiusKey);$('radius').addEventListener('input',()=>{radiusKeyboardNavigating=false;activateRadiusOption(radiusIndexForValue())});['sheetX','sheetY'].forEach(id=>{$(id).addEventListener('focus',()=>showSheetMenu(id));$(id).addEventListener('click',()=>showSheetMenu(id));$(id).addEventListener('keydown',e=>handleSheetKey(id,e));$(id).addEventListener('input',()=>{sheetKeyboardNavigating[id]=false;activateSheetOption(id,sheetIndexForValue(id))})});document.addEventListener('click',e=>{if(!e.target.closest('.r-combo'))hideRadiusMenu();if(!e.target.closest('.sheet-combo'))hideSheetMenus()});document.addEventListener('keydown',handleDevelopedSizeKey);window.addEventListener('message',handleDevelopedCalcMessage);window.addEventListener('message',handleMCalcMessage);$('bendClearBtn')?.addEventListener('click',clearInputs);$('bendSectionClearBtn')?.addEventListener('click',clearBendSectionInputs);$('holeClearBtn')?.addEventListener('click',clearHoleInputs);$('blankClearBtn')?.addEventListener('click',clearBlankInputs);$('refSearch').oninput=()=>renderRef(currentRef);window.addEventListener('scroll',()=>$('backTop').classList.toggle('show',scrollY>360),{passive:true});$('backTop').onclick=()=>scrollTo({top:0,behavior:'smooth'})}
+function bind(){document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab,.panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.panel).classList.add('active')});['mat','thick','angle','radius','offsetH','partX','partY','sheetX','sheetY'].forEach(id=>$(id)?.addEventListener('input',()=>{if(id==='mat')updateThicknessOptions();calcAll()}));$('angleReset90Btn')?.addEventListener('click',()=>{$('angle').value='90';calcAll();$('angle').focus()});$('holeType').addEventListener('change',()=>{updateHoleSpecs();calcHole()});$('holeSpec').addEventListener('change',calcHole);$('radius').addEventListener('focus',showRadiusMenu);$('radius').addEventListener('click',showRadiusMenu);$('radius').addEventListener('keydown',handleRadiusKey);$('radius').addEventListener('input',()=>{radiusKeyboardNavigating=false;activateRadiusOption(radiusIndexForValue())});['sheetX','sheetY'].forEach(id=>{$(id).addEventListener('focus',()=>showSheetMenu(id));$(id).addEventListener('click',()=>showSheetMenu(id));$(id).addEventListener('keydown',e=>handleSheetKey(id,e));$(id).addEventListener('input',()=>{sheetKeyboardNavigating[id]=false;activateSheetOption(id,sheetIndexForValue(id))})});document.addEventListener('click',e=>{if(!e.target.closest('.r-combo'))hideRadiusMenu();if(!e.target.closest('.sheet-combo'))hideSheetMenus()});document.addEventListener('keydown',handleDevelopedSizeKey);window.addEventListener('message',handleDevelopedCalcMessage);window.addEventListener('message',handleMCalcMessage);$('bendClearBtn')?.addEventListener('click',clearInputs);$('bendSectionClearBtn')?.addEventListener('click',clearBendSectionInputs);$('holeClearBtn')?.addEventListener('click',clearHoleInputs);$('blankClearBtn')?.addEventListener('click',clearBlankInputs);$('refSearch').oninput=()=>renderRef(currentRef);window.addEventListener('scroll',()=>$('backTop').classList.toggle('show',scrollY>360),{passive:true});$('backTop').onclick=()=>scrollTo({top:0,behavior:'smooth'})}
 function updateThicknessOptions(){const current=String($('thick').value),mat=$('mat').value,list=thicknessList(mat),sel=$('thick'),matched=list.find(function(v){return String(v)===current});sel.innerHTML='';list.forEach(function(v){const o=document.createElement('option'),display=(mat==='SUS'&&String(v)==='1.6')?'1.6（叫不到料）':String(v);o.value=String(v);o.textContent=display;o.label=display;o.setAttribute('label',display);sel.appendChild(o)});sel.value=matched!==undefined?String(matched):''}
 let thickActiveIndex=0;
 function thickOptions(){return [...$('thickMenu').querySelectorAll('.thick-option')]}
@@ -5193,42 +5162,6 @@ init();
         (function() {
             var foldToolButtons = document.querySelectorAll('.fold-tool-switch-btn');
             var foldToolViews = document.querySelectorAll('.fold-tool-view');
-            var foldToolExpandButtons = document.querySelectorAll('.fold-tool-expand-btn');
-
-            function setFoldToolExpanded(card, expanded) {
-                if (!card) return;
-                document.querySelectorAll('.fold-tool-card.is-expanded').forEach(function(openCard) {
-                    if (openCard !== card || !expanded) {
-                        openCard.classList.remove('is-expanded');
-                        var openButton = openCard.querySelector('.fold-tool-expand-btn');
-                        if (openButton) {
-                            openButton.setAttribute('aria-expanded', 'false');
-                            openButton.textContent = '⛶ 放大檢視';
-                        }
-                    }
-                });
-
-                card.classList.toggle('is-expanded', expanded);
-                var button = card.querySelector('.fold-tool-expand-btn');
-                if (button) {
-                    button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-                    button.textContent = expanded ? '✕ 縮小返回' : '⛶ 放大檢視';
-                }
-                document.body.classList.toggle('fold-tool-expanded', expanded);
-            }
-
-            foldToolExpandButtons.forEach(function(button) {
-                button.addEventListener('click', function() {
-                    var card = button.closest('.fold-tool-card');
-                    setFoldToolExpanded(card, !card.classList.contains('is-expanded'));
-                });
-            });
-
-            document.addEventListener('keydown', function(event) {
-                if (event.key !== 'Escape') return;
-                var expandedCard = document.querySelector('.fold-tool-card.is-expanded');
-                if (expandedCard) setFoldToolExpanded(expandedCard, false);
-            });
 
             function selectFoldTool(viewName) {
                 var selected = document.querySelector('.fold-tool-switch-btn[data-fold-tool-view="' + viewName + '"]');
@@ -5278,8 +5211,6 @@ init();
             
             tabs.forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    var expandedCard = document.querySelector('.fold-tool-card.is-expanded');
-                    if (expandedCard) setFoldToolExpanded(expandedCard, false);
                     tabs.forEach(function(t) { t.classList.remove('active'); });
                     btn.classList.add('active');
                     
