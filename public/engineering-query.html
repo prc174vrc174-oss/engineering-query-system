@@ -2953,10 +2953,14 @@ h3 {
             grid-template-columns: minmax(0, 1fr) auto;
             gap: 6px;
         }
+        .angle-reset-control #angle {
+            min-width: 0;
+        }
         .angle-reset-btn {
-            width: 44px;
+            width: auto;
+            min-width: 78px;
             height: 42px;
-            padding: 0;
+            padding: 0 10px;
             border-color: #bfdbfe;
             background: #eff6ff;
             color: #1d4ed8;
@@ -3000,7 +3004,7 @@ h3 {
                 <button class="tab-btn" data-sys="fold-tool">折刀座標圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 169 測試">Version 169 測試</span>
+<span class="site-version" aria-label="網站版次 Version 170 測試">Version 170 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3013,7 +3017,7 @@ h3 {
       <div class="calc-input-row"><div class="fields">
         <div class="mat-combo"><label for="mat">&#x6750;&#x8CEA;</label><select id="mat"></select><div class="mat-menu" id="matMenu" style="display:none" aria-hidden="true"></div></div>
         <div class="thick-combo"><label for="thick">&#x677F;&#x539A; T</label><select id="thick"></select><div class="thick-menu" id="thickMenu" style="display:none" aria-hidden="true"></div></div>
-        <div><label for="angle">&#x6298;&#x5F4E;&#x89D2;&#x5EA6; &#x3B8;</label><div class="angle-reset-control"><input id="angle" type="number" step="0.1" value="90"><button id="angleReset90Btn" class="angle-reset-btn" type="button" aria-label="重設折彎角度為90度" title="回到90度">90°</button></div></div>
+        <div><label for="angle">&#x6298;&#x5F4E;&#x89D2;&#x5EA6; &#x3B8;</label><div class="angle-reset-control"><input id="angle" type="number" step="0.1" value="90"><button id="angleReset90Btn" class="angle-reset-btn" type="button" aria-label="重設折彎角度為90度" title="回到90度">回到90度</button></div></div>
         <div class="r-combo"><label>&#x5167; R</label><input id="radius" type="text" inputmode="decimal" autocomplete="off" value=""><div class="r-menu" id="radiusMenu"></div></div>
       </div></div>
       <div class="group-box result-panel result-panel-wide"><div class="group-title">折彎係數</div><div class="out-grid bend-results" id="bendOut"></div></div>
