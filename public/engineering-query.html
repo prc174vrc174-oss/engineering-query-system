@@ -2879,9 +2879,37 @@ h3 {
             color: var(--notion-text-soft);
             font-size: 13.5px;
         }
-        .fold-tool-list {
-            display: grid;
-            gap: 20px;
+        .fold-tool-switcher {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            padding: 4px;
+            width: fit-content;
+            max-width: 100%;
+            border: 1px solid var(--notion-border);
+            border-radius: 9px;
+            background: #eef2f7;
+        }
+        .fold-tool-switch-btn {
+            min-height: 36px;
+            padding: 7px 18px;
+            border-color: transparent;
+            background: transparent;
+            box-shadow: none;
+            color: #475569;
+        }
+        .fold-tool-switch-btn:hover {
+            border-color: #cbd5e1;
+            background: rgba(255, 255, 255, 0.72);
+        }
+        .fold-tool-switch-btn.active {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 3px 8px rgba(37, 99, 235, 0.22);
+        }
+        .fold-tool-view[hidden] {
+            display: none;
         }
         .fold-tool-card {
             overflow: hidden;
@@ -2924,8 +2952,12 @@ h3 {
             #fold-tool-panel .fold-tool-shell {
                 padding: 8px 10px 24px;
             }
-            .fold-tool-list {
-                gap: 14px;
+            .fold-tool-switcher {
+                width: 100%;
+            }
+            .fold-tool-switch-btn {
+                flex: 1;
+                padding-inline: 10px;
             }
             .fold-tool-card-head {
                 padding: 9px 11px;
@@ -2947,7 +2979,7 @@ h3 {
                 <button class="tab-btn" data-sys="fold-tool">折刀座標圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 166 測試">Version 166 測試</span>
+<span class="site-version" aria-label="網站版次 Version 167 測試">Version 167 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3215,8 +3247,13 @@ h3 {
                 <p class="fold-tool-subtitle">輸入左右兩側尺寸，即時查看折刀座標線位置。</p>
             </header>
 
-            <div class="fold-tool-list">
-                <section class="fold-tool-card" aria-labelledby="pointedFoldToolTitle">
+            <div class="fold-tool-switcher" role="tablist" aria-label="選擇折刀座標圖">
+                <button type="button" class="fold-tool-switch-btn active" role="tab" aria-selected="true" aria-controls="pointedFoldToolView" data-fold-tool-view="pointed">尖刀</button>
+                <button type="button" class="fold-tool-switch-btn" role="tab" aria-selected="false" aria-controls="curved117FoldToolView" data-fold-tool-view="curved117">彎刀 117</button>
+            </div>
+
+            <div class="fold-tool-views">
+                <section id="pointedFoldToolView" class="fold-tool-card fold-tool-view" data-fold-tool-content="pointed" role="tabpanel" aria-labelledby="pointedFoldToolTitle">
                     <div class="fold-tool-card-head">
                         <h3 id="pointedFoldToolTitle" class="fold-tool-card-title">尖刀｜雙側 L 線互動座標</h3>
                     </div>
@@ -3225,7 +3262,7 @@ h3 {
                     </div>
                 </section>
 
-                <section class="fold-tool-card" aria-labelledby="curved117FoldToolTitle">
+                <section id="curved117FoldToolView" class="fold-tool-card fold-tool-view" data-fold-tool-content="curved117" role="tabpanel" aria-labelledby="curved117FoldToolTitle" hidden>
                     <div class="fold-tool-card-head">
                         <h3 id="curved117FoldToolTitle" class="fold-tool-card-title">彎刀 117｜雙側 L 線互動座標</h3>
                     </div>
@@ -5102,6 +5139,35 @@ init();
     <!-- Tab Switching logic -->
     <script>
         (function() {
+            var foldToolButtons = document.querySelectorAll('.fold-tool-switch-btn');
+            var foldToolViews = document.querySelectorAll('.fold-tool-view');
+
+            function selectFoldTool(viewName) {
+                var selected = document.querySelector('.fold-tool-switch-btn[data-fold-tool-view="' + viewName + '"]');
+                if (!selected) return;
+
+                foldToolButtons.forEach(function(button) {
+                    var isActive = button === selected;
+                    button.classList.toggle('active', isActive);
+                    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                });
+                foldToolViews.forEach(function(view) {
+                    view.hidden = view.dataset.foldToolContent !== viewName;
+                });
+                try { localStorage.setItem('engineeringFoldToolView', viewName); } catch (e) {}
+            }
+
+            foldToolButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    selectFoldTool(button.dataset.foldToolView);
+                });
+            });
+
+            try {
+                var savedFoldToolView = localStorage.getItem('engineeringFoldToolView');
+                if (savedFoldToolView) selectFoldTool(savedFoldToolView);
+            } catch (e) {}
+
             // Keep the product name stable when the file is hosted under a web-safe filename.
             try {
                 var cleanName = '工程查詢系統';
