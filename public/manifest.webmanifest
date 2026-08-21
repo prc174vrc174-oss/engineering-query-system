@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "工程查詢系統",
-  "short_name": "工程查詢",
+  "name": "查詢系統",
+  "short_name": "查詢系統",
   "description": "工程係數、開孔、釘子庫存與展開計算工具",
   "lang": "zh-Hant",
   "start_url": "./",

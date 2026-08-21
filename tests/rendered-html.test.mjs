@@ -131,7 +131,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(calculator, /<strong>角度與R變化<\/strong>/);
   assert.match(calculator, /zeroTotal\+total\+comp/);
   assert.match(calculator, /total\+=val-m/);
-  assert.match(calculator, /Version 172 測試/);
+  assert.match(calculator, /Version 173 測試/);
   assert.match(calculator, /zero:value-tc\*\(t\+radius\)/);
   assert.match(calculator, /compact2=new Intl\.NumberFormat\('zh-TW',\{maximumFractionDigits:2\}\)/);
   assert.match(calculator, /Number\.isFinite\(e\.zero\)\?compact2\.format\(e\.zero\):'－'/);
@@ -174,7 +174,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(source, /let popupWidth=450,popupHeight=710/);
 });
 
-test("Version 172 test labels live in the requested header areas", async () => {
+test("Version 173 test labels live in the requested header areas", async () => {
   const source = await readFile(
     new URL("../public/engineering-query.html", import.meta.url),
     "utf8",
@@ -186,14 +186,14 @@ test("Version 172 test labels live in the requested header areas", async () => {
 
   assert.match(
     source,
-    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 172 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 173 測試<\/span>[\s\S]*?<\/header>/,
   );
   assert.match(
     standalone,
-    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 172 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 173 測試<\/span>[\s\S]*?<\/header>/,
   );
-  assert.equal((source.match(/Version 172 測試/g) || []).length, 2);
-  assert.equal((standalone.match(/Version 172 測試/g) || []).length, 2);
+  assert.equal((source.match(/Version 173 測試/g) || []).length, 2);
+  assert.equal((standalone.match(/Version 173 測試/g) || []).length, 2);
 });
 
 test("GitHub Pages build is installable and supports direct Apps Script upload", async () => {
@@ -204,13 +204,16 @@ test("GitHub Pages build is installable and supports direct Apps Script upload",
 
   assert.match(source, /rel="manifest" href="\.\/manifest\.webmanifest"/);
   assert.match(source, /serviceWorker\.register\('\.\/service-worker\.js'/);
-  assert.equal(manifest.name, "工程查詢系統");
+  assert.equal(manifest.name, "查詢系統");
+  assert.equal(manifest.short_name, "查詢系統");
+  assert.match(source, /<title>查詢系統<\/title>/);
+  assert.match(source, /<h1 class="header-tabs-title">🔧 查詢系統<\/h1>/);
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.start_url, "./");
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v172/);
+  assert.match(serviceWorker, /engineering-query-pwa-v173/);
   assert.match(upload, /isGitHubPages/);
   assert.match(upload, /DIRECT_SYNC_URL/);
   assert.match(upload, /mode: 'no-cors'/);
