@@ -871,6 +871,8 @@ h3 {
         .tabs-nav {
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         /* Center the title and main tabs as one group while all six coefficient cards fit on one row. */
         @media (min-width: 901px) {
@@ -2852,6 +2854,86 @@ h3 {
             width: 18px;
             border-radius: 4px;
         }
+
+        /* -- 折刀座標圖 ----------------------------------------- */
+        #fold-tool-panel .fold-tool-shell {
+            width: min(1100px, 100%);
+            margin: 0 auto;
+            padding: 8px 24px 36px;
+        }
+        .fold-tool-header {
+            margin-bottom: 16px;
+        }
+        .fold-tool-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            color: var(--notion-text);
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        .fold-tool-subtitle {
+            margin: 6px 0 0;
+            color: var(--notion-text-soft);
+            font-size: 13.5px;
+        }
+        .fold-tool-list {
+            display: grid;
+            gap: 20px;
+        }
+        .fold-tool-card {
+            overflow: hidden;
+            border: 1px solid var(--notion-border);
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        }
+        .fold-tool-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--notion-border-soft);
+            background: #f8fafc;
+        }
+        .fold-tool-card-title {
+            margin: 0;
+            color: #111827;
+            font-size: 15px;
+            font-weight: 750;
+        }
+        .fold-tool-frame-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1039 / 726;
+            overflow: hidden;
+            background: #ffffff;
+        }
+        .fold-tool-frame {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: #ffffff;
+        }
+        @media (max-width: 560px) {
+            #fold-tool-panel .fold-tool-shell {
+                padding: 8px 10px 24px;
+            }
+            .fold-tool-list {
+                gap: 14px;
+            }
+            .fold-tool-card-head {
+                padding: 9px 11px;
+            }
+            .fold-tool-card-title {
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2862,9 +2944,10 @@ h3 {
                 <button class="tab-btn active" data-sys="bend">係數與開孔查詢</button>
                 <button class="tab-btn" data-sys="nail">釘子查詢系統</button>
                 <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
+                <button class="tab-btn" data-sys="fold-tool">折刀座標圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 165 測試">Version 165 測試</span>
+<span class="site-version" aria-label="網站版次 Version 166 測試">Version 166 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3122,6 +3205,36 @@ h3 {
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- 4. 折刀座標圖 -->
+    <div id="fold-tool-panel" class="sys-panel" style="display:none">
+        <main class="fold-tool-shell">
+            <header class="fold-tool-header">
+                <h2 class="fold-tool-title"><span aria-hidden="true">📐</span>折刀座標圖</h2>
+                <p class="fold-tool-subtitle">輸入左右兩側尺寸，即時查看折刀座標線位置。</p>
+            </header>
+
+            <div class="fold-tool-list">
+                <section class="fold-tool-card" aria-labelledby="pointedFoldToolTitle">
+                    <div class="fold-tool-card-head">
+                        <h3 id="pointedFoldToolTitle" class="fold-tool-card-title">尖刀｜雙側 L 線互動座標</h3>
+                    </div>
+                    <div class="fold-tool-frame-wrap">
+                        <iframe class="fold-tool-frame" src="./fold-tool-pointed.html" title="尖刀雙側 L 線互動座標圖" loading="lazy"></iframe>
+                    </div>
+                </section>
+
+                <section class="fold-tool-card" aria-labelledby="curved117FoldToolTitle">
+                    <div class="fold-tool-card-head">
+                        <h3 id="curved117FoldToolTitle" class="fold-tool-card-title">彎刀 117｜雙側 L 線互動座標</h3>
+                    </div>
+                    <div class="fold-tool-frame-wrap">
+                        <iframe class="fold-tool-frame" src="./fold-tool-117.html" title="彎刀 117 雙側 L 線互動座標圖" loading="lazy"></iframe>
+                    </div>
+                </section>
+            </div>
+        </main>
     </div>
 
     <!-- Bending System Data & Logic -->
@@ -5005,7 +5118,8 @@ init();
             var panels = {
                 bend: document.getElementById('bend-sys-panel'),
                 nail: document.getElementById('nail-sys-panel'),
-                'nail-gallery': document.getElementById('nail-gallery-panel')
+                'nail-gallery': document.getElementById('nail-gallery-panel'),
+                'fold-tool': document.getElementById('fold-tool-panel')
             };
             
             tabs.forEach(function(btn) {
@@ -5065,6 +5179,8 @@ init();
                 var target = null;
                 if (dx < 0 && current === 'bend') target = document.querySelector('.tab-btn[data-sys="nail"]');
                 else if (dx < 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
+                else if (dx < 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
+                else if (dx > 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
                 else if (dx > 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="nail"]');
                 else if (dx > 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="bend"]');
                 if (!target) return;

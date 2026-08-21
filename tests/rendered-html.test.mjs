@@ -131,7 +131,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(calculator, /<strong>角度與R變化<\/strong>/);
   assert.match(calculator, /zeroTotal\+total\+comp/);
   assert.match(calculator, /total\+=val-m/);
-  assert.match(calculator, /Version 152 測試/);
+  assert.match(calculator, /Version 166 測試/);
   assert.match(calculator, /zero:value-tc\*\(t\+radius\)/);
   assert.match(calculator, /compact2=new Intl\.NumberFormat\('zh-TW',\{maximumFractionDigits:2\}\)/);
   assert.match(calculator, /Number\.isFinite\(e\.zero\)\?compact2\.format\(e\.zero\):'－'/);
@@ -174,7 +174,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(source, /let popupWidth=450,popupHeight=710/);
 });
 
-test("Version 152 test labels live in the requested header areas", async () => {
+test("Version 166 test labels live in the requested header areas", async () => {
   const source = await readFile(
     new URL("../public/engineering-query.html", import.meta.url),
     "utf8",
@@ -186,14 +186,14 @@ test("Version 152 test labels live in the requested header areas", async () => {
 
   assert.match(
     source,
-    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 152 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 166 測試<\/span>[\s\S]*?<\/header>/,
   );
   assert.match(
     standalone,
-    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 152 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 166 測試<\/span>[\s\S]*?<\/header>/,
   );
-  assert.equal((source.match(/Version 152 測試/g) || []).length, 2);
-  assert.equal((standalone.match(/Version 152 測試/g) || []).length, 2);
+  assert.equal((source.match(/Version 166 測試/g) || []).length, 2);
+  assert.equal((standalone.match(/Version 166 測試/g) || []).length, 2);
 });
 
 test("GitHub Pages build is installable and supports direct Apps Script upload", async () => {
@@ -210,7 +210,7 @@ test("GitHub Pages build is installable and supports direct Apps Script upload",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v152/);
+  assert.match(serviceWorker, /engineering-query-pwa-v166/);
   assert.match(upload, /isGitHubPages/);
   assert.match(upload, /DIRECT_SYNC_URL/);
   assert.match(upload, /mode: 'no-cors'/);
@@ -219,10 +219,10 @@ test("GitHub Pages build is installable and supports direct Apps Script upload",
   assert.doesNotMatch(source, /lanWebUpdateToken = '[a-f0-9]{32,}'/);
 });
 
-test("GitHub Pages reads sheet metadata directly with a mobile-safe timeout", async () => {
+test("GitHub Pages reads sheet metadata directly with the configured timeout", async () => {
   const source = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
   assert.match(source, /fetch\(metadataWebAppUrl \+ '\?_=' \+ Date\.now\(\), \{[\s\S]*?mode: 'cors'/);
-  assert.match(source, /setTimeout\(function \(\) \{ controller\.abort\(\); \}, 30000\)/);
+  assert.match(source, /setTimeout\(function \(\) \{ controller\.abort\(\); \}, 12000\)/);
   assert.match(source, /if \(!\/\\\.github\\\.io\$\/i\.test\(window\.location\.hostname\)\)/);
   assert.match(source, /tryDirectMetadata\(\)/);
   assert.match(source, /\}, 45000\);/);
@@ -277,4 +277,32 @@ test("hole type and specification both use native selects", async () => {
   assert.match(source, /\$\('holeType'\)\.addEventListener\('change'/);
   assert.match(source, /\$\('holeSpec'\)\.addEventListener\('change',calcHole\)/);
   assert.match(source, /optSpec\(\$\('holeSpec'\),\[''\]\.concat\(availableHoleSpecs\(\)\),''\)/);
+});
+
+test("folding-tool tab embeds both supplied interactive coordinate pages", async () => {
+  const source = await readFile(
+    new URL("../public/engineering-query.html", import.meta.url),
+    "utf8",
+  );
+  const pointed = await readFile(
+    new URL("../public/fold-tool-pointed.html", import.meta.url),
+    "utf8",
+  );
+  const curved117 = await readFile(
+    new URL("../public/fold-tool-117.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /class="tab-btn" data-sys="fold-tool">折刀座標圖<\/button>/);
+  assert.match(source, /id="fold-tool-panel"/);
+  assert.match(source, /src="\.\/fold-tool-pointed\.html"/);
+  assert.match(source, /src="\.\/fold-tool-117\.html"/);
+  assert.match(source, /'fold-tool': document\.getElementById\('fold-tool-panel'\)/);
+  assert.match(source, /current === 'nail-gallery'[\s\S]*?data-sys="fold-tool"/);
+  assert.match(pointed, /<title>尖刀 座標互動定位<\/title>/);
+  assert.match(pointed, /id="leftW"/);
+  assert.match(pointed, /id="rightW"/);
+  assert.match(curved117, /<title>彎刀_117 座標互動定位<\/title>/);
+  assert.match(curved117, /id="leftW"/);
+  assert.match(curved117, /id="rightW"/);
 });
