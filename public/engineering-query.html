@@ -2933,6 +2933,20 @@ h3 {
             font-size: 15px;
             font-weight: 750;
         }
+        .fold-tool-expand-btn {
+            flex: 0 0 auto;
+            min-height: 32px;
+            padding: 5px 11px;
+            border-color: #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+            box-shadow: none;
+        }
+        .fold-tool-expand-btn:hover {
+            border-color: #60a5fa;
+            background: #dbeafe;
+            color: #1e40af;
+        }
         .fold-tool-frame-wrap {
             position: relative;
             width: 100%;
@@ -2947,6 +2961,34 @@ h3 {
             height: 100%;
             border: 0;
             background: #ffffff;
+        }
+        body.fold-tool-expanded {
+            overflow: hidden;
+        }
+        body.fold-tool-expanded::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 2999;
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(3px);
+        }
+        .fold-tool-card.is-expanded {
+            position: fixed;
+            inset: 12px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            border-radius: 12px;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+        }
+        .fold-tool-card.is-expanded .fold-tool-card-head {
+            flex: 0 0 auto;
+        }
+        .fold-tool-card.is-expanded .fold-tool-frame-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+            aspect-ratio: auto;
         }
         @media (max-width: 560px) {
             #fold-tool-panel .fold-tool-shell {
@@ -2965,6 +3007,14 @@ h3 {
             .fold-tool-card-title {
                 font-size: 14px;
             }
+            .fold-tool-card.is-expanded {
+                inset: 0;
+                border: 0;
+                border-radius: 0;
+            }
+            .fold-tool-expand-btn {
+                padding-inline: 9px;
+            }
         }
     </style>
 </head>
@@ -2979,7 +3029,7 @@ h3 {
                 <button class="tab-btn" data-sys="fold-tool">折刀座標圖</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 167 測試">Version 167 測試</span>
+<span class="site-version" aria-label="網站版次 Version 168 測試">Version 168 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3256,6 +3306,7 @@ h3 {
                 <section id="pointedFoldToolView" class="fold-tool-card fold-tool-view" data-fold-tool-content="pointed" role="tabpanel" aria-labelledby="pointedFoldToolTitle">
                     <div class="fold-tool-card-head">
                         <h3 id="pointedFoldToolTitle" class="fold-tool-card-title">尖刀｜雙側 L 線互動座標</h3>
+                        <button type="button" class="fold-tool-expand-btn" aria-expanded="false">⛶ 放大檢視</button>
                     </div>
                     <div class="fold-tool-frame-wrap">
                         <iframe class="fold-tool-frame" src="./fold-tool-pointed.html" title="尖刀雙側 L 線互動座標圖" loading="lazy"></iframe>
@@ -3265,6 +3316,7 @@ h3 {
                 <section id="curved117FoldToolView" class="fold-tool-card fold-tool-view" data-fold-tool-content="curved117" role="tabpanel" aria-labelledby="curved117FoldToolTitle" hidden>
                     <div class="fold-tool-card-head">
                         <h3 id="curved117FoldToolTitle" class="fold-tool-card-title">彎刀 117｜雙側 L 線互動座標</h3>
+                        <button type="button" class="fold-tool-expand-btn" aria-expanded="false">⛶ 放大檢視</button>
                     </div>
                     <div class="fold-tool-frame-wrap">
                         <iframe class="fold-tool-frame" src="./fold-tool-117.html" title="彎刀 117 雙側 L 線互動座標圖" loading="lazy"></iframe>
@@ -5141,6 +5193,42 @@ init();
         (function() {
             var foldToolButtons = document.querySelectorAll('.fold-tool-switch-btn');
             var foldToolViews = document.querySelectorAll('.fold-tool-view');
+            var foldToolExpandButtons = document.querySelectorAll('.fold-tool-expand-btn');
+
+            function setFoldToolExpanded(card, expanded) {
+                if (!card) return;
+                document.querySelectorAll('.fold-tool-card.is-expanded').forEach(function(openCard) {
+                    if (openCard !== card || !expanded) {
+                        openCard.classList.remove('is-expanded');
+                        var openButton = openCard.querySelector('.fold-tool-expand-btn');
+                        if (openButton) {
+                            openButton.setAttribute('aria-expanded', 'false');
+                            openButton.textContent = '⛶ 放大檢視';
+                        }
+                    }
+                });
+
+                card.classList.toggle('is-expanded', expanded);
+                var button = card.querySelector('.fold-tool-expand-btn');
+                if (button) {
+                    button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                    button.textContent = expanded ? '✕ 縮小返回' : '⛶ 放大檢視';
+                }
+                document.body.classList.toggle('fold-tool-expanded', expanded);
+            }
+
+            foldToolExpandButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var card = button.closest('.fold-tool-card');
+                    setFoldToolExpanded(card, !card.classList.contains('is-expanded'));
+                });
+            });
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key !== 'Escape') return;
+                var expandedCard = document.querySelector('.fold-tool-card.is-expanded');
+                if (expandedCard) setFoldToolExpanded(expandedCard, false);
+            });
 
             function selectFoldTool(viewName) {
                 var selected = document.querySelector('.fold-tool-switch-btn[data-fold-tool-view="' + viewName + '"]');
@@ -5190,6 +5278,8 @@ init();
             
             tabs.forEach(function(btn) {
                 btn.addEventListener('click', function() {
+                    var expandedCard = document.querySelector('.fold-tool-card.is-expanded');
+                    if (expandedCard) setFoldToolExpanded(expandedCard, false);
                     tabs.forEach(function(t) { t.classList.remove('active'); });
                     btn.classList.add('active');
                     
