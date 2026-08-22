@@ -131,7 +131,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(calculator, /<strong>角度與R變化<\/strong>/);
   assert.match(calculator, /zeroTotal\+total\+comp/);
   assert.match(calculator, /total\+=val-m/);
-  assert.match(calculator, /Version 173 測試/);
+  assert.match(calculator, /Version 174 測試/);
   assert.match(calculator, /zero:value-tc\*\(t\+radius\)/);
   assert.match(calculator, /compact2=new Intl\.NumberFormat\('zh-TW',\{maximumFractionDigits:2\}\)/);
   assert.match(calculator, /Number\.isFinite\(e\.zero\)\?compact2\.format\(e\.zero\):'－'/);
@@ -174,7 +174,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(source, /let popupWidth=450,popupHeight=710/);
 });
 
-test("Version 173 test labels live in the requested header areas", async () => {
+test("Version 174 test labels live in the requested header areas", async () => {
   const source = await readFile(
     new URL("../public/engineering-query.html", import.meta.url),
     "utf8",
@@ -186,14 +186,14 @@ test("Version 173 test labels live in the requested header areas", async () => {
 
   assert.match(
     source,
-    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 173 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 174 測試<\/span>[\s\S]*?<\/header>/,
   );
   assert.match(
     standalone,
-    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 173 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 174 測試<\/span>[\s\S]*?<\/header>/,
   );
-  assert.equal((source.match(/Version 173 測試/g) || []).length, 2);
-  assert.equal((standalone.match(/Version 173 測試/g) || []).length, 2);
+  assert.equal((source.match(/Version 174 測試/g) || []).length, 2);
+  assert.equal((standalone.match(/Version 174 測試/g) || []).length, 2);
 });
 
 test("GitHub Pages build is installable and supports direct Apps Script upload", async () => {
@@ -213,7 +213,7 @@ test("GitHub Pages build is installable and supports direct Apps Script upload",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v173/);
+  assert.match(serviceWorker, /engineering-query-pwa-v174/);
   assert.match(upload, /isGitHubPages/);
   assert.match(upload, /DIRECT_SYNC_URL/);
   assert.match(upload, /mode: 'no-cors'/);
@@ -310,9 +310,11 @@ test("folding-tool tab embeds both supplied interactive coordinate pages", async
   assert.match(source, /localStorage\.setItem\('engineeringFoldToolView', viewName\)/);
   assert.doesNotMatch(source, /fold-tool-expand-btn|fold-tool-expanded|is-expanded/);
   assert.match(source, /id="angleReset90Btn"[^>]*>回到90度<\/button>/);
-  assert.match(source, /\.angle-reset-control #angle\s*{[\s\S]*?min-width:\s*0/);
+  assert.match(source, /\.angle-reset-control #angle,\s*\.r-reset-control #radius\s*{[\s\S]*?min-width:\s*0[\s\S]*?padding-right:\s*88px/);
   assert.match(source, /\.angle-reset-control #angle::\-webkit-inner-spin-button/);
-  assert.match(source, /\.angle-reset-btn\s*{[\s\S]*?position:\s*absolute[\s\S]*?right:\s*6px/);
+  assert.match(source, /\.angle-reset-btn,\s*\.r-reset-btn\s*{[\s\S]*?position:\s*absolute[\s\S]*?right:\s*6px/);
+  assert.match(source, /id="radiusResetR0Btn"[^>]*>回到R0<\/button>/);
+  assert.match(source, /\$\('radiusResetR0Btn'\)\?\.addEventListener\('click',[\s\S]*?\$\('radius'\)\.value='';[\s\S]*?hideRadiusMenu\(\);calcAll\(\)/);
   assert.match(source, /\$\('angleReset90Btn'\)\?\.addEventListener\('click',[\s\S]*?\$\('angle'\)\.value='90';calcAll\(\)/);
   assert.match(source, /'fold-tool': document\.getElementById\('fold-tool-panel'\)/);
   assert.match(source, /current === 'nail-gallery'[\s\S]*?data-sys="fold-tool"/);
