@@ -3059,7 +3059,7 @@ h3 {
                 <button class="tab-btn" data-sys="die-setup">配模計算</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 178 測試">Version 178 測試</span>
+<span class="site-version" aria-label="網站版次 Version 179 測試">Version 179 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3765,7 +3765,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                   <label class="field-label c-upper"><span class="dot upper"></span>上模高度</label>
                 </div>
                 <div class="input-wrap">
-                  <input type="number" step="0.01" min="0" id="input-upper" value="2.00">
+                  <input type="number" step="0.01" min="0" id="input-upper" value="2">
                   <span class="unit">mm</span>
                 </div>
               </div>
@@ -3792,7 +3792,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                   <label class="field-label c-lower"><span class="dot lower"></span>下模高度</label>
                 </div>
                 <div class="input-wrap">
-                  <input type="number" step="0.01" min="0" id="input-lower" value="2.00">
+                  <input type="number" step="0.01" min="0" id="input-lower" value="2">
                   <span class="unit">mm</span>
                 </div>
               </div>
@@ -3852,6 +3852,10 @@ function n(v,allowNegative=false){
   if(!Number.isFinite(x)) return 0;
   return allowNegative?x:Math.max(0,x);
 }
+function compactNumber(v){
+  const x=Number(v);
+  return Number.isFinite(x)?String(Number(x.toFixed(2))):'';
+}
 function setDirection(dir){
   currentDirection=dir;
   byId('btn-downward').classList.toggle('active',dir==='downward');
@@ -3907,40 +3911,40 @@ function recalculateAll(trigger){
   if(currentDirection==='downward'){
     if(trigger==='upper'){
       P=U+D;
-      i.punch.value=P.toFixed(2);
+      i.punch.value=compactNumber(P);
     }else if(trigger==='punch'){
       U=Math.max(0,P-D);
-      i.upper.value=U.toFixed(2);
+      i.upper.value=compactNumber(U);
     }else if(trigger==='lower'){
       S=L-D;
-      i.shim.value=S.toFixed(2);
+      i.shim.value=compactNumber(S);
     }else if(trigger==='shim'){
       L=S+D;
-      i.lower.value=L.toFixed(2);
+      i.lower.value=compactNumber(L);
     }else{
       P=U+D;
-      i.punch.value=P.toFixed(2);
+      i.punch.value=compactNumber(P);
       S=L-D;
-      i.shim.value=S.toFixed(2);
+      i.shim.value=compactNumber(S);
     }
   }else{
     if(trigger==='upper'){
       S=U-D;
-      i.shim.value=S.toFixed(2);
+      i.shim.value=compactNumber(S);
     }else if(trigger==='shim'){
       U=S+D;
-      i.upper.value=U.toFixed(2);
+      i.upper.value=compactNumber(U);
     }else if(trigger==='lower'){
       P=L+D;
-      i.punch.value=P.toFixed(2);
+      i.punch.value=compactNumber(P);
     }else if(trigger==='punch'){
       L=Math.max(0,P-D);
-      i.lower.value=L.toFixed(2);
+      i.lower.value=compactNumber(L);
     }else{
       S=U-D;
-      i.shim.value=S.toFixed(2);
+      i.shim.value=compactNumber(S);
       P=L+D;
-      i.punch.value=P.toFixed(2);
+      i.punch.value=compactNumber(P);
     }
   }
   refreshUI();
@@ -4028,8 +4032,8 @@ function renderSVG(dir,depth,upper,punch,lower,shim,depthBlank=false){
 function resetDefaults(){
   const i=getInputs();
   i.depth.value='';
-  i.upper.value='2.00';
-  i.lower.value='2.00';
+  i.upper.value='2';
+  i.lower.value='2';
   i.punch.value='';
   i.shim.value='';
   setDirection('downward');
@@ -4069,7 +4073,11 @@ byId('btn-upward').addEventListener('click',function(){setDirection('upward')});
   ['lower','input-lower'],
   ['shim','input-shim']
 ].forEach(function(entry){
-  byId(entry[1]).addEventListener('input',function(){onUserInputChange(entry[0])});
+  var input=byId(entry[1]);
+  input.addEventListener('input',function(){onUserInputChange(entry[0])});
+  input.addEventListener('blur',function(){
+    if(this.value.trim()!=='') this.value=compactNumber(this.value);
+  });
 });
 updateGroupContainers();
 resetDefaults();
