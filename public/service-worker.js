@@ -1,10 +1,9 @@
-const CACHE_NAME = 'engineering-query-pwa-v177';
+const CACHE_NAME = 'engineering-query-pwa-v178';
 const APP_SHELL = [
   './',
   './engineering-query.html',
   './fold-tool-pointed.html',
   './fold-tool-117.html',
-  './die-setup-calculator.html',
   './engineering-coefficients.js',
   './nail-excel-upload.js',
   './favicon.svg',
