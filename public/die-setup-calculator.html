@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>配模計算機</title>
+<style>
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  width:100%;
+  min-height:100%;
+  background:#f4f7fb;
+  color:#172033;
+  font-family:Arial,"Microsoft JhengHei",sans-serif;
+}
+body{padding:12px}
+.app{
+  width:min(100%,920px);
+  margin:0 auto;
+}
+.panel{
+  background:#fff;
+  border:1px solid #d9e2ec;
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 4px 14px rgba(15,23,42,.06);
+}
+.header{
+  min-height:60px;
+  padding:12px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:14px;
+  border-bottom:1px solid #e2e8f0;
+}
+.title{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:20px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.title-icon{
+  width:18px;
+  height:18px;
+  color:#10b981;
+  flex:0 0 auto;
+}
+.direction{
+  width:310px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.dir-btn{
+  height:44px;
+  border:2px solid #cbd5e1;
+  border-radius:12px;
+  background:#f1f5f9;
+  color:#475569;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+}
+.dir-btn.active{
+  border-color:#10b981;
+  background:#ecfdf5;
+  color:#047857;
+  box-shadow:0 2px 5px rgba(16,185,129,.18);
+}
+
+.reset-btn{
+  margin-left:auto;
+  height:36px;
+  padding:0 14px;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  background:#fff;
+  color:#475569;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+}
+.reset-btn:hover{
+  background:#f1f5f9;
+  border-color:#94a3b8;
+}
+
+.content{padding:8px 12px 12px}
+.diagram-box{
+  position:relative;
+  border:1px solid #d9e2ec;
+  border-radius:16px;
+  background:#f8fafc;
+  overflow:hidden;
+  padding:10px 12px 14px;
+}
+.direction-tag{
+  position:absolute;
+  right:16px;
+  top:14px;
+  z-index:2;
+  padding:6px 11px;
+  border:1px solid #a7f3d0;
+  border-radius:999px;
+  background:#ecfdf5;
+  color:#047857;
+  font-size:12px;
+  font-weight:700;
+}
+.svg-wrap{
+  width:100%;
+  height:300px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#svg-diagram{
+  width:100%;
+  height:100%;
+  display:block;
+}
+.controls{
+  margin-top:4px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.depth-row{
+  display:flex;
+  justify-content:flex-start;
+}
+.depth-card{
+  width:100%;
+  border:1.5px solid #6ee7b7;
+  border-radius:12px;
+  background:#fff;
+  padding:9px;
+}
+
+
+
+.groups{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.group{
+  border:1px solid #cbd5e1;
+  border-radius:12px;
+  background:#fff;
+  padding:10px;
+}
+.group.upper{border-color:#a5f3fc;background:#f8fdff}
+.group.lower{border-color:#fed7aa;background:#fffdf8}
+.group-title{
+  font-size:15px;
+  font-weight:700;
+  margin-bottom:2px;
+}
+.formula{
+  font-size:12px;
+  color:#059669;
+  margin-bottom:8px;
+}
+.group-inputs{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.field-card{
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  background:#fff;
+  padding:8px;
+}
+.field-card.upper{border-color:#67e8f9}
+.field-card.punch{border-color:#93c5fd}
+.field-card.lower{border-color:#fdba74}
+.field-card.shim{border-color:#f9a8d4}
+.field-card.shim.warning{
+  border:2px solid #fb7185;
+  background:#fff1f2;
+}
+.field-head{
+  height:20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:5px;
+  margin-bottom:5px;
+}
+.field-label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:14px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.dot.depth{background:#10b981}
+.dot.upper{background:#06b6d4}
+.dot.punch{background:#3b82f6}
+.dot.lower{background:#f59e0b}
+.dot.shim{background:#ec4899}
+.c-depth{color:#059669}.c-upper{color:#0891b2}.c-punch{color:#2563eb}.c-lower{color:#d97706}.c-shim{color:#db2777}
+.fixed-badge,.warn-badge{
+  padding:2px 5px;
+  border-radius:4px;
+  font-size:10px;
+  line-height:1;
+  white-space:nowrap;
+}
+.fixed-badge{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+.warn-badge{display:none;background:#ffe4e6;color:#e11d48;border:1px solid #fda4af;font-weight:700}
+.warning .warn-badge{display:inline-block}
+.input-wrap{position:relative}
+input[type=number]{
+  width:100%;
+  height:40px;
+  padding:4px 34px 4px 10px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  outline:none;
+  background:#f8fafc;
+  color:#172033;
+  font-size:16px;
+  font-weight:700;
+  font-family:Consolas,"Courier New",monospace;
+}
+input[type=number]:focus{border-color:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,.10)}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.unit{
+  position:absolute;
+  right:9px;
+  top:13px;
+  color:#94a3b8;
+  font-size:10px;
+}
+.depth-card input{color:#047857}
+.upper input{color:#0e7490}
+.punch input{color:#1d4ed8}
+.lower input{color:#b45309}
+.shim input{color:#be185d}
+.shim.warning input{border-color:#fb7185;background:#fff7f8;color:#e11d48}
+
+@media(max-width:700px){
+  body{padding:6px}
+  .header{padding:10px;align-items:stretch;flex-direction:column}
+  .title{font-size:18px}
+  .direction{width:100%}
+  
+  .content{padding:8px}
+  .svg-wrap{height:245px}
+  .groups{grid-template-columns:1fr}
+  .depth-card{width:100%}
+}
+
+/* v22：乾淨左右版，避免舊 CSS 互相覆寫 */
+.diagram-box.clean-split{
+  display:grid;
+  grid-template-columns:minmax(0,46%) minmax(0,54%);
+  gap:10px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:#fff;
+  overflow:visible;
+  align-items:stretch;
+}
+.left-pane{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:8px;
+  background:#f8fafc;
+  border-right:1px solid #e2e8f0;
+}
+.top-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:8px;
+  align-items:stretch;
+}
+.top-row .depth-card{
+  width:100%;
+  min-width:0;
+}
+.direction-stack{
+  display:grid;
+  grid-template-rows:1fr 1fr;
+  gap:6px;
+  min-width:0;
+}
+.direction-stack .dir-btn{
+  width:100%;
+  min-width:0;
+  min-height:34px;
+  height:100%;
+  font-size:15px;
+  border-radius:10px;
+}
+.left-pane .group{
+  width:100%;
+  min-width:0;
+  margin:0;
+}
+.left-pane .group-inputs{
+  min-width:0;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+}
+.left-pane .field-card{
+  min-width:0;
+}
+.left-pane input[type=number]{
+  min-width:0;
+}
+.right-pane{
+  position:relative;
+  min-width:0;
+  min-height:100%;
+  border:1px solid #d9e2ec;
+  border-radius:14px;
+  background:#f8fafc;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:12px;
+}
+.right-pane #svg-diagram{
+  width:100%;
+  height:100%;
+  min-height:360px;
+  display:block;
+}
+.right-pane .direction-tag{
+  top:12px;
+  right:12px;
+}
+@media(max-width:620px){
+  .diagram-box.clean-split{
+    grid-template-columns:1fr;
+  }
+  .left-pane{
+    border-right:0;
+    border-bottom:1px solid #e2e8f0;
+  }
+  .right-pane{
+    min-height:280px;
+  }
+  .right-pane #svg-diagram{
+    min-height:250px;
+  }
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="panel">
+    <div class="header">
+      <div class="title">
+        <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <span>配模剖面動態示意圖</span>
+      </div>
+      <button class="reset-btn" onclick="resetDefaults()">回到預設值</button>
+      
+    </div>
+
+    <div class="content">
+      <div class="diagram-box clean-split">
+
+        <!-- 左側控制區 -->
+        <div class="left-pane">
+
+          <!-- 第一排：抽凸深度 + 上下方向 -->
+          <div class="top-row">
+            <div id="card-depth" class="depth-card">
+              <div class="field-head">
+                <label class="field-label c-depth"><span class="dot depth"></span>抽凸深度</label>
+                <span class="fixed-badge">固定基準</span>
+              </div>
+              <div class="input-wrap">
+                <input type="number" step="0.01" min="0" id="input-depth" value="" oninput="onUserInputChange('depth')">
+                <span class="unit">mm</span>
+              </div>
+            </div>
+
+            <div class="direction-stack">
+              <button id="btn-downward" class="dir-btn active" onclick="setDirection('downward')">↓　抽向下</button>
+              <button id="btn-upward" class="dir-btn" onclick="setDirection('upward')">↑　抽向上</button>
+            </div>
+          </div>
+
+          <!-- 第二排：上模 / 沖子 -->
+          <div class="group upper">
+            <div id="group-upper-title" class="group-title">上模 / 沖子</div>
+            <div id="group-upper-formula" class="formula">抽凸深度 = 沖子高度 − 上模高度</div>
+            <div id="group-upper-inputs" class="group-inputs">
+              <div id="card-upper" class="field-card upper">
+                <div class="field-head">
+                  <label class="field-label c-upper"><span class="dot upper"></span>上模高度</label>
+                </div>
+                <div class="input-wrap">
+                  <input type="number" step="0.01" min="0" id="input-upper" value="2.00" oninput="onUserInputChange('upper')">
+                  <span class="unit">mm</span>
+                </div>
+              </div>
+
+              <div id="card-punch" class="field-card punch">
+                <div class="field-head">
+                  <label class="field-label c-punch"><span class="dot punch"></span>沖子高度</label>
+                </div>
+                <div class="input-wrap">
+                  <input type="number" step="0.01" min="0" id="input-punch" value="" oninput="onUserInputChange('punch')">
+                  <span class="unit">mm</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 第三排：下模 / 墊片 -->
+          <div class="group lower">
+            <div id="group-lower-title" class="group-title">下模 / 墊片</div>
+            <div id="group-lower-formula" class="formula">抽凸深度 = 下模高度 − 墊片高度</div>
+            <div id="group-lower-inputs" class="group-inputs">
+              <div id="card-lower" class="field-card lower">
+                <div class="field-head">
+                  <label class="field-label c-lower"><span class="dot lower"></span>下模高度</label>
+                </div>
+                <div class="input-wrap">
+                  <input type="number" step="0.01" min="0" id="input-lower" value="2.00" oninput="onUserInputChange('lower')">
+                  <span class="unit">mm</span>
+                </div>
+              </div>
+
+              <div id="card-shim" class="field-card shim">
+                <div class="field-head">
+                  <label class="field-label c-shim"><span class="dot shim"></span>墊片高度</label>
+                  <span id="shim-warning-badge" class="warn-badge">⚠ 負數</span>
+                </div>
+                <div class="input-wrap">
+                  <input type="number" step="0.01" id="input-shim" value="" oninput="onUserInputChange('shim')">
+                  <span class="unit">mm</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 右側示意圖 -->
+        <div class="right-pane">
+          <div id="diagram-direction-tag" class="direction-tag">抽向下 (Extrude Down)</div>
+          <svg id="svg-diagram" viewBox="0 0 600 210" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+let currentDirection='downward';
+
+function getInputs(){
+  return{
+    depth:document.getElementById('input-depth'),
+    upper:document.getElementById('input-upper'),
+    punch:document.getElementById('input-punch'),
+    lower:document.getElementById('input-lower'),
+    shim:document.getElementById('input-shim')
+  };
+}
+function n(v,allowNegative=false){
+  const x=parseFloat(v);
+  if(!Number.isFinite(x)) return 0;
+  return allowNegative?x:Math.max(0,x);
+}
+function setDirection(dir){
+  currentDirection=dir;
+  document.getElementById('btn-downward').classList.toggle('active',dir==='downward');
+  document.getElementById('btn-upward').classList.toggle('active',dir==='upward');
+  document.getElementById('diagram-direction-tag').textContent=
+    dir==='downward'?'抽向下 (Extrude Down)':'抽向上 (Extrude Up)';
+  updateGroupContainers();
+  recalculateAll('direction_change');
+}
+function updateGroupContainers(){
+  const gu=document.getElementById('group-upper-inputs');
+  const gl=document.getElementById('group-lower-inputs');
+  const cu=document.getElementById('card-upper');
+  const cp=document.getElementById('card-punch');
+  const cl=document.getElementById('card-lower');
+  const cs=document.getElementById('card-shim');
+
+  if(currentDirection==='downward'){
+    document.getElementById('group-upper-title').textContent='上模 / 沖子';
+    document.getElementById('group-upper-formula').textContent='抽凸深度 = 沖子高度 − 上模高度';
+    document.getElementById('group-lower-title').textContent='下模 / 墊片';
+    document.getElementById('group-lower-formula').textContent='抽凸深度 = 下模高度 − 墊片高度';
+    gu.appendChild(cu); gu.appendChild(cp);
+    gl.appendChild(cl); gl.appendChild(cs);
+  }else{
+    document.getElementById('group-upper-title').textContent='上模 / 墊片';
+    document.getElementById('group-upper-formula').textContent='抽凸深度 = 上模高度 − 墊片高度';
+    document.getElementById('group-lower-title').textContent='下模 / 沖子';
+    document.getElementById('group-lower-formula').textContent='抽凸深度 = 沖子高度 − 下模高度';
+    gu.appendChild(cu); gu.appendChild(cs);
+    gl.appendChild(cl); gl.appendChild(cp);
+  }
+}
+function onUserInputChange(field){recalculateAll(field)}
+function recalculateAll(trigger){
+  const i=getInputs();
+
+  // 抽凸深度空白時：
+  // 上模、下模仍可保留數值；沖子、墊片一律顯示空白。
+  if(i.depth.value.trim()===''){
+    i.punch.value='';
+    i.shim.value='';
+    refreshUI();
+    return;
+  }
+
+  let D=n(i.depth.value),
+      U=n(i.upper.value),
+      P=n(i.punch.value),
+      L=n(i.lower.value),
+      S=n(i.shim.value,true);
+
+  if(currentDirection==='downward'){
+    if(trigger==='upper'){
+      P=U+D;
+      i.punch.value=P.toFixed(2);
+    }else if(trigger==='punch'){
+      U=Math.max(0,P-D);
+      i.upper.value=U.toFixed(2);
+    }else if(trigger==='lower'){
+      S=L-D;
+      i.shim.value=S.toFixed(2);
+    }else if(trigger==='shim'){
+      L=S+D;
+      i.lower.value=L.toFixed(2);
+    }else{
+      P=U+D;
+      i.punch.value=P.toFixed(2);
+      S=L-D;
+      i.shim.value=S.toFixed(2);
+    }
+  }else{
+    if(trigger==='upper'){
+      S=U-D;
+      i.shim.value=S.toFixed(2);
+    }else if(trigger==='shim'){
+      U=S+D;
+      i.upper.value=U.toFixed(2);
+    }else if(trigger==='lower'){
+      P=L+D;
+      i.punch.value=P.toFixed(2);
+    }else if(trigger==='punch'){
+      L=Math.max(0,P-D);
+      i.lower.value=L.toFixed(2);
+    }else{
+      S=U-D;
+      i.shim.value=S.toFixed(2);
+      P=L+D;
+      i.punch.value=P.toFixed(2);
+    }
+  }
+  refreshUI();
+}
+function refreshUI(){
+  const i=getInputs();
+  const depthBlank=i.depth.value.trim()==='';
+
+  const D=depthBlank ? 0 : n(i.depth.value);
+  const U=n(i.upper.value);
+  const P=i.punch.value.trim()==='' ? null : n(i.punch.value);
+  const L=n(i.lower.value);
+  const S=i.shim.value.trim()==='' ? null : n(i.shim.value,true);
+
+  const shimCard=document.getElementById('card-shim');
+  shimCard.classList.toggle('warning',S!==null && S<0);
+
+  renderSVG(currentDirection,D,U,P,L,S,depthBlank);
+}
+function renderSVG(dir,depth,upper,punch,lower,shim,depthBlank=false){
+  const svg=document.getElementById('svg-diagram');
+  svg.innerHTML='';
+  const show1=v=>v===null?'--':v.toFixed(1);
+  const show2=v=>v===null?'--':v.toFixed(2);
+  const cUpperBg='#e0f2fe',cUpperStroke='#0284c7',cUpperText='#0369a1';
+  const cPunchBg='#dbeafe',cPunchStroke='#2563eb',cPunchText='#1d4ed8';
+  const cLowerBg='#fff7ed',cLowerStroke='#d97706',cLowerText='#b45309';
+  const cShimBg=shim!==null && shim<0?'#ffe4e6':'#fce7f3';
+  const cShimStroke=shim!==null && shim<0?'#f43f5e':'#db2777';
+  const cShimColor=shim!==null && shim<0?'#e11d48':'#be185d';
+
+  const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML=`
+    <pattern id="hatch-upper" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="10" stroke="${cUpperStroke}" stroke-width="1.5" opacity=".28"/>
+    </pattern>
+    <pattern id="hatch-lower" width="10" height="10" patternTransform="rotate(-45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="10" stroke="${cLowerStroke}" stroke-width="1.5" opacity=".28"/>
+    </pattern>
+    <pattern id="hatch-punch" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="8" stroke="${cPunchStroke}" stroke-width="2" opacity=".38"/>
+    </pattern>
+    <pattern id="hatch-shim" width="8" height="8" patternTransform="rotate(-45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="8" stroke="${cShimStroke}" stroke-width="2" opacity=".4"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#10b981"/>
+    </marker>`;
+  svg.appendChild(defs);
+
+  const startX=60,endX=540,punchW=100,punchX=(startX+endX)/2-punchW/2;
+  const upperY=22,dieH=42,extrudeH=26,gap=32,lowerY=upperY+dieH+extrudeH+gap;
+
+  if(dir==='downward'){
+    createRect(svg,startX,upperY,punchX-startX,dieH,cUpperBg,cUpperStroke,'url(#hatch-upper)');
+    createRect(svg,punchX+punchW,upperY,endX-(punchX+punchW),dieH,cUpperBg,cUpperStroke,'url(#hatch-upper)');
+    createText(svg,startX+30,upperY+26,`上模: ${show1(upper)}mm`,cUpperText,'11px');
+    createRect(svg,punchX,upperY,punchW,dieH+extrudeH,cPunchBg,cPunchStroke,'url(#hatch-punch)','2.5');
+    createText(svg,punchX+punchW/2,upperY+(dieH+extrudeH)/2+4,`沖子: ${show1(punch)}mm`,cPunchText,'11px','middle');
+    createRect(svg,startX,lowerY,punchX-startX,dieH,cLowerBg,cLowerStroke,'url(#hatch-lower)');
+    createRect(svg,punchX+punchW,lowerY,endX-(punchX+punchW),dieH,cLowerBg,cLowerStroke,'url(#hatch-lower)');
+    createText(svg,startX+30,lowerY+26,`下模: ${show1(lower)}mm`,cLowerText,'11px');
+    const shimH=Math.max(0,dieH-extrudeH);
+    const shimText=shim===null?'墊片: --':(shim<0?`墊片: ${show1(shim)}mm ⚠`:`墊片: ${show1(shim)}mm`);
+    createRect(svg,punchX,lowerY+extrudeH,punchW,shimH,cShimBg,cShimStroke,'url(#hatch-shim)','2');
+    createText(svg,punchX+punchW/2,lowerY+extrudeH+shimH/2+4,shimText,cShimColor,'10px','middle');
+    createDimensionLine(svg,punchX+punchW+20,upperY+dieH,upperY+dieH+extrudeH,depthBlank?'抽凸: --':`抽凸: ${show2(depth)}mm`);
+  }else{
+    createRect(svg,startX,upperY,punchX-startX,dieH,cUpperBg,cUpperStroke,'url(#hatch-upper)');
+    createRect(svg,punchX+punchW,upperY,endX-(punchX+punchW),dieH,cUpperBg,cUpperStroke,'url(#hatch-upper)');
+    createText(svg,startX+30,upperY+26,`上模: ${show1(upper)}mm`,cUpperText,'11px');
+    const shimH=Math.max(0,dieH-extrudeH);
+    const shimText=shim===null?'墊片: --':(shim<0?`墊片: ${show1(shim)}mm ⚠`:`墊片: ${show1(shim)}mm`);
+    createRect(svg,punchX,upperY,punchW,shimH,cShimBg,cShimStroke,'url(#hatch-shim)','2');
+    createText(svg,punchX+punchW/2,upperY+shimH/2+4,shimText,cShimColor,'10px','middle');
+    createRect(svg,startX,lowerY,punchX-startX,dieH,cLowerBg,cLowerStroke,'url(#hatch-lower)');
+    createRect(svg,punchX+punchW,lowerY,endX-(punchX+punchW),dieH,cLowerBg,cLowerStroke,'url(#hatch-lower)');
+    createText(svg,startX+30,lowerY+26,`下模: ${show1(lower)}mm`,cLowerText,'11px');
+    createRect(svg,punchX,lowerY-extrudeH,punchW,dieH+extrudeH,cPunchBg,cPunchStroke,'url(#hatch-punch)','2.5');
+    createText(svg,punchX+punchW/2,lowerY-extrudeH+(dieH+extrudeH)/2+4,`沖子: ${show1(punch)}mm`,cPunchText,'11px','middle');
+    createDimensionLine(svg,punchX+punchW+20,lowerY-extrudeH,lowerY,depthBlank?'抽凸: --':`抽凸: ${show2(depth)}mm`);
+  }
+}
+
+function resetDefaults(){
+  const i=getInputs();
+  i.depth.value='';
+  i.upper.value='2.00';
+  i.lower.value='2.00';
+  i.punch.value='';
+  i.shim.value='';
+  setDirection('downward');
+  refreshUI();
+}
+
+function createRect(svg,x,y,w,h,fill,stroke,pattern,strokeWidth='1.5'){
+  const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+  r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',Math.max(0,w));r.setAttribute('height',Math.max(0,h));
+  r.setAttribute('fill',pattern||fill);r.setAttribute('stroke',stroke);r.setAttribute('stroke-width',strokeWidth);r.setAttribute('rx','3');svg.appendChild(r);
+}
+function createText(svg,x,y,t,fill,size='11px',anchor='start'){
+  const e=document.createElementNS('http://www.w3.org/2000/svg','text');
+  e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('fill',fill);e.setAttribute('font-size',size);
+  e.setAttribute('font-family','Arial, Microsoft JhengHei, sans-serif');e.setAttribute('font-weight','700');e.setAttribute('text-anchor',anchor);
+  e.textContent=t;svg.appendChild(e);
+}
+function createDimensionLine(svg,x,y1,y2,label){
+  const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('x1',x);line.setAttribute('y1',y1);line.setAttribute('x2',x);line.setAttribute('y2',y2);
+  line.setAttribute('stroke','#10b981');line.setAttribute('stroke-width','2');line.setAttribute('marker-start','url(#arrow)');line.setAttribute('marker-end','url(#arrow)');
+  svg.appendChild(line);
+  for(const y of [y1,y2]){
+    const g=document.createElementNS('http://www.w3.org/2000/svg','line');
+    g.setAttribute('x1',x-12);g.setAttribute('x2',x+12);g.setAttribute('y1',y);g.setAttribute('y2',y);
+    g.setAttribute('stroke','#10b981');g.setAttribute('stroke-width','1');g.setAttribute('stroke-dasharray','2 2');svg.appendChild(g);
+  }
+  createText(svg,x+8,(y1+y2)/2+4,label,'#10b981','11px');
+}
+window.addEventListener('load',()=>{updateGroupContainers();resetDefaults();});
+</script>
+</body>
+</html>

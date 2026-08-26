@@ -2948,6 +2948,20 @@ h3 {
             border: 0;
             background: #ffffff;
         }
+        /* -- 配模計算 ------------------------------------------- */
+        #die-setup-panel .die-setup-shell {
+            width: min(920px, 100%);
+            margin: 0 auto;
+            padding: 8px 24px 36px;
+        }
+        .die-setup-frame {
+            display: block;
+            width: 100%;
+            height: 500px;
+            border: 0;
+            border-radius: 12px;
+            background: #f4f7fb;
+        }
         .angle-reset-control,
         .r-reset-control {
             position: relative;
@@ -2997,6 +3011,12 @@ h3 {
             #fold-tool-panel .fold-tool-shell {
                 padding: 8px 10px 24px;
             }
+            #die-setup-panel .die-setup-shell {
+                padding: 8px 6px 24px;
+            }
+            .die-setup-frame {
+                height: 820px;
+            }
             .fold-tool-switcher {
                 width: 100%;
             }
@@ -3022,9 +3042,10 @@ h3 {
                 <button class="tab-btn" data-sys="nail">釘子查詢</button>
                 <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
                 <button class="tab-btn" data-sys="fold-tool">座標圖</button>
+                <button class="tab-btn" data-sys="die-setup">配模計算</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 175 測試">Version 175 測試</span>
+<span class="site-version" aria-label="網站版次 Version 176 測試">Version 176 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3316,6 +3337,13 @@ h3 {
                     </div>
                 </section>
             </div>
+        </main>
+    </div>
+
+    <!-- 5. 配模計算 -->
+    <div id="die-setup-panel" class="sys-panel" style="display:none">
+        <main class="die-setup-shell">
+            <iframe class="die-setup-frame" src="./die-setup-calculator.html" title="配模計算機" loading="lazy"></iframe>
         </main>
     </div>
 
@@ -5230,7 +5258,8 @@ init();
                 bend: document.getElementById('bend-sys-panel'),
                 nail: document.getElementById('nail-sys-panel'),
                 'nail-gallery': document.getElementById('nail-gallery-panel'),
-                'fold-tool': document.getElementById('fold-tool-panel')
+                'fold-tool': document.getElementById('fold-tool-panel'),
+                'die-setup': document.getElementById('die-setup-panel')
             };
             
             tabs.forEach(function(btn) {
@@ -5291,6 +5320,8 @@ init();
                 if (dx < 0 && current === 'bend') target = document.querySelector('.tab-btn[data-sys="nail"]');
                 else if (dx < 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
                 else if (dx < 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
+                else if (dx < 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="die-setup"]');
+                else if (dx > 0 && current === 'die-setup') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
                 else if (dx > 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
                 else if (dx > 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="nail"]');
                 else if (dx > 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="bend"]');
