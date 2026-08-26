@@ -904,6 +904,27 @@ h3 {
             border-color: #2563eb;
             box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
         }
+        @media (max-width: 640px) {
+            .app-header-tabs {
+                padding: 10px 10px 12px;
+            }
+            .header-tabs-container {
+                gap: 8px;
+            }
+            .tabs-nav {
+                display: grid;
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+                width: 100%;
+                gap: 4px;
+            }
+            .tab-btn {
+                width: 100%;
+                min-width: 0;
+                padding: 8px 2px;
+                font-size: 12px;
+                white-space: nowrap;
+            }
+        }
         .sys-panel {
             display: none;
             animation: fadeIn 200ms ease-out;
@@ -3045,7 +3066,7 @@ h3 {
                 <button class="tab-btn" data-sys="die-setup">配模計算</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 176 測試">Version 176 測試</span>
+<span class="site-version" aria-label="網站版次 Version 177 測試">Version 177 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->

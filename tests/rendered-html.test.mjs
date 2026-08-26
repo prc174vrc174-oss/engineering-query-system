@@ -131,7 +131,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(calculator, /<strong>角度與R變化<\/strong>/);
   assert.match(calculator, /zeroTotal\+total\+comp/);
   assert.match(calculator, /total\+=val-m/);
-  assert.match(calculator, /Version 176 測試/);
+  assert.match(calculator, /Version 177 測試/);
   assert.match(calculator, /zero:value-tc\*\(t\+radius\)/);
   assert.match(calculator, /compact2=new Intl\.NumberFormat\('zh-TW',\{maximumFractionDigits:2\}\)/);
   assert.match(calculator, /Number\.isFinite\(e\.zero\)\?compact2\.format\(e\.zero\):'－'/);
@@ -174,7 +174,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(source, /let popupWidth=450,popupHeight=710/);
 });
 
-test("Version 176 test labels live in the requested header areas", async () => {
+test("Version 177 test labels live in the requested header areas", async () => {
   const source = await readFile(
     new URL("../public/engineering-query.html", import.meta.url),
     "utf8",
@@ -186,14 +186,14 @@ test("Version 176 test labels live in the requested header areas", async () => {
 
   assert.match(
     source,
-    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 176 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 177 測試<\/span>[\s\S]*?<\/header>/,
   );
   assert.match(
     standalone,
-    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 176 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 177 測試<\/span>[\s\S]*?<\/header>/,
   );
-  assert.equal((source.match(/Version 176 測試/g) || []).length, 2);
-  assert.equal((standalone.match(/Version 176 測試/g) || []).length, 2);
+  assert.equal((source.match(/Version 177 測試/g) || []).length, 2);
+  assert.equal((standalone.match(/Version 177 測試/g) || []).length, 2);
 });
 
 test("GitHub Pages build is installable and supports direct Apps Script upload", async () => {
@@ -214,7 +214,7 @@ test("GitHub Pages build is installable and supports direct Apps Script upload",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v176/);
+  assert.match(serviceWorker, /engineering-query-pwa-v177/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.match(upload, /isGitHubPages/);
@@ -355,4 +355,14 @@ test("die setup tab embeds the supplied interactive calculator", async () => {
   assert.match(calculator, /function recalculateAll\(trigger\)/);
   assert.match(calculator, /抽凸深度 = 沖子高度 − 上模高度/);
   assert.match(serviceWorker, /\.\/die-setup-calculator\.html/);
+});
+
+test("mobile navigation keeps all five system tabs on one row", async () => {
+  const source = await readFile(
+    new URL("../public/engineering-query.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /@media \(max-width: 640px\) \{[\s\S]*?\.tabs-nav \{[\s\S]*?grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(source, /@media \(max-width: 640px\) \{[\s\S]*?\.tab-btn \{[\s\S]*?font-size: 12px;[\s\S]*?white-space: nowrap/);
 });
