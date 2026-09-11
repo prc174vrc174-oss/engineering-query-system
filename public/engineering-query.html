@@ -3035,12 +3035,122 @@ h3 {
             color: #1e40af;
             transform: translateY(-50%);
         }
+        /* -- 特殊符號 ------------------------------------------- */
+        #symbols-panel { background: #f4f7fb; }
+        .symbols-shell {
+            width: min(1100px, 100%);
+            margin: 0 auto;
+            padding: 18px 24px 40px;
+            font-family: 'Outfit', 'Inter', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+        }
+        .symbols-header { margin-bottom: 16px; }
+        .symbols-title {
+            margin: 0;
+            color: #111827;
+            font-size: 28px;
+            font-weight: 850;
+        }
+        .symbols-subtitle {
+            margin: 6px 0 0;
+            color: #667085;
+            font-size: 14px;
+        }
+        .symbols-sections {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .symbol-section {
+            min-width: 0;
+            padding: 16px;
+            border: 1px solid #d8e0eb;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+        }
+        .symbol-section.symbol-section-wide { grid-column: 1 / -1; }
+        .symbol-section h3 {
+            margin: 0 0 12px;
+            color: #344054;
+            font-size: 16px;
+            font-weight: 800;
+        }
+        .symbol-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+            gap: 8px;
+        }
+        .symbol-grid.symbol-words {
+            grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+        }
+        .symbol-copy-btn {
+            width: 100%;
+            min-width: 0;
+            min-height: 46px;
+            padding: 7px 8px;
+            border: 1px solid #d7dfeb;
+            border-radius: 9px;
+            background: #f8fafc;
+            color: #172033;
+            font-family: 'Segoe UI Emoji', 'Noto Color Emoji', 'Microsoft JhengHei', sans-serif;
+            font-size: 21px;
+            font-weight: 650;
+            line-height: 1.2;
+            box-shadow: none;
+            transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+        }
+        .symbol-words .symbol-copy-btn { font-size: 16px; }
+        .symbol-copy-btn:hover,
+        .symbol-copy-btn:focus-visible {
+            border-color: #60a5fa;
+            background: #eff6ff;
+            color: #1d4ed8;
+            transform: translateY(-1px);
+        }
+        .symbol-copy-btn.copied {
+            border-color: #34d399;
+            background: #ecfdf5;
+            color: #047857;
+        }
+        .symbol-copy-toast {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 1300;
+            max-width: calc(100vw - 32px);
+            padding: 10px 16px;
+            border-radius: 9px;
+            background: #172033;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 700;
+            opacity: 0;
+            transform: translateY(10px);
+            pointer-events: none;
+            transition: opacity 150ms ease, transform 150ms ease;
+        }
+        .symbol-copy-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
         @media (max-width: 560px) {
             #fold-tool-panel .fold-tool-shell {
                 padding: 8px 10px 24px;
             }
             #die-setup-panel .die-setup-shell {
                 padding: 8px 6px 24px;
+            }
+            .symbols-shell { padding: 14px 10px 28px; }
+            .symbols-title { font-size: 24px; }
+            .symbols-sections { grid-template-columns: 1fr; }
+            .symbol-section.symbol-section-wide { grid-column: auto; }
+            .symbol-section { padding: 13px; }
+            .symbol-grid {
+                grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+                gap: 7px;
+            }
+            .symbol-grid.symbol-words {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
             .fold-tool-switcher {
                 width: 100%;
@@ -3068,9 +3178,10 @@ h3 {
                 <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
                 <button class="tab-btn" data-sys="fold-tool">座標圖</button>
                 <button class="tab-btn" data-sys="die-setup">配模計算</button>
+                <button class="tab-btn" data-sys="symbols">特殊符號</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 180 測試">Version 180 測試</span>
+<span class="site-version" aria-label="網站版次 Version 181 測試">Version 181 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3837,6 +3948,43 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             </template>
             <div id="dieSetupCalculator" class="die-setup-host" aria-label="配模計算機"></div>
         </main>
+    </div>
+
+    <!-- 6. 特殊符號 -->
+    <div id="symbols-panel" class="sys-panel" style="display:none">
+        <main class="symbols-shell">
+            <header class="symbols-header">
+                <h2 class="symbols-title"><span aria-hidden="true">✦</span> 特殊符號</h2>
+                <p class="symbols-subtitle">點選任一文字或符號即可複製。</p>
+            </header>
+            <div class="symbols-sections">
+                <section class="symbol-section symbol-section-wide">
+                    <h3>常用文字</h3>
+                    <div id="symbolWords" class="symbol-grid symbol-words"></div>
+                </section>
+                <section class="symbol-section symbol-section-wide">
+                    <h3>工程與標示</h3>
+                    <div id="symbolEngineering" class="symbol-grid"></div>
+                </section>
+                <section class="symbol-section">
+                    <h3>實心圓圈數字</h3>
+                    <div id="symbolSolidNumbers" class="symbol-grid"></div>
+                </section>
+                <section class="symbol-section">
+                    <h3>方框數字</h3>
+                    <div id="symbolKeycapNumbers" class="symbol-grid"></div>
+                </section>
+                <section class="symbol-section symbol-section-wide">
+                    <h3>圓圈數字</h3>
+                    <div id="symbolCircledNumbers" class="symbol-grid"></div>
+                </section>
+                <section class="symbol-section symbol-section-wide">
+                    <h3>Emoji 與圖示</h3>
+                    <div id="symbolEmoji" class="symbol-grid"></div>
+                </section>
+            </div>
+        </main>
+        <div id="symbolCopyToast" class="symbol-copy-toast" role="status" aria-live="polite"></div>
     </div>
     <script>
     (function() {
@@ -6019,8 +6167,85 @@ init();
                 nail: document.getElementById('nail-sys-panel'),
                 'nail-gallery': document.getElementById('nail-gallery-panel'),
                 'fold-tool': document.getElementById('fold-tool-panel'),
-                'die-setup': document.getElementById('die-setup-panel')
+                'die-setup': document.getElementById('die-setup-panel'),
+                symbols: document.getElementById('symbols-panel')
             };
+
+            var symbolGroups = {
+                symbolWords: ['晟展', '浤据', '靖紘', '㴫漛', '正翊信', '沅成', '荃倫', '鉸鍊'],
+                symbolEngineering: ['∅', 'μ', '±', '≦', '≧', '↙︎', '→', '➞', '➔', '➢', '➤', '★', '⇚', '⇛', '⇉', '【', '】', '|'],
+                symbolSolidNumbers: ['⓿', '❶', '❷', '❸', '❹', '❺', '❻', '❼', '❽', '❾', '❿'],
+                symbolKeycapNumbers: ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'],
+                symbolCircledNumbers: ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'],
+                symbolEmoji: [
+                    '🚩', '📅', '📆', '❌', '💖', '📚', '⭐', '✂', '📌', '🧡', '🌈', '📩', '📘', '📕', '📙', '🔰', '⛔', '🔞', '✅', '⚽', '🌎', '🔗',
+                    '🏷️', '🔖', '🎵', '🎧', '💻', '🖥️', '📺', '📩', '✉️', '🔐', '⏹️', '⏺️', '🔼', '🔽', '▶️', '◀️', '⬆️', '⏭️', '▶', '📶', '🔆', '🔎',
+                    '🔴', '🟡', '🟢', '🔵', '⚪', '🟠', '🟥', '🟨', '🟩', '🟦', '🟧', '⬜', '🔷', '🔶', '♻️', '⏹️', '⏸️', '📣', '🔔', '🔕', '🕗',
+                    '💎', '⬆️', '↗️', '↘', '🔋', '🏠', '✏️', '📝', '📰', '📃', '📊', '📈', '💬', '💡', '🔒', '🔓', '🔑', '🐘', '⁉', '🆖', '✳', '❤', '☎'
+                ]
+            };
+            Object.keys(symbolGroups).forEach(function(groupId) {
+                var container = document.getElementById(groupId);
+                if (!container) return;
+                symbolGroups[groupId].forEach(function(value) {
+                    var button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'symbol-copy-btn';
+                    button.setAttribute('data-symbol-copy', '');
+                    button.setAttribute('aria-label', '複製 ' + value);
+                    button.title = '點一下複製';
+                    button.textContent = value;
+                    container.appendChild(button);
+                });
+            });
+
+            var symbolsPanel = panels.symbols;
+            var symbolCopyToast = document.getElementById('symbolCopyToast');
+            var symbolToastTimer = 0;
+            function showSymbolCopyResult(value, button, succeeded) {
+                if (button && succeeded) {
+                    button.classList.add('copied');
+                    window.setTimeout(function() { button.classList.remove('copied'); }, 700);
+                }
+                if (!symbolCopyToast) return;
+                symbolCopyToast.textContent = succeeded ? '已複製：' + value : '複製失敗，請再試一次';
+                symbolCopyToast.classList.add('show');
+                window.clearTimeout(symbolToastTimer);
+                symbolToastTimer = window.setTimeout(function() {
+                    symbolCopyToast.classList.remove('show');
+                }, 1500);
+            }
+            function fallbackCopySymbol(value) {
+                var input = document.createElement('textarea');
+                input.value = value;
+                input.setAttribute('readonly', '');
+                input.style.position = 'fixed';
+                input.style.opacity = '0';
+                document.body.appendChild(input);
+                input.select();
+                var copied = false;
+                try { copied = document.execCommand('copy'); } catch (e) {}
+                input.remove();
+                return copied;
+            }
+            function copySymbol(value, button) {
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(value).then(function() {
+                        showSymbolCopyResult(value, button, true);
+                    }).catch(function() {
+                        showSymbolCopyResult(value, button, fallbackCopySymbol(value));
+                    });
+                    return;
+                }
+                showSymbolCopyResult(value, button, fallbackCopySymbol(value));
+            }
+            if (symbolsPanel) {
+                symbolsPanel.addEventListener('click', function(event) {
+                    var button = event.target.closest('[data-symbol-copy]');
+                    if (!button || !symbolsPanel.contains(button)) return;
+                    copySymbol(button.textContent, button);
+                });
+            }
             
             tabs.forEach(function(btn) {
                 btn.addEventListener('click', function() {
@@ -6082,6 +6307,8 @@ init();
                 else if (dx < 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
                 else if (dx < 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
                 else if (dx < 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="die-setup"]');
+                else if (dx < 0 && current === 'die-setup') target = document.querySelector('.tab-btn[data-sys="symbols"]');
+                else if (dx > 0 && current === 'symbols') target = document.querySelector('.tab-btn[data-sys="die-setup"]');
                 else if (dx > 0 && current === 'die-setup') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
                 else if (dx > 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
                 else if (dx > 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="nail"]');
