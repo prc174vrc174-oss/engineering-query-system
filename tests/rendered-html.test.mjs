@@ -350,7 +350,9 @@ test("die setup calculator is integrated directly into the main page", async () 
   assert.match(source, /id="dieSetupTemplate"/);
   assert.match(source, /id="dieSetupCalculator"/);
   assert.match(source, /attachShadow\(\{ mode: 'open' \}\)/);
-  assert.match(source, /#die-setup-panel \.die-setup-shell \{[\s\S]*?width: min\(1100px, 100%\)/);
+  assert.match(source, /#fold-tool-panel,\s*#die-setup-panel \{[\s\S]*?max-width: 100%;[\s\S]*?overflow-x: hidden/);
+  assert.match(source, /#fold-tool-panel \.fold-tool-shell \{[\s\S]*?width: 100%;[\s\S]*?max-width: 1100px;[\s\S]*?min-width: 0/);
+  assert.match(source, /#die-setup-panel \.die-setup-shell \{[\s\S]*?width: 100%;[\s\S]*?max-width: 1100px;[\s\S]*?min-width: 0/);
   assert.doesNotMatch(source, /<iframe[^>]+die-setup-calculator/);
   assert.doesNotMatch(source, /src="\.\/die-setup-calculator\.html"/);
   assert.match(source, /'die-setup': document\.getElementById\('die-setup-panel'\)/);
