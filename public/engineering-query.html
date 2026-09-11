@@ -3199,7 +3199,7 @@ h3 {
                 <button class="tab-btn" data-sys="symbols">特殊符號</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 183 測試">Version 183 測試</span>
+<span class="site-version" aria-label="網站版次 Version 184 測試">Version 184 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3298,16 +3298,16 @@ h3 {
 		</div>
 				<div style="flex: 1.6; min-width: 140px; position: relative;" class="dia-tooltip-wrapper">
 			<label for="realDiaSearch" style="display: flex; align-items: center; gap: 4px;">
-				實量ø徑
+				實量∅徑
 				<button type="button" class="dia-help-toggle" aria-expanded="false" aria-label="顯示實量直徑說明" style="cursor:pointer;color:#6b7280;font-size:11px;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;min-width:16px;padding:0;border:1px solid #cbd5e1;border-radius:50%;font-weight:800;background:#f3f4f6;box-shadow:none;line-height:1;">!</button>
 			</label>
 			<input id="realDiaSearch" type="text" placeholder="🔍 例如: 5.2" style="width:100%; height:36px; padding-left:12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
 			<div class="dia-help-tip" style="visibility: hidden; position: absolute; z-index: 100; bottom: calc(100% + 6px); left: 0; width: 440px; background: #1e293b; color: #f8fafc; padding: 10px 14px; border-radius: 6px; font-size: 13px; line-height: 1.5; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); opacity: 0; transition: opacity 0.2s, transform 0.2s; transform: translateY(4px); pointer-events: none; border: 1px solid #334155;">
-				<div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">💡 實量ø徑 篩選語法：</div>
+				<div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">💡 實量∅徑 篩選語法：</div>
 				<ul style="margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px;">
 					<li><b>區間</b>：輸入 <code>5-6</code> 或 <code>5~6</code> → 篩選出直徑介於 5 到 6 之間的所有項目。</li>
 					<li><b>比較</b>：輸入 <code>&gt;5.2</code>、<code>&lt;5</code> 或 <code>=5.27</code> → 進行數值大小比較或精準匹配。</li>
-					<li><b>模糊</b>：輸入 <code>5.2</code> → 找出所有包含 5.2 的項目（如 ø5.2、ø5.27）。</li>
+					<li><b>模糊</b>：輸入 <code>5.2</code> → 找出所有包含 5.2 的項目（如 ∅5.2、∅5.27）。</li>
 				</ul>
 			</div>
 		</div>
@@ -4790,7 +4790,7 @@ init();
 		document.head.appendChild(script);
 	}
 
-	function normalizeSpecDiameterSymbol(value) {
+	function normalizeDiameterSymbol(value) {
 		return String(value == null ? '' : value).replace(/[øØ]/g, '∅');
 	}
 
@@ -4809,9 +4809,9 @@ init();
 	function setData(rawHeaders, rawRows) {
 		cols = [];
 		for (var i = 0; i < rawHeaders.length; i++) { if ((rawHeaders[i] || '').trim()) cols.push(i); }
-		headers = cols.map(function (i) { return rawHeaders[i].trim(); });
+		headers = cols.map(function (i) { return normalizeDiameterSymbol(rawHeaders[i]).trim(); });
 		allRows = rawRows.map(function (r) {
-			return cols.map(function (i) { return (r[i] == null ? '' : String(r[i])).trim(); });
+			return cols.map(function (i) { return normalizeDiameterSymbol(r[i]).trim(); });
 		}).filter(function (row) { return row.some(function (v) { return v !== ''; }); });
 		// 試算表最後一列為合計列，不列入釘子資料筆數、搜尋與卡片顯示。
 		if (allRows.length > 0) {
@@ -4825,11 +4825,6 @@ init();
 		idxArea = findCol(/區域|位置|區/);
 		idxQty = findCol(/數量|庫存|存量/);
 		var idxSpec = findCol(/規格/);
-		if (idxSpec >= 0) {
-			allRows.forEach(function (row) {
-				row[idxSpec] = normalizeSpecDiameterSymbol(row[idxSpec]);
-			});
-		}
 		
 		var idxUpdateTime = findCol(/最後更新時間/);
 		if (idxUpdateTime >= 0 && allRows.length > 0) {
@@ -4857,7 +4852,7 @@ init();
 						for (var j = 0; j < window.NAIL_DATA.rows.length; j++) {
 							var offRow = window.NAIL_DATA.rows[j];
 							var partMatch = offPartIdx < 0 || (idxPartNo >= 0 && row[idxPartNo] === offRow[offPartIdx]);
-							var specMatch = offSpecIdx < 0 || (idxSpec >= 0 && row[idxSpec] === normalizeSpecDiameterSymbol(offRow[offSpecIdx]));
+							var specMatch = offSpecIdx < 0 || (idxSpec >= 0 && row[idxSpec] === normalizeDiameterSymbol(offRow[offSpecIdx]));
 							var areaMatch = offAreaIdx < 0 || (idxArea >= 0 && row[idxArea] === offRow[offAreaIdx]);
 							if (partMatch && specMatch && areaMatch) {
 								var backupQty = offRow[offQtyIdx];
@@ -5211,15 +5206,15 @@ init();
 		});
 		if (diaValue) {
 			var diaChip = document.createElement('span');
-			diaChip.textContent = '實量ø徑：' + diaValue;
+			diaChip.textContent = '實量∅徑：' + diaValue;
 			diaChip.style.cssText = 'display:inline-flex;align-items:center;padding:3px 8px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:999px;font-weight:600;';
 			searchSummaryEl.appendChild(diaChip);
 		}
 	}
 	function applyFilters() {
 		var rawSearch = searchEl.value.trim();
-		var q = normalizeSpecDiameterSymbol(rawSearch).toLowerCase();
-		var rawDiaSearch = realDiaSearchEl ? realDiaSearchEl.value.trim() : '';
+		var q = normalizeDiameterSymbol(rawSearch).toLowerCase();
+		var rawDiaSearch = realDiaSearchEl ? normalizeDiameterSymbol(realDiaSearchEl.value).trim() : '';
 		var diaQuery = rawDiaSearch.toLowerCase();
 		var onlyStock = inStockEl.checked;
 		var keywords = q ? q.split(/\s+/).filter(function (k) { return k.length > 0; }) : [];
@@ -5273,7 +5268,7 @@ init();
 		}
 
 		// Calculate available types under other filters
-		var idxRealDia = findCol(/實量ø徑|ø徑/);
+		var idxRealDia = findCol(/實量[∅øØ]徑|[∅øØ]徑/);
 		var availableTypes = {};
 		allRows.forEach(function (row) {
 			if (keywords.length > 0) {
@@ -5433,7 +5428,7 @@ init();
 			{ label: '種類', index: idxType },
 			{ label: '品號', index: findCol(/品號/) },
 			{ label: '規格', index: findCol(/規格/) },
-			{ label: '實量ø徑', index: findCol(/實量ø徑|ø徑/) },
+			{ label: '實量∅徑', index: findCol(/實量[∅øØ]徑|[∅øØ]徑/) },
 			{ label: '材質', index: findCol(/材質/) },
 			{ label: '庫存', index: idxQty, stock: true },
 			{ label: '區域', index: idxArea },
@@ -5480,7 +5475,7 @@ init();
 		var idxSpec = findCol(/規格/);
 		var idxVendorPartNo = findCol(/廠商圖號料號/);
 		var idxMaterial = findCol(/材質/);
-		var idxRealDia = findCol(/實量ø徑|ø徑/);
+		var idxRealDia = findCol(/實量[∅øØ]徑|[∅øØ]徑/);
 		var idxNailDia = findCol(/釘外徑/);
 		var idxThicknessInclude = findCol(/含板厚/);
 		var idxThicknessExclude = findCol(/不含板厚/);
@@ -5572,7 +5567,7 @@ init();
 					html += addDetail('廠商料號', row[idxVendorPartNo]);
 				}
 				if (idxRealDia >= 0 && row[idxRealDia]) {
-					html += addDetail('實量ø徑', row[idxRealDia]);
+					html += addDetail('實量∅徑', row[idxRealDia]);
 				}
 				if (idxNailDia >= 0 && row[idxNailDia]) {
 					html += addDetail('釘外徑', row[idxNailDia]);

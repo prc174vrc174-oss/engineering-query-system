@@ -118,9 +118,12 @@ test("nail results can switch between cards and the filtered report table", asyn
   assert.match(source, /nativeScrollbarVisible \|\| right - left < 40/);
   assert.match(source, /reportFloatingScroll\.scrollLeft = activeReportWrap\.scrollLeft/);
   assert.match(source, /activeReportWrap\.scrollLeft = reportFloatingScroll\.scrollLeft/);
-  assert.match(source, /function normalizeSpecDiameterSymbol\(value\)[\s\S]*?replace\(\/\[øØ\]\/g, '∅'\)/);
-  assert.match(source, /var idxSpec = findCol\(\/規格\/\)[\s\S]*?row\[idxSpec\] = normalizeSpecDiameterSymbol\(row\[idxSpec\]\)/);
-  assert.match(source, /var q = normalizeSpecDiameterSymbol\(rawSearch\)\.toLowerCase\(\)/);
+  assert.match(source, /function normalizeDiameterSymbol\(value\)[\s\S]*?replace\(\/\[øØ\]\/g, '∅'\)/);
+  assert.match(source, /headers = cols\.map\(function \(i\) \{ return normalizeDiameterSymbol\(rawHeaders\[i\]\)\.trim\(\); \}\)/);
+  assert.match(source, /return cols\.map\(function \(i\) \{ return normalizeDiameterSymbol\(r\[i\]\)\.trim\(\); \}\)/);
+  assert.match(source, /var q = normalizeDiameterSymbol\(rawSearch\)\.toLowerCase\(\)/);
+  assert.match(source, /var rawDiaSearch = realDiaSearchEl \? normalizeDiameterSymbol\(realDiaSearchEl\.value\)\.trim\(\) : ''/);
+  assert.match(source, /實量∅徑/);
   assert.doesNotMatch(source, /nailPrintBtn|nailPrintArea|列印報表|window\.print\(\)/);
 });
 
@@ -134,7 +137,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(calculator, /<strong>角度與R變化<\/strong>/);
   assert.match(calculator, /zeroTotal\+total\+comp/);
   assert.match(calculator, /total\+=val-m/);
-  assert.match(calculator, /Version 183 測試/);
+  assert.match(calculator, /Version 184 測試/);
   assert.match(calculator, /zero:value-tc\*\(t\+radius\)/);
   assert.match(calculator, /compact2=new Intl\.NumberFormat\('zh-TW',\{maximumFractionDigits:2\}\)/);
   assert.match(calculator, /Number\.isFinite\(e\.zero\)\?compact2\.format\(e\.zero\):'－'/);
@@ -177,7 +180,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(source, /let popupWidth=450,popupHeight=710/);
 });
 
-test("Version 183 test labels live in the requested header areas", async () => {
+test("Version 184 test labels live in the requested header areas", async () => {
   const source = await readFile(
     new URL("../public/engineering-query.html", import.meta.url),
     "utf8",
@@ -189,14 +192,14 @@ test("Version 183 test labels live in the requested header areas", async () => {
 
   assert.match(
     source,
-    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 183 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 184 測試<\/span>[\s\S]*?<\/header>/,
   );
   assert.match(
     standalone,
-    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 183 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 184 測試<\/span>[\s\S]*?<\/header>/,
   );
-  assert.equal((source.match(/Version 183 測試/g) || []).length, 2);
-  assert.equal((standalone.match(/Version 183 測試/g) || []).length, 2);
+  assert.equal((source.match(/Version 184 測試/g) || []).length, 2);
+  assert.equal((standalone.match(/Version 184 測試/g) || []).length, 2);
 });
 
 test("GitHub Pages build is installable and supports direct Apps Script upload", async () => {
@@ -217,7 +220,7 @@ test("GitHub Pages build is installable and supports direct Apps Script upload",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v183/);
+  assert.match(serviceWorker, /engineering-query-pwa-v184/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.match(upload, /isGitHubPages/);
