@@ -137,7 +137,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(calculator, /<strong>角度與R變化<\/strong>/);
   assert.match(calculator, /zeroTotal\+total\+comp/);
   assert.match(calculator, /total\+=val-m/);
-  assert.match(calculator, /Version 186 測試/);
+  assert.match(calculator, /Version 187 測試/);
   assert.match(calculator, /zero:value-tc\*\(t\+radius\)/);
   assert.match(calculator, /compact2=new Intl\.NumberFormat\('zh-TW',\{maximumFractionDigits:2\}\)/);
   assert.match(calculator, /Number\.isFinite\(e\.zero\)\?compact2\.format\(e\.zero\):'－'/);
@@ -180,7 +180,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(source, /let popupWidth=450,popupHeight=710/);
 });
 
-test("Version 186 test labels live in the requested header areas", async () => {
+test("Version 187 test labels live in the requested header areas", async () => {
   const source = await readFile(
     new URL("../public/engineering-query.html", import.meta.url),
     "utf8",
@@ -192,14 +192,14 @@ test("Version 186 test labels live in the requested header areas", async () => {
 
   assert.match(
     source,
-    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 186 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 187 測試<\/span>[\s\S]*?<\/header>/,
   );
   assert.match(
     standalone,
-    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 186 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 187 測試<\/span>[\s\S]*?<\/header>/,
   );
-  assert.equal((source.match(/Version 186 測試/g) || []).length, 2);
-  assert.equal((standalone.match(/Version 186 測試/g) || []).length, 2);
+  assert.equal((source.match(/Version 187 測試/g) || []).length, 2);
+  assert.equal((standalone.match(/Version 187 測試/g) || []).length, 2);
 });
 
 test("GitHub Pages build is installable and supports direct Apps Script upload", async () => {
@@ -220,7 +220,7 @@ test("GitHub Pages build is installable and supports direct Apps Script upload",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v186/);
+  assert.match(serviceWorker, /engineering-query-pwa-v187/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.match(upload, /isGitHubPages/);
@@ -395,6 +395,7 @@ test("special symbols tab copies the Notion symbol collection", async () => {
   assert.match(source, /symbols: document\.getElementById\('symbols-panel'\)/);
   assert.match(source, /symbolWords: \['晟展', '浤据', '靖紘', '㴫漛', '正翊信', '沅成', '荃倫', '鉸鍊'\]/);
   assert.match(source, /symbolEngineering: \['∅', 'μ', '±', '≦', '≧'/);
+  assert.doesNotMatch(source, /symbolEngineering: \[[^\]]*[⇚⇛⇉][^\]]*\]/);
   assert.match(source, /symbolSolidNumbers: \['⓿'[\s\S]*?'❿'\]/);
   assert.match(source, /symbolKeycapNumbers: \['0️⃣'[\s\S]*?'🔟'\]/);
   assert.match(source, /symbolCircledNumbers: \['①'[\s\S]*?'⑩'\]/);
