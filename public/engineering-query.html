@@ -3075,6 +3075,28 @@ h3 {
             font-size: 16px;
             font-weight: 800;
         }
+        .symbol-number-groups {
+            display: grid;
+            gap: 14px;
+        }
+        .symbol-number-group {
+            display: grid;
+            grid-template-columns: 116px minmax(0, 1fr);
+            align-items: start;
+            gap: 12px;
+            padding-top: 14px;
+            border-top: 1px solid #e5eaf1;
+        }
+        .symbol-number-group:first-child {
+            padding-top: 0;
+            border-top: 0;
+        }
+        .symbol-number-group h4 {
+            margin: 12px 0 0;
+            color: #475467;
+            font-size: 14px;
+            font-weight: 750;
+        }
         .symbol-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
@@ -3152,6 +3174,11 @@ h3 {
             transform: translateY(0);
         }
         @media (max-width: 560px) {
+            .symbol-number-group {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            .symbol-number-group h4 { margin: 0; }
             #fold-tool-panel .fold-tool-shell {
                 padding: 8px 10px 24px;
             }
@@ -3199,7 +3226,7 @@ h3 {
                 <button class="tab-btn" data-sys="symbols">字元符號</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 185 測試">Version 185 測試</span>
+<span class="site-version" aria-label="網站版次 Version 186 測試">Version 186 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -3984,17 +4011,22 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                     <h3>工程與標示</h3>
                     <div id="symbolEngineering" class="symbol-grid"></div>
                 </section>
-                <section class="symbol-section">
-                    <h3>實心圓圈數字</h3>
-                    <div id="symbolSolidNumbers" class="symbol-grid"></div>
-                </section>
-                <section class="symbol-section">
-                    <h3>方框數字</h3>
-                    <div id="symbolKeycapNumbers" class="symbol-grid"></div>
-                </section>
-                <section class="symbol-section symbol-section-wide">
-                    <h3>圓圈數字</h3>
-                    <div id="symbolCircledNumbers" class="symbol-grid"></div>
+                <section id="symbolNumberSection" class="symbol-section symbol-section-wide">
+                    <h3>數字符號</h3>
+                    <div class="symbol-number-groups">
+                        <div class="symbol-number-group">
+                            <h4>實心圓圈數字</h4>
+                            <div id="symbolSolidNumbers" class="symbol-grid"></div>
+                        </div>
+                        <div class="symbol-number-group">
+                            <h4>方框數字</h4>
+                            <div id="symbolKeycapNumbers" class="symbol-grid"></div>
+                        </div>
+                        <div class="symbol-number-group">
+                            <h4>圓圈數字</h4>
+                            <div id="symbolCircledNumbers" class="symbol-grid"></div>
+                        </div>
+                    </div>
                 </section>
                 <section class="symbol-section symbol-section-wide">
                     <h3>Emoji 與圖示</h3>
