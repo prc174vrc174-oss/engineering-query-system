@@ -2892,13 +2892,14 @@ h3 {
 
         /* -- 折刀座標圖 ----------------------------------------- */
         #fold-tool-panel,
-        #die-setup-panel {
+        #die-setup-panel,
+        #symbols-panel {
             max-width: 100%;
             overflow-x: hidden;
         }
         #fold-tool-panel .fold-tool-shell {
             width: 100%;
-            max-width: 1100px;
+            max-width: var(--notion-page-width);
             min-width: 0;
             margin: 0 auto;
             padding: 8px 24px 36px;
@@ -2993,7 +2994,7 @@ h3 {
         /* -- 配模計算 ------------------------------------------- */
         #die-setup-panel .die-setup-shell {
             width: 100%;
-            max-width: 1100px;
+            max-width: var(--notion-page-width);
             min-width: 0;
             margin: 0 auto;
             padding: 8px 24px 36px;
@@ -3050,7 +3051,9 @@ h3 {
         /* -- 字元符號 ------------------------------------------- */
         #symbols-panel { background: #f4f7fb; }
         .symbols-shell {
-            width: min(1100px, 100%);
+            width: 100%;
+            max-width: var(--notion-page-width);
+            min-width: 0;
             margin: 0 auto;
             padding: 18px 24px 40px;
             font-family: 'Outfit', 'Inter', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
@@ -3246,7 +3249,7 @@ h3 {
                 <button class="tab-btn" data-sys="symbols">字元符號</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 188 測試">Version 188 測試</span>
+<span class="site-version" aria-label="網站版次 Version 189 測試">Version 189 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
