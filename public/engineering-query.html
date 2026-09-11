@@ -3103,7 +3103,9 @@ h3 {
             gap: 8px;
         }
         .symbol-grid.symbol-words {
-            grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
         }
         .symbol-copy-btn {
             display: flex;
@@ -3139,7 +3141,13 @@ h3 {
             line-height: 1;
         }
         .solid-number-visual.two-digits { font-size: 12px; }
-        .symbol-words .symbol-copy-btn { font-size: 16px; }
+        .symbol-words .symbol-copy-btn {
+            width: auto;
+            min-width: 68px;
+            min-height: 38px;
+            padding: 5px 12px;
+            font-size: 16px;
+        }
         .symbol-copy-btn:hover,
         .symbol-copy-btn:focus-visible {
             border-color: #60a5fa;
@@ -3226,7 +3234,7 @@ h3 {
                 <button class="tab-btn" data-sys="symbols">字元符號</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 187 測試">Version 187 測試</span>
+<span class="site-version" aria-label="網站版次 Version 188 測試">Version 188 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
