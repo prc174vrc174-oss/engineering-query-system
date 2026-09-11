@@ -3199,7 +3199,7 @@ h3 {
                 <button class="tab-btn" data-sys="symbols">特殊符號</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 182 測試">Version 182 測試</span>
+<span class="site-version" aria-label="網站版次 Version 183 測試">Version 183 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -4790,6 +4790,10 @@ init();
 		document.head.appendChild(script);
 	}
 
+	function normalizeSpecDiameterSymbol(value) {
+		return String(value == null ? '' : value).replace(/[øØ]/g, '∅');
+	}
+
 	function cellText(c) {
 		if (!c) return '';
 		if (c.f != null) return String(c.f);
@@ -4820,6 +4824,12 @@ init();
 		idxType = findCol(/工作表|種類|類別|品名/);
 		idxArea = findCol(/區域|位置|區/);
 		idxQty = findCol(/數量|庫存|存量/);
+		var idxSpec = findCol(/規格/);
+		if (idxSpec >= 0) {
+			allRows.forEach(function (row) {
+				row[idxSpec] = normalizeSpecDiameterSymbol(row[idxSpec]);
+			});
+		}
 		
 		var idxUpdateTime = findCol(/最後更新時間/);
 		if (idxUpdateTime >= 0 && allRows.length > 0) {
@@ -4834,7 +4844,6 @@ init();
 		
 		// 若載入的線上資料中，數量欄位被 Google API 誤判為數值而捨棄（變成空字串），則從內建的離線 NAIL_DATA 資料庫中回復中文字庫存
 		var idxPartNo = findCol(/品號/);
-		var idxSpec = findCol(/規格/);
 		if (window.NAIL_DATA && window.NAIL_DATA.rows && idxQty >= 0) {
 			var offHeaders = window.NAIL_DATA.headers || [];
 			var offPartIdx = offHeaders.indexOf('品號');
@@ -4848,7 +4857,7 @@ init();
 						for (var j = 0; j < window.NAIL_DATA.rows.length; j++) {
 							var offRow = window.NAIL_DATA.rows[j];
 							var partMatch = offPartIdx < 0 || (idxPartNo >= 0 && row[idxPartNo] === offRow[offPartIdx]);
-							var specMatch = offSpecIdx < 0 || (idxSpec >= 0 && row[idxSpec] === offRow[offSpecIdx]);
+							var specMatch = offSpecIdx < 0 || (idxSpec >= 0 && row[idxSpec] === normalizeSpecDiameterSymbol(offRow[offSpecIdx]));
 							var areaMatch = offAreaIdx < 0 || (idxArea >= 0 && row[idxArea] === offRow[offAreaIdx]);
 							if (partMatch && specMatch && areaMatch) {
 								var backupQty = offRow[offQtyIdx];
@@ -5209,7 +5218,7 @@ init();
 	}
 	function applyFilters() {
 		var rawSearch = searchEl.value.trim();
-		var q = rawSearch.toLowerCase();
+		var q = normalizeSpecDiameterSymbol(rawSearch).toLowerCase();
 		var rawDiaSearch = realDiaSearchEl ? realDiaSearchEl.value.trim() : '';
 		var diaQuery = rawDiaSearch.toLowerCase();
 		var onlyStock = inStockEl.checked;
