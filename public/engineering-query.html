@@ -3084,6 +3084,9 @@ h3 {
             grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
         }
         .symbol-copy-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             width: 100%;
             min-width: 0;
             min-height: 46px;
@@ -3099,6 +3102,21 @@ h3 {
             box-shadow: none;
             transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
         }
+        .solid-number-visual {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 27px;
+            height: 27px;
+            border-radius: 50%;
+            background: #172033;
+            color: #ffffff;
+            font-family: Arial, 'Microsoft JhengHei', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .solid-number-visual.two-digits { font-size: 12px; }
         .symbol-words .symbol-copy-btn { font-size: 16px; }
         .symbol-copy-btn:hover,
         .symbol-copy-btn:focus-visible {
@@ -3181,7 +3199,7 @@ h3 {
                 <button class="tab-btn" data-sys="symbols">特殊符號</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 181 測試">Version 181 測試</span>
+<span class="site-version" aria-label="網站版次 Version 182 測試">Version 182 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -6187,14 +6205,22 @@ init();
             Object.keys(symbolGroups).forEach(function(groupId) {
                 var container = document.getElementById(groupId);
                 if (!container) return;
-                symbolGroups[groupId].forEach(function(value) {
+                symbolGroups[groupId].forEach(function(value, index) {
                     var button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'symbol-copy-btn';
                     button.setAttribute('data-symbol-copy', '');
                     button.setAttribute('aria-label', '複製 ' + value);
                     button.title = '點一下複製';
-                    button.textContent = value;
+                    if (groupId === 'symbolSolidNumbers') {
+                        button.dataset.symbolValue = value;
+                        var visual = document.createElement('span');
+                        visual.className = 'solid-number-visual' + (index === 10 ? ' two-digits' : '');
+                        visual.textContent = String(index);
+                        button.appendChild(visual);
+                    } else {
+                        button.textContent = value;
+                    }
                     container.appendChild(button);
                 });
             });
@@ -6243,7 +6269,7 @@ init();
                 symbolsPanel.addEventListener('click', function(event) {
                     var button = event.target.closest('[data-symbol-copy]');
                     if (!button || !symbolsPanel.contains(button)) return;
-                    copySymbol(button.textContent, button);
+                    copySymbol(button.dataset.symbolValue || button.textContent, button);
                 });
             }
             
