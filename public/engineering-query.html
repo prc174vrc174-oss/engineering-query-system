@@ -912,15 +912,26 @@ h3 {
                 gap: 8px;
             }
             .tabs-nav {
-                display: grid;
-                grid-template-columns: repeat(5, minmax(0, 1fr));
+                display: flex;
+                flex-wrap: nowrap;
                 width: 100%;
-                gap: 4px;
+                gap: 6px;
+                justify-content: flex-start;
+                overflow-x: auto;
+                overflow-y: hidden;
+                overscroll-behavior-x: contain;
+                scroll-behavior: smooth;
+                scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-x;
+            }
+            .tabs-nav::-webkit-scrollbar {
+                display: none;
             }
             .tab-btn {
-                width: 100%;
-                min-width: 0;
-                padding: 8px 2px;
+                flex: 0 0 auto;
+                width: auto;
+                padding: 8px 12px;
                 font-size: 12px;
                 white-space: nowrap;
             }
@@ -3059,7 +3070,7 @@ h3 {
                 <button class="tab-btn" data-sys="die-setup">配模計算</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 179 測試">Version 179 測試</span>
+<span class="site-version" aria-label="網站版次 Version 180 測試">Version 180 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -5991,6 +6002,18 @@ init();
             } catch(e) {}
 
             var tabs = document.querySelectorAll('.tab-btn');
+            function revealActiveTab(button) {
+                if (window.innerWidth > 640 || !button) return;
+                var nav = button.closest('.tabs-nav');
+                if (!nav) return;
+                var navRect = nav.getBoundingClientRect();
+                var buttonRect = button.getBoundingClientRect();
+                if (buttonRect.left >= navRect.left && buttonRect.right <= navRect.right) return;
+                nav.scrollBy({
+                    left: buttonRect.left + buttonRect.width / 2 - (navRect.left + navRect.width / 2),
+                    behavior: 'smooth'
+                });
+            }
             var panels = {
                 bend: document.getElementById('bend-sys-panel'),
                 nail: document.getElementById('nail-sys-panel'),
@@ -6006,6 +6029,7 @@ init();
                     
                     var target = btn.dataset.sys;
                     try { localStorage.setItem('engineeringActiveTab', target); } catch (e) {}
+                    revealActiveTab(btn);
                     
                     Object.keys(panels).forEach(function(key) {
                         if (panels[key]) {
