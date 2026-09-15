@@ -27,7 +27,6 @@
   var headerValue = document.getElementById('nailUploadHeaderValue');
   var accountValue = document.getElementById('nailUploadAccountValue');
   var accountRow = document.getElementById('nailUploadAccountRow');
-  var switchAccountButton = document.getElementById('nailUploadSwitchAccountBtn');
   var directTokenRow = document.getElementById('nailUploadDirectTokenRow');
   var directTokenInput = document.getElementById('nailUploadDirectToken');
   var statusEl = document.getElementById('nailUploadStatus');
