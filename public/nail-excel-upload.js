@@ -470,12 +470,6 @@
     handleSelectedFile(fileInput.files && fileInput.files[0]);
   });
   submitButton.addEventListener('click', uploadWorkbook);
-  if (switchAccountButton) {
-    switchAccountButton.addEventListener('click', function () {
-      if (uploading) return;
-      openSignInAtTop('/signout-with-chatgpt?return_to=%2F%23nail-system');
-    });
-  }
   Array.prototype.forEach.call(document.querySelectorAll('[data-nail-upload-close]'), function (closeButton) {
     closeButton.addEventListener('click', closeModal);
   });
