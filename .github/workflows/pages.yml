@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -23,65 +23,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Apply Version 192 source update
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          html_path = Path('public/engineering-query.html')
-          html = html_path.read_text(encoding='utf-8')
-          css = """        .nail-upload-switch-account {
-              flex: 0 0 auto;
-              height: 30px;
-              margin-left: auto;
-              padding: 0 10px;
-              border-color: #bfdbfe;
-              background: #eff6ff;
-              color: #1d4ed8;
-              font-size: 12px;
-              box-shadow: none;
-          }
-          .nail-upload-switch-account:hover { border-color: #60a5fa; background: #dbeafe; }
-          """
-          button = '\t\t\t\t<button type="button" class="nail-upload-switch-account" id="nailUploadSwitchAccountBtn">更換登入帳號</button>\n'
-          html = html.replace(css, '').replace(button, '').replace('Version 191 測試', 'Version 192 測試')
-          html_path.write_text(html, encoding='utf-8')
-
-          js_path = Path('public/nail-excel-upload.js')
-          js = js_path.read_text(encoding='utf-8')
-          js = js.replace("  var switchAccountButton = document.getElementById('nailUploadSwitchAccountBtn');\n", '')
-          handler = """  if (switchAccountButton) {
-            switchAccountButton.addEventListener('click', function () {
-              if (uploading) return;
-              openSignInAtTop('/signout-with-chatgpt?return_to=%2F%23nail-system');
-            });
-          }
-          """
-          js_path.write_text(js.replace(handler, ''), encoding='utf-8')
-
-          for name in ['public/m-calculator.html', 'public/developed-calculator.html', 'tests/rendered-html.test.mjs']:
-              path = Path(name)
-              path.write_text(path.read_text(encoding='utf-8').replace('Version 191', 'Version 192'), encoding='utf-8')
-
-          sw_path = Path('public/service-worker.js')
-          sw_path.write_text(sw_path.read_text(encoding='utf-8').replace('engineering-query-pwa-v191', 'engineering-query-pwa-v192'), encoding='utf-8')
-
-          test_path = Path('tests/rendered-html.test.mjs')
-          tests = test_path.read_text(encoding='utf-8').replace('engineering-query-pwa-v191', 'engineering-query-pwa-v192')
-          marker = "  assert.match(serviceWorker, /engineering-query-pwa-v192/);"
-          assertion = "  assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);"
-          if assertion not in tests:
-              tests = tests.replace(marker, marker + '\n' + assertion)
-          test_path.write_text(tests, encoding='utf-8')
-          PY
-          if ! git diff --quiet; then
-            git config user.name "Codex"
-            git config user.email "codex@openai.com"
-            git add public/engineering-query.html public/nail-excel-upload.js public/m-calculator.html public/developed-calculator.html public/service-worker.js tests/rendered-html.test.mjs
-            git commit -m "Remove account switch control (Version 192)"
-            git push
-          fi
 
       - name: Prepare static site
         run: |
