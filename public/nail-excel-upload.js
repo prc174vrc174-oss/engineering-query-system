@@ -5,6 +5,7 @@
   var SYNC_URL = '/api/nail-upload';
   var DIRECT_SYNC_URL = 'https://script.google.com/macros/s/AKfycbzQueEqjZkPiTkNJ9G6-_m5Qgr4-Yg7kxhRXh3H_2rVVVfl3Hmr2LWI8sz4DmRi2Qe0ZQ/exec';
   var DIRECT_SPREADSHEET_ID = '1uUZgtiScqYtEqcDF8JjvROHwBkjlZ2IniGLhFUwMp-4';
+  var GOOGLE_CLIENT_ID = '406267166897-8geeu3tpc425nc9n7gmimmmflbckp0ta.apps.googleusercontent.com';
   var isGitHubPages = /\.github\.io$/i.test(window.location.hostname);
   var MAX_FILE_BYTES = 25 * 1024 * 1024;
   var EXPECTED_HEADERS = [
@@ -27,11 +28,13 @@
   var headerValue = document.getElementById('nailUploadHeaderValue');
   var accountValue = document.getElementById('nailUploadAccountValue');
   var accountRow = document.getElementById('nailUploadAccountRow');
-  var directTokenRow = document.getElementById('nailUploadDirectTokenRow');
-  var directTokenInput = document.getElementById('nailUploadDirectToken');
+  var googleSignInButton = document.getElementById('nailGoogleSignInButton');
   var statusEl = document.getElementById('nailUploadStatus');
   var parsedWorkbook = null;
   var authorizedEmail = '';
+  var googleIdToken = '';
+  var googleIdentityPromise = null;
+  var pendingFileSelection = false;
   var uploading = false;
 
   if (!button || !fileInput || !modal || !submitButton) return;
@@ -45,15 +48,92 @@
     element.classList.toggle('is-valid', !!valid);
   }
 
-  function openSignInAtTop(signInUrl) {
-    var link = document.createElement('a');
-    link.href = signInUrl;
-    link.target = '_top';
-    link.rel = 'noopener';
-    link.hidden = true;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  function parseGoogleCredential(token) {
+    try {
+      var encoded = String(token || '').split('.')[1] || '';
+      var normalized = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      while (normalized.length % 4) normalized += '=';
+      return JSON.parse(decodeURIComponent(Array.prototype.map.call(atob(normalized), function (character) {
+        return '%' + ('00' + character.charCodeAt(0).toString(16)).slice(-2);
+      }).join('')));
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function hasUsableGoogleCredential() {
+    if (!googleIdToken) return false;
+    var identity = parseGoogleCredential(googleIdToken);
+    return !!(identity && Number(identity.exp || 0) * 1000 > Date.now() + 30000);
+  }
+
+  function applyGoogleCredential(response) {
+    var token = response && response.credential;
+    var identity = parseGoogleCredential(token);
+    if (!token || !identity || !identity.email) {
+      setStatus('Google 登入失敗，請再試一次。', 'error');
+      return;
+    }
+    googleIdToken = token;
+    authorizedEmail = String(identity.email || '').trim();
+    if (accountValue) accountValue.textContent = authorizedEmail;
+    if (googleSignInButton) googleSignInButton.hidden = true;
+    setStatus('Google 登入成功，請選擇要上傳的 Excel。', 'success');
+    if (pendingFileSelection) {
+      pendingFileSelection = false;
+      fileInput.value = '';
+      fileInput.click();
+    }
+  }
+
+  function initializeGoogleIdentity() {
+    if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+      throw new Error('Google 登入程式尚未載入。');
+    }
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: applyGoogleCredential,
+      auto_select: false,
+      cancel_on_tap_outside: false
+    });
+    if (googleSignInButton) {
+      googleSignInButton.hidden = false;
+      googleSignInButton.innerHTML = '';
+      window.google.accounts.id.renderButton(googleSignInButton, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'medium',
+        text: 'signin_with',
+        shape: 'rectangular',
+        width: 230,
+        locale: 'zh_TW'
+      });
+    }
+  }
+
+  function loadGoogleIdentity() {
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      initializeGoogleIdentity();
+      return Promise.resolve();
+    }
+    if (googleIdentityPromise) return googleIdentityPromise;
+    googleIdentityPromise = new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = function () {
+        try {
+          initializeGoogleIdentity();
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+      script.onerror = function () { reject(new Error('無法載入 Google 登入程式，請檢查網路連線。')); };
+      document.head.appendChild(script);
+    });
+    return googleIdentityPromise;
   }
 
   function updateSubmitState() {
@@ -90,27 +170,22 @@
     if (uploading) return;
     button.disabled = true;
     try {
-      if (isGitHubPages) {
-        authorizedEmail = 'GitHub Pages 直接更新';
-        if (accountRow) accountRow.hidden = true;
-        if (directTokenRow) directTokenRow.hidden = false;
-        if (directTokenInput && !directTokenInput.value) {
-          try { directTokenInput.value = sessionStorage.getItem('engineeringSheetUpdateToken') || ''; } catch (error) {}
-        }
-        fileInput.value = '';
-        fileInput.click();
+      if (!hasUsableGoogleCredential()) {
+        googleIdToken = '';
+        authorizedEmail = '';
+        pendingFileSelection = true;
+        showModal();
+        resetChecks();
+        fileNameEl.textContent = '尚未選擇檔案';
+        fileMetaEl.textContent = '登入後支援 .xlsx、.xlsm';
+        if (accountRow) accountRow.hidden = false;
+        if (accountValue) accountValue.textContent = '尚未登入';
+        setStatus('請先使用允許的 Google 帳號登入。', 'loading');
+        await loadGoogleIdentity();
         return;
       }
-      var response = await fetch(SYNC_URL, { cache: 'no-store', credentials: 'same-origin' });
-      var result = await response.json();
-      if (response.status === 401 && result && result.signInUrl) {
-        openSignInAtTop(result.signInUrl);
-        return;
-      }
-      if (!response.ok || !result || !result.ok) {
-        throw new Error((result && result.error) || '目前無法使用上傳功能。');
-      }
-      authorizedEmail = result.email || '';
+      if (accountRow) accountRow.hidden = false;
+      if (accountValue) accountValue.textContent = authorizedEmail || 'Google 帳號已登入';
       fileInput.value = '';
       fileInput.click();
     } catch (error) {
@@ -398,27 +473,18 @@
 
     try {
       var payload = {
+        idToken: googleIdToken,
+        spreadsheetId: DIRECT_SPREADSHEET_ID,
         worksheet: parsedWorkbook.sheetName,
         tsv: parsedWorkbook.tsv
       };
       var result;
 
       if (isGitHubPages) {
-        var directToken = directTokenInput ? directTokenInput.value.trim() : '';
-        if (!directToken) {
-          if (directTokenInput) directTokenInput.focus();
-          throw new Error('請先輸入 Google Sheet 更新密鑰。');
-        }
-        try { sessionStorage.setItem('engineeringSheetUpdateToken', directToken); } catch (error) {}
         await fetch(DIRECT_SYNC_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-          body: JSON.stringify({
-            token: directToken,
-            spreadsheetId: DIRECT_SPREADSHEET_ID,
-            worksheet: payload.worksheet,
-            tsv: payload.tsv
-          }),
+          body: JSON.stringify(payload),
           cache: 'no-store',
           mode: 'no-cors',
           credentials: 'omit',
@@ -438,10 +504,6 @@
         var responseText = await response.text();
         try { result = JSON.parse(responseText); }
         catch (error) { throw new Error('雲端程式回應格式不正確。'); }
-        if (response.status === 401 && result && result.signInUrl) {
-          openSignInAtTop(result.signInUrl);
-          return;
-        }
         if (!response.ok || !result || !result.ok) throw new Error((result && result.error) || 'Google Sheet 更新失敗。');
       }
 
