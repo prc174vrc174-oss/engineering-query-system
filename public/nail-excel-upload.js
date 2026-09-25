@@ -305,6 +305,16 @@
     return xml;
   }
 
+
+
+(function loadCommonWords() {
+  if (document.querySelector('script[data-common-words-loader]')) return;
+  var script = document.createElement('script');
+  script.src = './common-words.js';
+  script.defer = true;
+  script.setAttribute('data-common-words-loader', '');
+  document.head.appendChild(script);
+})();
   function descendantsByLocalName(node, localName) {
     return Array.prototype.slice.call(node.getElementsByTagNameNS('*', localName));
   }
