@@ -3074,6 +3074,102 @@ h3 {
             font-size: 16px;
             font-weight: 800;
         }
+        .common-words-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .common-words-heading h3 { margin: 0; }
+        .common-words-manage-btn,
+        .common-words-add-btn,
+        .common-word-action {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #334155;
+            font-family: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .common-words-manage-btn {
+            min-height: 34px;
+            padding: 5px 12px;
+            font-size: 13px;
+        }
+        .common-words-editor {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 12px;
+            border: 1px solid #dbe3ee;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+        .common-words-editor[hidden] { display: none; }
+        .common-words-input {
+            min-width: 0;
+            min-height: 40px;
+            padding: 7px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #172033;
+            font: inherit;
+        }
+        .common-words-input:focus {
+            outline: 2px solid rgba(59, 130, 246, 0.18);
+            border-color: #60a5fa;
+        }
+        .common-words-add-btn {
+            min-height: 40px;
+            padding: 7px 15px;
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #ffffff;
+        }
+        .common-words-add-btn:disabled,
+        .common-words-manage-btn:disabled { opacity: .55; cursor: wait; }
+        .common-words-auth,
+        .common-words-status {
+            grid-column: 1 / -1;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .common-words-auth:empty,
+        .common-words-status:empty { display: none; }
+        .common-words-status.is-error { color: #b42318; }
+        .common-words-status.is-success { color: #047857; }
+        .common-word-item {
+            position: relative;
+            display: inline-flex;
+            align-items: stretch;
+        }
+        .symbol-words .common-word-item .symbol-copy-btn { border-radius: 9px; }
+        .common-word-item.is-managing .symbol-copy-btn {
+            padding-right: 62px;
+        }
+        .common-word-actions {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            bottom: 3px;
+            display: none;
+            align-items: center;
+            gap: 3px;
+        }
+        .common-word-item.is-managing .common-word-actions { display: flex; }
+        .common-word-action {
+            width: 26px;
+            height: 30px;
+            padding: 0;
+            color: #475569;
+            font-size: 13px;
+        }
+        .common-word-action[data-common-word-delete] { color: #b42318; }
         .symbol-number-groups {
             display: grid;
             gap: 14px;
@@ -3218,6 +3314,120 @@ h3 {
                 font-size: 14px;
             }
         }
+        /* -- 工程紀錄 ------------------------------------------- */
+        #engineering-records-panel { background: #f4f7fb; }
+        .engineering-records-shell {
+            width: 100%;
+            max-width: var(--notion-page-width);
+            min-width: 0;
+            margin: 0 auto;
+            padding: 18px 24px 40px;
+            font-family: 'Outfit', 'Inter', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+        }
+        .engineering-records-header { margin-bottom: 16px; }
+        .engineering-records-title { margin: 0; color: #111827; font-size: 28px; font-weight: 850; }
+        .engineering-records-subtitle { margin: 6px 0 0; color: #667085; font-size: 14px; }
+        .engineering-records-toolbar {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto auto;
+            gap: 8px;
+            padding: 14px;
+            border: 1px solid #d8e0eb;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 4px 14px rgba(15,23,42,.05);
+        }
+        .engineering-records-query {
+            min-width: 0;
+            height: 42px;
+            padding: 0 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            color: #172033;
+            font: inherit;
+            font-size: 16px;
+        }
+        .engineering-records-query:focus { outline: 2px solid rgba(37,99,235,.16); border-color: #60a5fa; }
+        .engineering-records-btn {
+            min-height: 42px;
+            padding: 0 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            background: #fff;
+            color: #334155;
+            font: inherit;
+            font-weight: 750;
+            cursor: pointer;
+        }
+        .engineering-records-btn.is-primary { border-color: #2563eb; background: #2563eb; color: #fff; }
+        .engineering-records-btn.is-ai { border-color: #6d5bd0; background: #6d5bd0; color: #fff; }
+        .engineering-records-btn:disabled { opacity: .5; cursor: wait; }
+        .engineering-records-status { grid-column: 1 / -1; min-height: 20px; color: #64748b; font-size: 13px; line-height: 1.5; }
+        .engineering-records-status:empty { display: none; }
+        .engineering-records-status.is-loading { color: #1d4ed8; }
+        .engineering-records-status.is-success { color: #047857; }
+        .engineering-records-status.is-error { color: #b42318; }
+        .engineering-records-google { grid-column: 1 / -1; }
+        .engineering-records-google:empty { display: none; }
+        .engineering-records-layout {
+            display: grid;
+            grid-template-columns: minmax(300px, .9fr) minmax(0, 1.5fr);
+            gap: 14px;
+            margin-top: 14px;
+        }
+        .engineering-records-results,
+        .engineering-records-preview-card {
+            min-width: 0;
+            min-height: 520px;
+            border: 1px solid #d8e0eb;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 4px 14px rgba(15,23,42,.05);
+            overflow: hidden;
+        }
+        .engineering-records-pane-title { margin: 0; padding: 13px 15px; border-bottom: 1px solid #e5eaf1; color: #344054; font-size: 15px; font-weight: 800; }
+        .engineering-records-list { max-height: 650px; overflow: auto; }
+        .engineering-record-item { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; align-items: start; padding: 7px 9px; border-bottom: 1px solid #eef2f6; }
+        .engineering-record-item.is-active { background: #eff6ff; }
+        .engineering-record-item input { margin-top: 13px; width: 17px; height: 17px; accent-color: #2563eb; }
+        .engineering-record-open { width: 100%; padding: 5px 4px; border: 0; background: transparent; color: #172033; text-align: left; cursor: pointer; }
+        .engineering-record-open strong,
+        .engineering-record-open span,
+        .engineering-record-open small { display: block; }
+        .engineering-record-open strong { font-size: 14px; line-height: 1.45; }
+        .engineering-record-snippet { margin-top: 4px; color: #475569; font-size: 13px; line-height: 1.45; }
+        .engineering-record-open small { margin-top: 4px; color: #94a3b8; font-size: 12px; line-height: 1.4; word-break: break-all; }
+        .engineering-records-empty { padding: 28px 18px; color: #64748b; font-size: 14px; text-align: center; }
+        .engineering-records-preview-head { padding: 13px 15px; border-bottom: 1px solid #e5eaf1; }
+        .engineering-records-preview-head h3 { margin: 0; color: #344054; font-size: 16px; }
+        .engineering-records-preview-head p { margin: 4px 0 0; color: #94a3b8; font-size: 12px; word-break: break-all; }
+        .engineering-records-preview {
+            min-height: 460px;
+            max-height: 650px;
+            margin: 0;
+            padding: 17px;
+            overflow: auto;
+            color: #253044;
+            font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+            font-size: 14px;
+            line-height: 1.75;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+        @media (max-width: 760px) {
+            .engineering-records-shell { padding: 14px 12px 30px; }
+            .engineering-records-title { font-size: 24px; }
+            .engineering-records-toolbar { grid-template-columns: 1fr 1fr; }
+            .engineering-records-query { grid-column: 1 / -1; }
+            .engineering-records-btn.is-primary { grid-column: 1 / 2; }
+            .engineering-records-btn.is-ai { grid-column: 2 / 3; }
+            .engineering-records-btn:not(.is-primary):not(.is-ai) { grid-column: 1 / -1; }
+            .engineering-records-layout { grid-template-columns: 1fr; }
+            .engineering-records-results,
+            .engineering-records-preview-card { min-height: 0; }
+            .engineering-records-list { max-height: 420px; }
+            .engineering-records-preview { min-height: 360px; max-height: none; }
+        }
     </style>
 </head>
 <body>
@@ -3231,9 +3441,10 @@ h3 {
                 <button class="tab-btn" data-sys="fold-tool">座標圖</button>
                 <button class="tab-btn" data-sys="die-setup">配模計算</button>
                 <button class="tab-btn" data-sys="symbols">字元符號</button>
+                <button class="tab-btn" data-sys="engineering-records">工程紀錄</button>
             </nav>
         </div>
-<span class="site-version" aria-label="網站版次 Version 194 測試">Version 194 測試</span>
+<span class="site-version" aria-label="網站版次 Version 195 測試">Version 195 測試</span>
     </header>
 
     <!-- 1. 折彎與開孔查詢系統 -->
@@ -4006,7 +4217,16 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             </header>
             <div class="symbols-sections">
                 <section class="symbol-section symbol-section-wide">
-                    <h3>常用文字</h3>
+                    <div class="common-words-heading">
+                        <h3>常用文字</h3>
+                        <button id="commonWordsManageBtn" class="common-words-manage-btn" type="button" aria-expanded="false">管理</button>
+                    </div>
+                    <div id="commonWordsEditor" class="common-words-editor" hidden>
+                        <input id="commonWordsInput" class="common-words-input" type="text" maxlength="40" autocomplete="off" placeholder="輸入要共用的文字" aria-label="新增常用文字">
+                        <button id="commonWordsAddBtn" class="common-words-add-btn" type="button" disabled>新增</button>
+                        <div id="commonWordsGoogleButton" class="common-words-auth"></div>
+                        <div id="commonWordsStatus" class="common-words-status" role="status" aria-live="polite"></div>
+                    </div>
                     <div id="symbolWords" class="symbol-grid symbol-words"></div>
                 </section>
                 <section class="symbol-section symbol-section-wide">
@@ -4037,6 +4257,39 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             </div>
         </main>
         <div id="symbolCopyToast" class="symbol-copy-toast" role="status" aria-live="polite"></div>
+    </div>
+
+    <!-- 7. 工程紀錄 -->
+    <div id="engineering-records-panel" class="sys-panel" style="display:none">
+        <main class="engineering-records-shell">
+            <header class="engineering-records-header">
+                <h2 class="engineering-records-title">工程紀錄</h2>
+                <p class="engineering-records-subtitle">搜尋 Google Drive 裡的 Markdown 工程筆記；多個關鍵字採全部符合。</p>
+            </header>
+            <section class="engineering-records-toolbar" aria-label="工程紀錄搜尋">
+                <input id="engineeringRecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
+                <button id="engineeringRecordsSearchBtn" class="engineering-records-btn is-primary" type="button">搜尋</button>
+                <button id="engineeringRecordsSummaryBtn" class="engineering-records-btn is-ai" type="button" disabled>Gemini 摘要</button>
+                <button id="engineeringRecordsClearBtn" class="engineering-records-btn" type="button">清除</button>
+                <div id="engineeringRecordsGoogleButton" class="engineering-records-google"></div>
+                <div id="engineeringRecordsStatus" class="engineering-records-status" role="status" aria-live="polite"></div>
+            </section>
+            <div class="engineering-records-layout">
+                <section class="engineering-records-results" aria-label="搜尋結果">
+                    <h3 class="engineering-records-pane-title">搜尋結果</h3>
+                    <div id="engineeringRecordsList" class="engineering-records-list">
+                        <div class="engineering-records-empty">輸入關鍵字後開始搜尋。</div>
+                    </div>
+                </section>
+                <section class="engineering-records-preview-card" aria-label="工程紀錄內容">
+                    <div class="engineering-records-preview-head">
+                        <h3 id="engineeringRecordsPreviewTitle">內容預覽</h3>
+                        <p id="engineeringRecordsPreviewMeta"></p>
+                    </div>
+                    <pre id="engineeringRecordsPreview" class="engineering-records-preview">選取左側搜尋結果後，這裡會顯示完整 Markdown 內容。</pre>
+                </section>
+            </div>
+        </main>
     </div>
     <script>
     (function() {
@@ -6224,7 +6477,8 @@ init();
                 'nail-gallery': document.getElementById('nail-gallery-panel'),
                 'fold-tool': document.getElementById('fold-tool-panel'),
                 'die-setup': document.getElementById('die-setup-panel'),
-                symbols: document.getElementById('symbols-panel')
+                symbols: document.getElementById('symbols-panel'),
+                'engineering-records': document.getElementById('engineering-records-panel')
             };
 
             var symbolGroups = {
@@ -6372,6 +6626,8 @@ init();
                 else if (dx < 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
                 else if (dx < 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="die-setup"]');
                 else if (dx < 0 && current === 'die-setup') target = document.querySelector('.tab-btn[data-sys="symbols"]');
+                else if (dx < 0 && current === 'symbols') target = document.querySelector('.tab-btn[data-sys="engineering-records"]');
+                else if (dx > 0 && current === 'engineering-records') target = document.querySelector('.tab-btn[data-sys="symbols"]');
                 else if (dx > 0 && current === 'symbols') target = document.querySelector('.tab-btn[data-sys="die-setup"]');
                 else if (dx > 0 && current === 'die-setup') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
                 else if (dx > 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
@@ -6389,6 +6645,8 @@ init();
         })();
     </script>
     <script src="/nail-excel-upload.js"></script>
+    <script src="common-words.js"></script>
+    <script src="engineering-records.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
@@ -6398,5 +6656,5 @@ init();
             });
         }
     </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a45d43421e2c115b',t:'MTc5MTIxMjA3OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
