@@ -1,0 +1,37 @@
+name: Sync engineering records assets
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sync-engineering-records.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download published assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://engineering-query.prc174.chatgpt.site"
+          for file in engineering-query.html engineering-records.js service-worker.js developed-calculator.html m-calculator.html; do
+            curl --fail --location --retry 5 --retry-delay 3 --connect-timeout 30 --max-time 240 "$base/$file" -o "public/$file"
+          done
+      - name: Commit synchronized assets
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/engineering-query.html public/engineering-records.js public/service-worker.js public/developed-calculator.html public/m-calculator.html
+          if git diff --cached --quiet; then
+            echo "Assets are already current."
+          else
+            git commit -m "Sync engineering records page assets"
+            git push
+          fi
