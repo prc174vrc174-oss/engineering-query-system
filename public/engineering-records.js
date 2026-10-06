@@ -185,8 +185,15 @@
       readyStatus();
       if (queryInput.value.trim()) search();
     } catch (error) {
-      if (generation === cacheGeneration) setStatus('載入失敗：' + (error.message || '請稍後重試。') +
-        (cacheReady ? ' 仍可搜尋上次載入的筆記。' : ' 可按搜尋使用雲端查詢。'), 'error');
+      if (generation === cacheGeneration) {
+        if (/不支援的工程紀錄操作/.test(error.message || '')) {
+          setStatus(cacheReady ? '預載更新尚未啟用；目前可搜尋上次載入的筆記。' :
+            '預載功能等待後端更新；目前可按「搜尋」使用雲端查詢。');
+        } else {
+          setStatus('載入失敗：' + (error.message || '請稍後重試。') +
+            (cacheReady ? ' 仍可搜尋上次載入的筆記。' : ' 可按搜尋使用雲端查詢。'), 'error');
+        }
+      }
     } finally {
       if (generation === cacheGeneration && reloadButton) reloadButton.disabled = false;
     }
