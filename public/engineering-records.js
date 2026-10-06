@@ -37,14 +37,14 @@
   var identityLoading = null;
   var summarizeAfterLogin = false;
   var imageCache = {};
-  var exclusionKey = 'engineeringRecordsExcludedFoldersV1';
-  var excludedFolders = [];
+  var selectionKey = 'engineeringRecordsIncludedFoldersV1';
+  var includedFolders = [];
   var folderPaths = null;
   var searchVersion = 0;
 
   if (!queryInput || !searchButton || !summaryButton || !list || !preview) return;
 
-  function normalizeExclusions(value) {
+  function normalizeFolders(value) {
     var unique = {};
     return (Array.isArray(value) ? value : []).map(function (item) {
       return String(item || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/{2,}/g, '/');
@@ -56,15 +56,15 @@
   }
 
   function updateExcludeButton() {
-    excludeButton.textContent = '排除資料夾' + (excludedFolders.length ? '（' + excludedFolders.length + '）' : '');
+    excludeButton.textContent = '搜尋資料夾' + (includedFolders.length ? '（' + includedFolders.length + '）' : '（全部）');
   }
 
-  try { excludedFolders = normalizeExclusions(JSON.parse(localStorage.getItem(exclusionKey) || '[]')); } catch (error) {}
+  try { includedFolders = normalizeFolders(JSON.parse(localStorage.getItem(selectionKey) || '[]')); } catch (error) {}
   updateExcludeButton();
 
   function renderFolderOptions() {
     excludeSuggestions.replaceChildren();
-    var selected = normalizeExclusions(excludeInput.value.split('\n'));
+    var selected = normalizeFolders(excludeInput.value.split('\n'));
     var names = (folderPaths || []).concat(selected.filter(function (name) {
       return !folderPaths || folderPaths.indexOf(name) < 0;
     }));
@@ -80,7 +80,7 @@
       checkbox.value = name;
       checkbox.checked = selected.indexOf(name) >= 0;
       checkbox.addEventListener('change', function () {
-        var values = normalizeExclusions(excludeInput.value.split('\n'));
+        var values = normalizeFolders(excludeInput.value.split('\n'));
         values = values.filter(function (value) { return value !== name; });
         if (checkbox.checked) values.push(name);
         excludeInput.value = values.join('\n');
@@ -94,14 +94,16 @@
   }
 
   async function showExcludeSettings() {
-    excludeInput.value = excludedFolders.join('\n');
+    excludeInput.value = includedFolders.join('\n');
     excludeError.textContent = '';
     excludeSuggestions.textContent = folderPaths ? '' : '正在載入資料夾…';
     excludeDialog.showModal();
     if (folderPaths) { renderFolderOptions(); return; }
     try {
       var response = await request({ action: 'engineeringRecords.folders' });
-      folderPaths = Array.isArray(response.folders) ? response.folders : [];
+      folderPaths = Array.isArray(response.folders) ? response.folders.filter(function (path) {
+        return !String(path).split('/').some(function (part) { return part.charAt(0) === '.'; });
+      }) : [];
       if (excludeDialog.open) renderFolderOptions();
     } catch (error) {
       if (excludeDialog.open) excludeSuggestions.textContent = '資料夾載入失敗，仍可手動輸入路徑。';
@@ -109,17 +111,17 @@
   }
 
   function saveExcludeSettings() {
-    var next = normalizeExclusions(excludeInput.value.split('\n'));
+    var next = normalizeFolders(excludeInput.value.split('\n'));
     if (next.length > 30 || next.some(function (value) { return value.length > 120; })) {
       excludeError.textContent = '最多 30 個資料夾，每行最多 120 個字。';
       return;
     }
-    excludedFolders = next;
-    try { localStorage.setItem(exclusionKey, JSON.stringify(next)); } catch (error) {}
+    includedFolders = next;
+    try { localStorage.setItem(selectionKey, JSON.stringify(next)); } catch (error) {}
     updateExcludeButton();
     excludeDialog.close();
     if (queryInput.value.trim()) search();
-    else setStatus(next.length ? '已設定排除 ' + next.length + ' 個資料夾，下次搜尋時套用。' : '已清除排除設定。', 'success');
+    else setStatus(next.length ? '已選擇 ' + next.length + ' 個搜尋資料夾，下次搜尋時套用。' : '未選擇資料夾，下次將搜尋全部。', 'success');
   }
 
   function showView(name, focus) {
@@ -370,14 +372,14 @@
     setStatus('正在搜尋 Google Drive…', 'loading');
     list.innerHTML = '<div class="engineering-records-empty">搜尋中…</div>';
     try {
-      var result = await request({ action: 'engineeringRecords.search', query: query, excludedFolders: excludedFolders });
+      var result = await request({ action: 'engineeringRecords.search', query: query, includedFolders: includedFolders });
       if (version !== searchVersion) return;
       results = Array.isArray(result.results) ? result.results : [];
       results.sort(function (a, b) {
         return String(b.name || '').localeCompare(String(a.name || ''), 'zh-TW', { numeric: true, sensitivity: 'base' });
       });
       renderResults();
-      setStatus('找到 ' + results.length + ' 筆工程紀錄' + (excludedFolders.length ? '（已排除 ' + excludedFolders.length + ' 個資料夾）' : '') + '。', 'success');
+      setStatus('找到 ' + results.length + ' 筆工程紀錄' + (includedFolders.length ? '（僅搜尋 ' + includedFolders.length + ' 個資料夾）' : '') + '。', 'success');
 
     } catch (error) {
       if (version !== searchVersion) return;
@@ -538,7 +540,7 @@
   excludeButton.addEventListener('click', showExcludeSettings);
   excludeInput.addEventListener('input', function () {
     excludeSuggestions.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
-      checkbox.checked = normalizeExclusions(excludeInput.value.split('\n')).indexOf(checkbox.value) >= 0;
+      checkbox.checked = normalizeFolders(excludeInput.value.split('\n')).indexOf(checkbox.value) >= 0;
     });
   });
   excludeSave.addEventListener('click', saveExcludeSettings);

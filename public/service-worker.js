@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v195-folder-picker-1';
+const CACHE_NAME = 'engineering-query-pwa-v195-search-folders-1';
 const APP_SHELL = [
   './',
   './engineering-query.html',
