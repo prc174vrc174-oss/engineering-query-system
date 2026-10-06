@@ -83,16 +83,12 @@
       summaryButton.disabled = true;
       return;
     }
-    var table = document.createElement('table');
-    table.className = 'engineering-records-table';
-    table.innerHTML = '<thead><tr><th scope="col" aria-label="選取摘要">選取</th><th scope="col">檔名</th></tr></thead><tbody></tbody>';
-    var tbody = table.querySelector('tbody');
+    var items = document.createElement('ul');
+    items.className = 'engineering-records-items';
     results.forEach(function (record, index) {
-      var item = document.createElement('tr');
+      var item = document.createElement('li');
       item.className = 'engineering-record-item';
       item.dataset.recordId = record.id;
-      var selectCell = document.createElement('td');
-      var nameCell = document.createElement('td');
       var checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = index < 20;
@@ -102,15 +98,20 @@
       var body = document.createElement('button');
       body.type = 'button';
       body.className = 'engineering-record-open';
-      body.textContent = record.name;
+      var icon = document.createElement('span');
+      icon.className = 'engineering-record-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = record.name.indexOf('📣') !== -1 ? '📣' : '💬';
+      var title = document.createElement('span');
+      title.textContent = record.name.replace(/\.md$/i, '').replace(/[📣💬]/gu, '');
+      body.appendChild(icon);
+      body.appendChild(title);
       body.addEventListener('click', function () { openRecord(record); });
-      selectCell.appendChild(checkbox);
-      nameCell.appendChild(body);
-      item.appendChild(selectCell);
-      item.appendChild(nameCell);
-      tbody.appendChild(item);
+      item.appendChild(checkbox);
+      item.appendChild(body);
+      items.appendChild(item);
     });
-    list.appendChild(table);
+    list.appendChild(items);
     summaryButton.disabled = false;
   }
 

@@ -3376,15 +3376,13 @@ h3 {
         .engineering-records-view[hidden] { display:none; }
         .engineering-records-results, .engineering-records-summary-card { min-width:0; border:1px solid #d8e0eb; border-radius:10px; background:#fff; overflow:hidden; }
         .engineering-records-list { max-height:650px; overflow:auto; }
-        .engineering-records-table { width:100%; min-width:0; text-align:left; border-collapse:collapse; table-layout:fixed; font-size:14px; }
-        .engineering-records-table th { white-space:nowrap; position:sticky; top:0; z-index:1; padding:12px 16px; text-align:left; background:#f8fafc; color:#64748b; border-bottom:1px solid #d8e0eb; font-weight:600; }
-        .engineering-records-table th:first-child { width:48px; padding:12px; }
-        .engineering-records-table td { padding:10px 16px; border-bottom:1px solid #e9edf3; vertical-align:middle; }
-        .engineering-records-table td:first-child { padding:10px 12px; text-align:left; }
+        .engineering-records-items { margin:0; padding:8px 10px; list-style:none; }
+        .engineering-record-item { display:flex; align-items:center; gap:8px; padding:2px 4px; border-radius:4px; }
         .engineering-record-item:hover { background:#f8fafc; }
         .engineering-record-item.is-active { background:#eff6ff; }
-        .engineering-record-item input { width:17px; height:17px; accent-color:#2563eb; cursor:pointer; }
-        .engineering-record-open { width:100%; padding:3px 0; border:0; background:transparent; color:#172033; text-align:left; font:inherit; line-height:1.6; overflow-wrap:anywhere; cursor:pointer; }
+        .engineering-record-item input { flex-shrink:0; width:14px; height:14px; margin:0; accent-color:#2563eb; cursor:pointer; }
+        .engineering-record-open { display:flex; align-items:baseline; gap:8px; min-width:0; width:100%; padding:4px 0; border:0; border-radius:0; box-shadow:none; background:transparent; color:#172033; text-align:left; font:inherit; font-size:14px; font-weight:400; line-height:1.6; overflow-wrap:anywhere; cursor:pointer; }
+        .engineering-record-icon { flex-shrink:0; color:#bd8c27; }
         .engineering-records-empty { padding:28px 18px; color:#64748b; font-size:14px; text-align:left; }
         .engineering-records-preview-head { text-align:left; display:flex; align-items:start; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid #e5eaf1; }
         .engineering-records-preview-head h3 { margin:0; color:#344054; font-size:16px; overflow-wrap:anywhere; }
@@ -3403,7 +3401,7 @@ h3 {
             .engineering-records-btn.is-ai { grid-column: 2 / 3; }
             .engineering-records-btn:not(.is-primary):not(.is-ai) { grid-column: 1 / -1; }
             .engineering-records-list { max-height: 420px; }
-            .engineering-records-table th, .engineering-records-table td { padding:10px; }
+
         }
     </style>
 </head>
