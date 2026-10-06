@@ -15,12 +15,33 @@
   var previewMeta = document.getElementById('engineeringRecordsPreviewMeta');
   var preview = document.getElementById('engineeringRecordsPreview');
   var signIn = document.getElementById('engineeringRecordsGoogleButton');
+  var dialog = document.getElementById('engineeringRecordsDialog');
+  var closeDialog = document.getElementById('engineeringRecordsDialogClose');
+  var summary = document.getElementById('engineeringRecordsSummary');
+  var summaryMeta = document.getElementById('engineeringRecordsSummaryMeta');
+  var resultsTab = document.getElementById('engineeringRecordsResultsTab');
+  var summaryTab = document.getElementById('engineeringRecordsSummaryTab');
+  var resultsView = document.getElementById('engineeringRecordsResultsView');
+  var summaryView = document.getElementById('engineeringRecordsSummaryView');
+  var activeRecordId = '';
+  var summarizing = false;
   var results = [];
   var idToken = '';
   var identityLoading = null;
   var summarizeAfterLogin = false;
 
   if (!queryInput || !searchButton || !summaryButton || !list || !preview) return;
+
+  function showView(name, focus) {
+    var isSummary = name === 'summary';
+    resultsView.hidden = isSummary;
+    summaryView.hidden = !isSummary;
+    resultsTab.setAttribute('aria-selected', String(!isSummary));
+    summaryTab.setAttribute('aria-selected', String(isSummary));
+    resultsTab.tabIndex = isSummary ? -1 : 0;
+    summaryTab.tabIndex = isSummary ? 0 : -1;
+    if (focus) (isSummary ? summaryTab : resultsTab).focus();
+  }
 
   function setStatus(message, state) {
     status.textContent = message || '';
@@ -62,10 +83,16 @@
       summaryButton.disabled = true;
       return;
     }
+    var table = document.createElement('table');
+    table.className = 'engineering-records-table';
+    table.innerHTML = '<thead><tr><th scope="col" aria-label="選取摘要">選取</th><th scope="col">檔名</th></tr></thead><tbody></tbody>';
+    var tbody = table.querySelector('tbody');
     results.forEach(function (record, index) {
-      var item = document.createElement('article');
+      var item = document.createElement('tr');
       item.className = 'engineering-record-item';
       item.dataset.recordId = record.id;
+      var selectCell = document.createElement('td');
+      var nameCell = document.createElement('td');
       var checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = index < 20;
@@ -75,21 +102,22 @@
       var body = document.createElement('button');
       body.type = 'button';
       body.className = 'engineering-record-open';
-      body.innerHTML = '<strong></strong><span class="engineering-record-snippet"></span><small></small>';
-      body.querySelector('strong').textContent = record.name;
-      body.querySelector('.engineering-record-snippet').textContent = record.snippet || '檔名相符';
-      body.querySelector('small').textContent = (record.relativePath || '') + (record.lineNumber ? ' · 命中行 ' + record.lineNumber : '') + ' · ' + formatDate(record.modifiedTime);
+      body.textContent = record.name;
       body.addEventListener('click', function () { openRecord(record); });
-      item.appendChild(checkbox);
-      item.appendChild(body);
-      list.appendChild(item);
+      selectCell.appendChild(checkbox);
+      nameCell.appendChild(body);
+      item.appendChild(selectCell);
+      item.appendChild(nameCell);
+      tbody.appendChild(item);
     });
+    list.appendChild(table);
     summaryButton.disabled = false;
   }
 
   async function search() {
     var query = queryInput.value.trim();
     if (!query) { queryInput.focus(); setStatus('請輸入客戶編號、名稱或工程關鍵字。', 'error'); return; }
+    showView('results', false);
     searchButton.disabled = true;
     summaryButton.disabled = true;
     setStatus('正在搜尋 Google Drive…', 'loading');
@@ -99,7 +127,7 @@
       results = Array.isArray(result.results) ? result.results : [];
       renderResults();
       setStatus('找到 ' + results.length + ' 筆工程紀錄。', 'success');
-      if (results.length) openRecord(results[0]);
+
     } catch (error) {
       results = [];
       renderResults();
@@ -110,6 +138,8 @@
   }
 
   async function openRecord(record) {
+    activeRecordId = record.id;
+    if (!dialog.open) dialog.showModal();
     Array.prototype.forEach.call(list.querySelectorAll('.engineering-record-item'), function (item) {
       item.classList.toggle('is-active', item.dataset.recordId === record.id);
     });
@@ -118,11 +148,13 @@
     preview.textContent = '';
     try {
       var result = await request({ action: 'engineeringRecords.read', id: record.id });
+      if (activeRecordId !== record.id) return;
       var data = result.record || {};
       previewTitle.textContent = data.name || record.name;
       previewMeta.textContent = (data.relativePath || record.relativePath || '') + ' · 更新 ' + formatDate(data.modifiedTime || record.modifiedTime);
       preview.textContent = data.content || '';
     } catch (error) {
+      if (activeRecordId !== record.id) return;
       previewMeta.textContent = '';
       preview.textContent = error && error.message ? error.message : '無法讀取工程紀錄。';
     }
@@ -183,52 +215,80 @@
   }
 
   async function summarize() {
+    if (summarizing) return;
     var ids = selectedIds();
     if (!ids.length) { setStatus('請至少勾選一筆工程紀錄。', 'error'); return; }
+    showView('summary', true);
     if (!hasCredential()) {
+      summaryMeta.textContent = '請先以允許的 Google 帳號登入。';
+      summary.textContent = '登入後將自動產生勾選紀錄的摘要。';
       summarizeAfterLogin = true;
       setStatus('AI 摘要會使用 Gemini API，請先以允許的 Google 帳號登入。');
       loadIdentity().catch(function (error) { setStatus(error.message || '無法載入 Google 登入。', 'error'); });
       return;
     }
+    summarizing = true;
+    searchButton.disabled = true;
+    clearButton.disabled = true;
     summaryButton.disabled = true;
-    previewTitle.textContent = 'Gemini 摘要';
-    previewMeta.textContent = '正在整理 ' + ids.length + ' 份工程紀錄…';
-    preview.textContent = '';
+    summaryMeta.textContent = '正在整理 ' + ids.length + ' 份工程紀錄…';
+    summary.textContent = '';
     setStatus('Gemini 正在產生摘要…', 'loading');
     try {
       var result = await request({
         action: 'engineeringRecords.summarize', query: queryInput.value.trim(), ids: ids, idToken: idToken
       });
-      previewTitle.textContent = 'Gemini 摘要';
-      previewMeta.textContent = '根據 ' + (result.sources ? result.sources.length : ids.length) + ' 份搜尋結果整理';
-      preview.textContent = result.summary || '';
+        summaryMeta.textContent = '根據 ' + (result.sources ? result.sources.length : ids.length) + ' 份搜尋結果整理';
+      summary.textContent = result.summary || '';
       setStatus('AI 摘要完成。', 'success');
     } catch (error) {
-      previewMeta.textContent = '';
-      preview.textContent = error && error.message ? error.message : 'Gemini 摘要失敗。';
-      setStatus(preview.textContent, 'error');
+      summaryMeta.textContent = '';
+      summary.textContent = error && error.message ? error.message : 'Gemini 摘要失敗。';
+      setStatus(summary.textContent, 'error');
     } finally {
-      summaryButton.disabled = false;
+      summarizing = false;
+      searchButton.disabled = false;
+      clearButton.disabled = false;
+      summaryButton.disabled = !results.length;
     }
   }
 
   function clearAll() {
+    summarizeAfterLogin = false;
+    activeRecordId = '';
+    if (dialog.open) dialog.close();
+    showView('results', false);
+    summaryMeta.textContent = '';
+    summary.textContent = '勾選搜尋結果後，按「Gemini 摘要」開始整理。';
     queryInput.value = '';
     results = [];
     list.innerHTML = '<div class="engineering-records-empty">輸入關鍵字後開始搜尋。</div>';
     previewTitle.textContent = '內容預覽';
     previewMeta.textContent = '';
-    preview.textContent = '選取左側搜尋結果後，這裡會顯示完整 Markdown 內容。';
+    preview.textContent = '選取檔名後，這裡會顯示完整 Markdown 內容。';
     summaryButton.disabled = true;
     setStatus('');
     queryInput.focus();
   }
 
+  resultsTab.addEventListener('click', function () { showView('results', false); });
+  summaryTab.addEventListener('click', function () { showView('summary', false); });
+  [resultsTab, summaryTab].forEach(function (tab) {
+    tab.addEventListener('keydown', function (event) {
+      if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(event.key) < 0) return;
+      event.preventDefault();
+      showView(event.key === 'Home' ? 'results' : event.key === 'End' ? 'summary' : tab === resultsTab ? 'summary' : 'results', true);
+    });
+  });
+  closeDialog.addEventListener('click', function () { dialog.close(); });
+  dialog.addEventListener('click', function (event) {
+    var bounds = dialog.getBoundingClientRect();
+    if (event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) dialog.close();
+  });
   searchButton.addEventListener('click', search);
   summaryButton.addEventListener('click', summarize);
   clearButton.addEventListener('click', clearAll);
   queryInput.addEventListener('keydown', function (event) {
-    if (event.key === 'Enter') { event.preventDefault(); search(); }
+    if (event.key === 'Enter' && !searchButton.disabled) { event.preventDefault(); search(); }
   });
 })();

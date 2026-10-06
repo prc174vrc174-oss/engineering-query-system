@@ -3369,51 +3369,31 @@ h3 {
         .engineering-records-status.is-error { color: #b42318; }
         .engineering-records-google { grid-column: 1 / -1; }
         .engineering-records-google:empty { display: none; }
-        .engineering-records-layout {
-            display: grid;
-            grid-template-columns: minmax(300px, .9fr) minmax(0, 1.5fr);
-            gap: 14px;
-            margin-top: 14px;
-        }
-        .engineering-records-results,
-        .engineering-records-preview-card {
-            min-width: 0;
-            min-height: 520px;
-            border: 1px solid #d8e0eb;
-            border-radius: 12px;
-            background: #fff;
-            box-shadow: 0 4px 14px rgba(15,23,42,.05);
-            overflow: hidden;
-        }
-        .engineering-records-pane-title { margin: 0; padding: 13px 15px; border-bottom: 1px solid #e5eaf1; color: #344054; font-size: 15px; font-weight: 800; }
-        .engineering-records-list { max-height: 650px; overflow: auto; }
-        .engineering-record-item { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; align-items: start; padding: 7px 9px; border-bottom: 1px solid #eef2f6; }
-        .engineering-record-item.is-active { background: #eff6ff; }
-        .engineering-record-item input { margin-top: 13px; width: 17px; height: 17px; accent-color: #2563eb; }
-        .engineering-record-open { width: 100%; padding: 5px 4px; border: 0; background: transparent; color: #172033; text-align: left; cursor: pointer; }
-        .engineering-record-open strong,
-        .engineering-record-open span,
-        .engineering-record-open small { display: block; }
-        .engineering-record-open strong { font-size: 14px; line-height: 1.45; }
-        .engineering-record-snippet { margin-top: 4px; color: #475569; font-size: 13px; line-height: 1.45; }
-        .engineering-record-open small { margin-top: 4px; color: #94a3b8; font-size: 12px; line-height: 1.4; word-break: break-all; }
-        .engineering-records-empty { padding: 28px 18px; color: #64748b; font-size: 14px; text-align: center; }
-        .engineering-records-preview-head { padding: 13px 15px; border-bottom: 1px solid #e5eaf1; }
-        .engineering-records-preview-head h3 { margin: 0; color: #344054; font-size: 16px; }
-        .engineering-records-preview-head p { margin: 4px 0 0; color: #94a3b8; font-size: 12px; word-break: break-all; }
-        .engineering-records-preview {
-            min-height: 460px;
-            max-height: 650px;
-            margin: 0;
-            padding: 17px;
-            overflow: auto;
-            color: #253044;
-            font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
-            font-size: 14px;
-            line-height: 1.75;
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-        }
+        .engineering-records-tabs { display:flex; gap:8px; margin:16px 0 12px; border-bottom:1px solid #d8e0eb; }
+        .engineering-records-tab { padding:10px 16px; border:0; border-bottom:3px solid transparent; background:transparent; color:#64748b; font:inherit; font-size:14px; cursor:pointer; }
+        .engineering-records-tab[aria-selected="true"] { border-color:#2563eb; color:#1d4ed8; font-weight:750; }
+        .engineering-records-tab:focus-visible, .engineering-record-open:focus-visible { outline:2px solid #2563eb; outline-offset:-2px; }
+        .engineering-records-view[hidden] { display:none; }
+        .engineering-records-results, .engineering-records-summary-card { min-width:0; border:1px solid #d8e0eb; border-radius:10px; background:#fff; overflow:hidden; }
+        .engineering-records-list { max-height:650px; overflow:auto; }
+        .engineering-records-table { width:100%; min-width:0; text-align:left; border-collapse:collapse; table-layout:fixed; font-size:14px; }
+        .engineering-records-table th { white-space:nowrap; position:sticky; top:0; z-index:1; padding:12px 16px; text-align:left; background:#f8fafc; color:#64748b; border-bottom:1px solid #d8e0eb; font-weight:600; }
+        .engineering-records-table th:first-child { width:48px; padding:12px; }
+        .engineering-records-table td { padding:10px 16px; border-bottom:1px solid #e9edf3; vertical-align:middle; }
+        .engineering-records-table td:first-child { padding:10px 12px; text-align:left; }
+        .engineering-record-item:hover { background:#f8fafc; }
+        .engineering-record-item.is-active { background:#eff6ff; }
+        .engineering-record-item input { width:17px; height:17px; accent-color:#2563eb; cursor:pointer; }
+        .engineering-record-open { width:100%; padding:3px 0; border:0; background:transparent; color:#172033; text-align:left; font:inherit; line-height:1.6; overflow-wrap:anywhere; cursor:pointer; }
+        .engineering-records-empty { padding:28px 18px; color:#64748b; font-size:14px; text-align:left; }
+        .engineering-records-preview-head { text-align:left; display:flex; align-items:start; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid #e5eaf1; }
+        .engineering-records-preview-head h3 { margin:0; color:#344054; font-size:16px; overflow-wrap:anywhere; }
+        .engineering-records-preview-head p { margin:4px 0 0; color:#64748b; font-size:12px; overflow-wrap:anywhere; }
+        .engineering-records-preview { text-align:left; min-height:220px; margin:0; padding:18px; overflow:auto; color:#253044; font-family:'Noto Sans TC','Microsoft JhengHei',sans-serif; font-size:14px; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; }
+        .engineering-records-dialog { width:min(760px,calc(100vw - 32px)); max-height:80vh; padding:0; border:1px solid #d8e0eb; border-radius:12px; box-shadow:0 24px 80px rgba(15,23,42,.25); }
+        .engineering-records-dialog::backdrop { background:rgba(15,23,42,.4); }
+        .engineering-records-dialog .engineering-records-preview { max-height:calc(80vh - 115px); }
+        .engineering-records-dialog-close { flex-shrink:0; min-height:34px; padding:0 12px; }
         @media (max-width: 760px) {
             .engineering-records-shell { padding: 14px 12px 30px; }
             .engineering-records-title { font-size: 24px; }
@@ -3422,11 +3402,8 @@ h3 {
             .engineering-records-btn.is-primary { grid-column: 1 / 2; }
             .engineering-records-btn.is-ai { grid-column: 2 / 3; }
             .engineering-records-btn:not(.is-primary):not(.is-ai) { grid-column: 1 / -1; }
-            .engineering-records-layout { grid-template-columns: 1fr; }
-            .engineering-records-results,
-            .engineering-records-preview-card { min-height: 0; }
             .engineering-records-list { max-height: 420px; }
-            .engineering-records-preview { min-height: 360px; max-height: none; }
+            .engineering-records-table th, .engineering-records-table td { padding:10px; }
         }
     </style>
 </head>
@@ -4274,21 +4251,29 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <div id="engineeringRecordsGoogleButton" class="engineering-records-google"></div>
                 <div id="engineeringRecordsStatus" class="engineering-records-status" role="status" aria-live="polite"></div>
             </section>
-            <div class="engineering-records-layout">
-                <section class="engineering-records-results" aria-label="搜尋結果">
-                    <h3 class="engineering-records-pane-title">搜尋結果</h3>
-                    <div id="engineeringRecordsList" class="engineering-records-list">
-                        <div class="engineering-records-empty">輸入關鍵字後開始搜尋。</div>
-                    </div>
-                </section>
-                <section class="engineering-records-preview-card" aria-label="工程紀錄內容">
-                    <div class="engineering-records-preview-head">
-                        <h3 id="engineeringRecordsPreviewTitle">內容預覽</h3>
-                        <p id="engineeringRecordsPreviewMeta"></p>
-                    </div>
-                    <pre id="engineeringRecordsPreview" class="engineering-records-preview">選取左側搜尋結果後，這裡會顯示完整 Markdown 內容。</pre>
-                </section>
+            <div class="engineering-records-tabs" role="tablist" aria-label="工程紀錄檢視">
+                <button id="engineeringRecordsResultsTab" class="engineering-records-tab" type="button" role="tab" aria-selected="true" aria-controls="engineeringRecordsResultsView">搜尋結果</button>
+                <button id="engineeringRecordsSummaryTab" class="engineering-records-tab" type="button" role="tab" aria-selected="false" aria-controls="engineeringRecordsSummaryView" tabindex="-1">Gemini 摘要</button>
             </div>
+            <section id="engineeringRecordsResultsView" class="engineering-records-view engineering-records-results" role="tabpanel" aria-labelledby="engineeringRecordsResultsTab">
+                <div id="engineeringRecordsList" class="engineering-records-list">
+                    <div class="engineering-records-empty">輸入關鍵字後開始搜尋。</div>
+                </div>
+            </section>
+            <section id="engineeringRecordsSummaryView" class="engineering-records-view engineering-records-summary-card" role="tabpanel" aria-labelledby="engineeringRecordsSummaryTab" hidden>
+                <div class="engineering-records-preview-head"><div>
+                    <h3>Gemini 摘要</h3>
+                    <p id="engineeringRecordsSummaryMeta"></p>
+                </div></div>
+                <pre id="engineeringRecordsSummary" class="engineering-records-preview" aria-live="polite">勾選搜尋結果後，按「Gemini 摘要」開始整理。</pre>
+            </section>
+            <dialog id="engineeringRecordsDialog" class="engineering-records-dialog" aria-labelledby="engineeringRecordsPreviewTitle">
+                <div class="engineering-records-preview-head"><div>
+                    <h3 id="engineeringRecordsPreviewTitle">內容預覽</h3>
+                    <p id="engineeringRecordsPreviewMeta"></p>
+                </div><button id="engineeringRecordsDialogClose" class="engineering-records-btn engineering-records-dialog-close" type="button">關閉</button></div>
+                <pre id="engineeringRecordsPreview" class="engineering-records-preview">選取檔名後，這裡會顯示完整 Markdown 內容。</pre>
+            </dialog>
         </main>
     </div>
     <script>
@@ -6656,5 +6641,5 @@ init();
             });
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a45d43421e2c115b',t:'MTc5MTIxMjA3OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
