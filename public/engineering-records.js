@@ -123,7 +123,7 @@
       if (snapshot && Array.isArray(snapshot.records)) {
         cachedRecords = snapshot.records;
         lastSyncTime = Number(snapshot.time || 0);
-        cacheReady = true;
+        cacheReady = snapshot.complete !== false;
       }
     } catch (error) { console.warn('讀取工程紀錄快取失敗', error); }
     readyStatus();
@@ -145,7 +145,7 @@
       }
       var key = folderKey(includedFolders);
       var known = {};
-      if (cacheReady) cachedRecords.forEach(function (record) { known[record.id] = record; });
+      cachedRecords.forEach(function (record) { known[record.id] = record; });
       var entries = Array.isArray(catalog.records) ? catalog.records : [];
       var fresh = {};
       var toRead = entries.filter(function (meta) {
@@ -160,6 +160,7 @@
       for (var i = 0; i < toRead.length; i += 8) chunks.push(toRead.slice(i, i + 8));
       var done = 0;
       var next = 0;
+      var checkpoint = Promise.resolve();
       if (chunks.length) setStatus('正在載入工程筆記：0／' + toRead.length + ' 篇…', 'loading');
       async function worker() {
         while (next < chunks.length && generation === cacheGeneration) {
@@ -169,9 +170,16 @@
           (result.records || []).forEach(function (record) { fresh[record.id] = record; });
           done += chunk.length;
           setStatus('正在載入工程筆記：' + Math.min(done, toRead.length) + '／' + toRead.length + ' 篇…', 'loading');
+          if (done % 24 === 0) {
+            var partial = Object.keys(fresh).map(function (id) { return fresh[id]; });
+            checkpoint = checkpoint.then(function () {
+              return cacheOperation(key, { records: partial, time: Date.now(), complete: false });
+            }).catch(function (error) { console.warn('儲存載入進度失敗', error); });
+          }
         }
       }
       await Promise.all([worker(), worker(), worker()]);
+      await checkpoint;
       if (generation !== cacheGeneration) return;
       var complete = entries.filter(function (meta) { return fresh[meta.id]; }).map(function (meta) { return fresh[meta.id]; });
       if (complete.length !== entries.length) throw new Error('有 ' + (entries.length - complete.length) + ' 篇筆記無法載入，請重新載入。');
@@ -179,7 +187,7 @@
       cacheReady = true;
       cacheKey = key;
       lastSyncTime = Date.now();
-      try { await cacheOperation(key, { records: complete, time: lastSyncTime }); }
+      try { await cacheOperation(key, { records: complete, time: lastSyncTime, complete: true }); }
       catch (error) { console.warn('儲存工程紀錄快取失敗', error); }
       if (generation !== cacheGeneration) return;
       readyStatus();
