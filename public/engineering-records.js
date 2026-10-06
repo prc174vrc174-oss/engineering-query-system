@@ -29,6 +29,7 @@
   var idToken = '';
   var identityLoading = null;
   var summarizeAfterLogin = false;
+  var imageCache = {};
 
   if (!queryInput || !searchButton || !summaryButton || !list || !preview) return;
 
@@ -69,6 +70,159 @@
     return new Intl.DateTimeFormat('zh-TW', {
       year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
     }).format(date);
+  }
+
+  function appendImage(parent, label, source, recordId) {
+    var figure = document.createElement('figure');
+    figure.className = 'engineering-markdown-image';
+    var img = document.createElement('img');
+    img.alt = label || '工程紀錄圖片';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    var hint = document.createElement('figcaption');
+    hint.textContent = '圖片載入中…';
+    figure.appendChild(img);
+    figure.appendChild(hint);
+    parent.appendChild(figure);
+    img.onload = function () { hint.remove(); };
+    img.onerror = function () { img.remove(); hint.textContent = '圖片無法預覽：' + (label || source); };
+    var url;
+    try { url = new URL(source, window.location.href); } catch { url = null; }
+    if (url && /^https?:\/\//.test(source) && /^https?:$/.test(url.protocol)) {
+      img.src = url.href;
+      return;
+    }
+    var key = recordId + '/' + source;
+    if (!imageCache[key]) imageCache[key] = request({ action: 'engineeringRecords.image', id: recordId, name: source })
+      .then(function (result) { return result.image && result.image.dataUrl; });
+    imageCache[key].then(function (dataUrl) {
+      if (dataUrl && /^data:image\/(png|jpeg|gif|webp);base64,/.test(dataUrl)) img.src = dataUrl;
+      else throw new Error('圖片格式不支援。');
+    }).catch(function () { img.remove(); hint.textContent = '圖片無法預覽：' + (label || source); delete imageCache[key]; });
+  }
+
+  function appendInline(parent, value, recordId) {
+    var tokens = /(!?\[\[[^\]]+\]\]|!\[[^\]]*\]\([^)]*\)|\[[^\]]+\]\([^)]*\)|\*\*[^*]+\*\*|`[^`]+`|(?:^|\s)#[^\s#]+)/g;
+    var offset = 0;
+    var match;
+    while ((match = tokens.exec(value))) {
+      parent.appendChild(document.createTextNode(value.slice(offset, match.index)));
+      var token = match[0];
+      var element;
+      if (token.indexOf('[[') !== -1) {
+        element = document.createElement('span');
+        element.className = 'engineering-markdown-link';
+        var target = token.slice(token.indexOf('[[') + 2, -2);
+        if (token[0] === '!' && /\.(png|jpe?g|gif|webp)(?:\|.*)?$/i.test(target)) {
+          appendImage(parent, target.split('|')[0].split('/').pop(), target.split('|')[0], recordId);
+          offset = match.index + token.length;
+          continue;
+        }
+        element.textContent = target.split('|').pop();
+        element.title = target.split('|')[0];
+      } else if (/^!?\[/.test(token)) {
+        var link = /^!?\[([^\]]*)\]\(([^)]*)\)$/.exec(token);
+        if (token[0] === '!') {
+          appendImage(parent, link[1], link[2], recordId);
+          offset = match.index + token.length;
+          continue;
+        }
+        var url;
+        try { url = new URL(link[2], window.location.href); } catch { url = null; }
+        if (url && /^https?:$/.test(url.protocol)) {
+          element = document.createElement('a');
+          element.href = url.href;
+          element.target = '_blank';
+          element.rel = 'noopener noreferrer';
+        } else {
+          element = document.createElement('span');
+          element.className = 'engineering-markdown-link';
+        }
+        element.textContent = link[1];
+      } else if (token.slice(0, 2) === '**') {
+        element = document.createElement('strong');
+        element.textContent = token.slice(2, -2);
+      } else if (token[0] === '`') {
+        element = document.createElement('code');
+        element.textContent = token.slice(1, -1);
+      } else {
+        if (/^\s/.test(token)) parent.appendChild(document.createTextNode(token[0]));
+        element = document.createElement('span');
+        element.className = 'engineering-markdown-tag';
+        element.textContent = token.trim();
+      }
+      parent.appendChild(element);
+      offset = match.index + token.length;
+    }
+    parent.appendChild(document.createTextNode(value.slice(offset)));
+  }
+
+  function renderMarkdown(value, recordId) {
+    preview.replaceChildren();
+    var lines = String(value || '').replace(/\r\n?/g, '\n').split('\n');
+    var fragment = document.createDocumentFragment();
+    var listStack = [];
+    var paragraph = null;
+    var code = null;
+    var quote = null;
+    var start = lines[0] === '---' ? Math.max(0, lines.indexOf('---', 1) + 1) : 0;
+    for (var i = start; i < lines.length; i++) {
+      var line = lines[i];
+      var trimmed = line.trim();
+      if (/^```/.test(trimmed)) {
+        if (code) { code = null; } else {
+          code = document.createElement('code');
+          var block = document.createElement('pre');
+          block.appendChild(code);
+          fragment.appendChild(block);
+        }
+        paragraph = null; listStack = []; quote = null;
+        continue;
+      }
+      if (code) { code.textContent += (code.textContent ? '\n' : '') + line; continue; }
+      if (!trimmed) { paragraph = null; listStack = []; quote = null; continue; }
+      var heading = /^(#{1,6})\s+(.+)$/.exec(trimmed);
+      var bullet = /^(\s*)([-*+] |\d+\. )(.+)$/.exec(line.replace(/\t/g, '    '));
+      var element;
+      if (heading) {
+        element = document.createElement('h' + Math.min(heading[1].length + 1, 6));
+        appendInline(element, heading[2], recordId);
+        fragment.appendChild(element);
+        paragraph = null; listStack = []; quote = null;
+      } else if (bullet) {
+        var indent = bullet[1].length;
+        var type = /^\d/.test(bullet[2]) ? 'ol' : 'ul';
+        while (listStack.length && (listStack[listStack.length - 1].indent > indent ||
+          (listStack[listStack.length - 1].indent === indent && listStack[listStack.length - 1].type !== type))) listStack.pop();
+        if (!listStack.length || listStack[listStack.length - 1].indent < indent) {
+          var newList = document.createElement(type);
+          var parent = listStack.length ? listStack[listStack.length - 1].lastItem : fragment;
+          parent.appendChild(newList);
+          listStack.push({ indent: indent, type: type, list: newList, lastItem: null });
+        }
+        element = document.createElement('li');
+        var content = bullet[3].replace(/^\[[ xX]\]\s*/, '');
+        appendInline(element, content, recordId);
+        listStack[listStack.length - 1].list.appendChild(element);
+        listStack[listStack.length - 1].lastItem = element;
+        paragraph = null; quote = null;
+      } else if (/^>\s?/.test(trimmed)) {
+        if (!quote) { quote = document.createElement('blockquote'); fragment.appendChild(quote); }
+        element = document.createElement('p');
+        appendInline(element, trimmed.replace(/^>\s?/, ''), recordId);
+        quote.appendChild(element);
+        paragraph = null; listStack = [];
+      } else if (/^([-*_])\1{2,}$/.test(trimmed)) {
+        fragment.appendChild(document.createElement('hr'));
+        paragraph = null; listStack = []; quote = null;
+      } else {
+        if (!paragraph) { paragraph = document.createElement('p'); fragment.appendChild(paragraph); }
+        else paragraph.appendChild(document.createElement('br'));
+        appendInline(paragraph, trimmed, recordId);
+        listStack = []; quote = null;
+      }
+    }
+    preview.appendChild(fragment);
   }
 
   function selectedIds() {
@@ -153,7 +307,7 @@
       var data = result.record || {};
       previewTitle.textContent = data.name || record.name;
       previewMeta.textContent = (data.relativePath || record.relativePath || '') + ' · 更新 ' + formatDate(data.modifiedTime || record.modifiedTime);
-      preview.textContent = data.content || '';
+      renderMarkdown(data.content || '', record.id);
     } catch (error) {
       if (activeRecordId !== record.id) return;
       previewMeta.textContent = '';

@@ -137,7 +137,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(calculator, /<strong>角度與R變化<\/strong>/);
   assert.match(calculator, /zeroTotal\+total\+comp/);
   assert.match(calculator, /total\+=val-m/);
-  assert.match(calculator, /Version 194 測試/);
+  assert.match(calculator, /Version 195 測試/);
   assert.match(calculator, /zero:value-tc\*\(t\+radius\)/);
   assert.match(calculator, /compact2=new Intl\.NumberFormat\('zh-TW',\{maximumFractionDigits:2\}\)/);
   assert.match(calculator, /Number\.isFinite\(e\.zero\)\?compact2\.format\(e\.zero\):'－'/);
@@ -180,7 +180,7 @@ test("M calculator keeps coefficient compensation separate from angle and R chan
   assert.match(source, /let popupWidth=450,popupHeight=710/);
 });
 
-test("Version 194 test labels live in the requested header areas", async () => {
+test("Version 195 test labels live in the requested header areas", async () => {
   const source = await readFile(
     new URL("../public/engineering-query.html", import.meta.url),
     "utf8",
@@ -192,14 +192,14 @@ test("Version 194 test labels live in the requested header areas", async () => {
 
   assert.match(
     source,
-    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 194 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="app-header-tabs">[\s\S]*?<span class="site-version"[^>]*>Version 195 測試<\/span>[\s\S]*?<\/header>/,
   );
   assert.match(
     standalone,
-    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 194 測試<\/span>[\s\S]*?<\/header>/,
+    /<header class="head">[\s\S]*?<span class="site-version"[^>]*>Version 195 測試<\/span>[\s\S]*?<\/header>/,
   );
-  assert.equal((source.match(/Version 194 測試/g) || []).length, 2);
-  assert.equal((standalone.match(/Version 194 測試/g) || []).length, 2);
+  assert.equal((source.match(/Version 195 測試/g) || []).length, 2);
+  assert.equal((standalone.match(/Version 195 測試/g) || []).length, 2);
 });
 
 test("GitHub Pages build is installable and receives verified upload responses", async () => {
@@ -221,7 +221,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v194/);
+  assert.match(serviceWorker, /engineering-query-pwa-v195/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -281,6 +281,24 @@ test("custom sheet X and Y values can be committed with Enter", async () => {
   assert.match(source, /raw===''\|\|!Number\.isFinite\(value\)\|\|value<=0/);
   assert.match(source, /if\(sheetKeyboardNavigating\[id\]\)chooseSheetOption\(id\);else commitSheetInput\(id\)/);
   assert.match(source, /sheetKeyboardNavigating\[id\]=false;activateSheetOption\(id,sheetIndexForValue\(id\)\)/);
+});
+
+test("shared common words keep public copying and require Google sign-in for management", async () => {
+  const source = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
+  const client = await readFile(new URL("../public/common-words.js", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/common-words/route.ts", import.meta.url), "utf8");
+
+  assert.match(source, /id="commonWordsManageBtn"/);
+  assert.match(source, /id="commonWordsInput"[^>]*maxlength="40"/);
+  assert.match(source, /<script src="common-words\.js"><\/script>/);
+  assert.match(client, /commonWords\.add/);
+  assert.match(client, /commonWords\.update/);
+  assert.match(client, /commonWords\.delete/);
+  assert.match(client, /accounts\.google\.com\/gsi\/client/);
+  assert.match(client, /idToken: idToken/);
+  assert.match(route, /JSON\.stringify\(\{ action: "commonWords\.list" \}\)/);
+  assert.match(route, /Access-Control-Allow-Origin/);
+  assert.match(route, /export async function OPTIONS/);
 });
 
 test("hole type and specification both use native selects", async () => {
@@ -424,4 +442,43 @@ test("special symbols tab copies the Notion symbol collection", async () => {
   assert.match(source, /copySymbol\(button\.dataset\.symbolValue \|\| button\.textContent, button\)/);
   assert.match(source, /current === 'die-setup'[\s\S]*?data-sys="symbols"/);
   assert.match(source, /current === 'symbols'[\s\S]*?data-sys="die-setup"/);
+});
+
+test("engineering records search and Gemini summary are integrated", async () => {
+  const source = await readFile(
+    new URL("../public/engineering-query.html", import.meta.url),
+    "utf8",
+  );
+  const client = await readFile(
+    new URL("../public/engineering-records.js", import.meta.url),
+    "utf8",
+  );
+  const route = await readFile(
+    new URL("../app/api/engineering-records/route.ts", import.meta.url),
+    "utf8",
+  );
+  const appsScript = await readFile(
+    new URL("../apps-script/engineering-records.gs", import.meta.url),
+    "utf8",
+  );
+  const serviceWorker = await readFile(
+    new URL("../public/service-worker.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /data-sys="engineering-records">工程紀錄<\/button>/);
+  assert.match(source, /id="engineering-records-panel"/);
+  assert.match(source, /id="engineeringRecordsSummaryBtn"[^>]*>Gemini 摘要<\/button>/);
+  assert.match(source, /<script src="engineering-records\.js"><\/script>/);
+  assert.match(client, /engineeringRecords\.search/);
+  assert.match(client, /engineeringRecords\.read/);
+  assert.match(client, /engineeringRecords\.summarize/);
+  assert.match(client, /idToken: idToken/);
+  assert.match(route, /engineeringRecords\.summarize/);
+  assert.match(appsScript, /ENGINEERING_RECORDS_ROOT_FOLDER_ID_ = '1wKASN7T_XbpvnRWn-V9nm8g0XJ8NS6N7'/);
+  assert.match(appsScript, /getProperty\('GEMINI_API_KEY'\)/);
+  assert.match(appsScript, /generativelanguage\.googleapis\.com\/v1beta\/interactions/);
+  assert.match(appsScript, /model: 'gemini-3\.5-flash-lite'/);
+  assert.match(serviceWorker, /engineering-query-pwa-v195/);
+  assert.match(serviceWorker, /\.\/engineering-records\.js/);
 });
