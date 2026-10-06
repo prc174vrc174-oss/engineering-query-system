@@ -3329,7 +3329,7 @@ h3 {
         .engineering-records-subtitle { margin: 6px 0 0; color: #667085; font-size: 14px; }
         .engineering-records-toolbar {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto auto auto;
+            grid-template-columns: minmax(0, 1fr) auto auto auto auto;
             gap: 8px;
             padding: 14px;
             border: 1px solid #d8e0eb;
@@ -3369,6 +3369,18 @@ h3 {
         .engineering-records-status.is-error { color: #b42318; }
         .engineering-records-google { grid-column: 1 / -1; }
         .engineering-records-google:empty { display: none; }
+        .engineering-records-settings { width:min(560px,calc(100vw - 28px)); max-height:calc(100dvh - 36px); padding:22px; border:1px solid #d8e0eb; border-radius:12px; box-shadow:0 24px 80px rgba(15,23,42,.25); color:#253044; text-align:left; }
+        .engineering-records-settings::backdrop { background:rgba(15,23,42,.4); }
+        .engineering-records-settings h3 { margin:0 0 8px; }
+        .engineering-records-settings p { margin:0 0 12px; color:#64748b; font-size:13px; }
+        .engineering-records-settings textarea { display:block; width:100%; min-height:150px; resize:vertical; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; line-height:1.6; }
+        .engineering-records-settings textarea:focus { outline:2px solid rgba(37,99,235,.16); border-color:#60a5fa; }
+        .engineering-records-folder-options { max-height:170px; overflow:auto; margin-top:14px; }
+        .engineering-records-folder-options p { margin-bottom:6px; }
+        .engineering-records-folder-option { display:block; width:100%; padding:5px 8px; border:0; background:transparent; box-shadow:none; color:#1d4ed8; text-align:left; font:inherit; font-size:13px; cursor:pointer; }
+        .engineering-records-folder-option:hover { background:#eff6ff; }
+        .engineering-records-settings-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+        .engineering-records-settings-error { min-height:18px; margin-top:6px; color:#b42318; font-size:13px; }
         .engineering-records-tabs { display:flex; gap:8px; margin:16px 0 12px; border-bottom:1px solid #d8e0eb; }
         .engineering-records-tab { padding:10px 16px; border:0; border-bottom:3px solid transparent; background:transparent; color:#64748b; font:inherit; font-size:14px; cursor:pointer; }
         .engineering-records-tab[aria-selected="true"] { border-color:#2563eb; color:#1d4ed8; font-weight:750; }
@@ -4273,9 +4285,22 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <button id="engineeringRecordsSearchBtn" class="engineering-records-btn is-primary" type="button">搜尋</button>
                 <button id="engineeringRecordsSummaryBtn" class="engineering-records-btn is-ai" type="button" disabled>Gemini 摘要</button>
                 <button id="engineeringRecordsClearBtn" class="engineering-records-btn" type="button">清除</button>
+                <button id="engineeringRecordsExcludeBtn" class="engineering-records-btn" type="button">排除資料夾</button>
                 <div id="engineeringRecordsGoogleButton" class="engineering-records-google"></div>
                 <div id="engineeringRecordsStatus" class="engineering-records-status" role="status" aria-live="polite"></div>
             </section>
+            <dialog id="engineeringRecordsExcludeDialog" class="engineering-records-settings" aria-labelledby="engineeringRecordsExcludeTitle">
+                <h3 id="engineeringRecordsExcludeTitle">排除資料夾</h3>
+                <p>每行輸入一個資料夾名稱或相對路徑。名稱會比對任何層級；路徑會排除該資料夾及其子資料夾。設定儲存在此瀏覽器，兩個網站需分別設定。</p>
+                <label for="engineeringRecordsExcludeInput">不顯示下列資料夾的搜尋結果</label>
+                <textarea id="engineeringRecordsExcludeInput" placeholder="01.每日筆記&#10;02.主題筆記/舊資料"></textarea>
+                <div id="engineeringRecordsExcludeError" class="engineering-records-settings-error" role="alert"></div>
+                <div id="engineeringRecordsExcludeSuggestions" class="engineering-records-folder-options"></div>
+                <div class="engineering-records-settings-actions">
+                    <button id="engineeringRecordsExcludeCancel" class="engineering-records-btn" type="button">取消</button>
+                    <button id="engineeringRecordsExcludeSave" class="engineering-records-btn is-primary" type="button">儲存並重新搜尋</button>
+                </div>
+            </dialog>
             <div class="engineering-records-tabs" role="tablist" aria-label="工程紀錄檢視">
                 <button id="engineeringRecordsResultsTab" class="engineering-records-tab" type="button" role="tab" aria-selected="true" aria-controls="engineeringRecordsResultsView">搜尋結果</button>
                 <button id="engineeringRecordsSummaryTab" class="engineering-records-tab" type="button" role="tab" aria-selected="false" aria-controls="engineeringRecordsSummaryView" tabindex="-1">Gemini 摘要</button>
@@ -6677,5 +6702,5 @@ init();
             });
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4612915bdc67075',t:'MTc5MTI1Mjk0OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a46140fbde624ea4',t:'MTc5MTI1MzkyOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

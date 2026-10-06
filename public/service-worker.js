@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v195-lazy-nail-1';
+const CACHE_NAME = 'engineering-query-pwa-v195-excluded-folders-1';
 const APP_SHELL = [
   './',
   './engineering-query.html',

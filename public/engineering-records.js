@@ -9,6 +9,13 @@
   var searchButton = document.getElementById('engineeringRecordsSearchBtn');
   var summaryButton = document.getElementById('engineeringRecordsSummaryBtn');
   var clearButton = document.getElementById('engineeringRecordsClearBtn');
+  var excludeButton = document.getElementById('engineeringRecordsExcludeBtn');
+  var excludeDialog = document.getElementById('engineeringRecordsExcludeDialog');
+  var excludeInput = document.getElementById('engineeringRecordsExcludeInput');
+  var excludeSave = document.getElementById('engineeringRecordsExcludeSave');
+  var excludeCancel = document.getElementById('engineeringRecordsExcludeCancel');
+  var excludeError = document.getElementById('engineeringRecordsExcludeError');
+  var excludeSuggestions = document.getElementById('engineeringRecordsExcludeSuggestions');
   var status = document.getElementById('engineeringRecordsStatus');
   var list = document.getElementById('engineeringRecordsList');
   var previewTitle = document.getElementById('engineeringRecordsPreviewTitle');
@@ -30,8 +37,73 @@
   var identityLoading = null;
   var summarizeAfterLogin = false;
   var imageCache = {};
+  var exclusionKey = 'engineeringRecordsExcludedFoldersV1';
+  var excludedFolders = [];
+  var searchVersion = 0;
 
   if (!queryInput || !searchButton || !summaryButton || !list || !preview) return;
+
+  function normalizeExclusions(value) {
+    var unique = {};
+    return (Array.isArray(value) ? value : []).map(function (item) {
+      return String(item || '').trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/{2,}/g, '/');
+    }).filter(function (item) {
+      if (!item || unique[item.toLowerCase()]) return false;
+      unique[item.toLowerCase()] = true;
+      return true;
+    });
+  }
+
+  function updateExcludeButton() {
+    excludeButton.textContent = '排除資料夾' + (excludedFolders.length ? '（' + excludedFolders.length + '）' : '');
+  }
+
+  try { excludedFolders = normalizeExclusions(JSON.parse(localStorage.getItem(exclusionKey) || '[]')); } catch (error) {}
+  updateExcludeButton();
+
+  function showExcludeSettings() {
+    excludeInput.value = excludedFolders.join('\n');
+    excludeError.textContent = '';
+    excludeSuggestions.replaceChildren();
+    var folders = {};
+    results.forEach(function (record) {
+      var parts = String(record.relativePath || '').split('/');
+      parts.pop();
+      for (var i = 1; i <= parts.length; i++) folders[parts.slice(0, i).join('/')] = true;
+    });
+    var names = Object.keys(folders).sort(function (a, b) { return a.localeCompare(b, 'zh-TW'); }).slice(0, 30);
+    if (names.length) {
+      var label = document.createElement('p');
+      label.textContent = '從目前搜尋結果加入：';
+      excludeSuggestions.appendChild(label);
+      names.forEach(function (name) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'engineering-records-folder-option';
+        button.textContent = name;
+        button.addEventListener('click', function () {
+          excludeInput.value = normalizeExclusions(excludeInput.value.split('\n').concat(name)).join('\n');
+        });
+        excludeSuggestions.appendChild(button);
+      });
+    }
+    excludeDialog.showModal();
+    excludeInput.focus();
+  }
+
+  function saveExcludeSettings() {
+    var next = normalizeExclusions(excludeInput.value.split('\n'));
+    if (next.length > 30 || next.some(function (value) { return value.length > 120; })) {
+      excludeError.textContent = '最多 30 個資料夾，每行最多 120 個字。';
+      return;
+    }
+    excludedFolders = next;
+    try { localStorage.setItem(exclusionKey, JSON.stringify(next)); } catch (error) {}
+    updateExcludeButton();
+    excludeDialog.close();
+    if (queryInput.value.trim()) search();
+    else setStatus(next.length ? '已設定排除 ' + next.length + ' 個資料夾，下次搜尋時套用。' : '已清除排除設定。', 'success');
+  }
 
   function showView(name, focus) {
     var isSummary = name === 'summary';
@@ -272,23 +344,31 @@
   async function search() {
     var query = queryInput.value.trim();
     if (!query) { queryInput.focus(); setStatus('請輸入客戶編號、名稱或工程關鍵字。', 'error'); return; }
+    var version = ++searchVersion;
     showView('results', false);
+    summaryMeta.textContent = '';
+    summary.textContent = '勾選搜尋結果後，按「Gemini 摘要」開始整理。';
     searchButton.disabled = true;
     summaryButton.disabled = true;
     setStatus('正在搜尋 Google Drive…', 'loading');
     list.innerHTML = '<div class="engineering-records-empty">搜尋中…</div>';
     try {
-      var result = await request({ action: 'engineeringRecords.search', query: query });
+      var result = await request({ action: 'engineeringRecords.search', query: query, excludedFolders: excludedFolders });
+      if (version !== searchVersion) return;
       results = Array.isArray(result.results) ? result.results : [];
+      results.sort(function (a, b) {
+        return String(b.name || '').localeCompare(String(a.name || ''), 'zh-TW', { numeric: true, sensitivity: 'base' });
+      });
       renderResults();
-      setStatus('找到 ' + results.length + ' 筆工程紀錄。', 'success');
+      setStatus('找到 ' + results.length + ' 筆工程紀錄' + (excludedFolders.length ? '（已排除 ' + excludedFolders.length + ' 個資料夾）' : '') + '。', 'success');
 
     } catch (error) {
+      if (version !== searchVersion) return;
       results = [];
       renderResults();
       setStatus(error && error.message ? error.message : '搜尋失敗。', 'error');
     } finally {
-      searchButton.disabled = false;
+      if (version === searchVersion) searchButton.disabled = false;
     }
   }
 
@@ -409,6 +489,8 @@
   }
 
   function clearAll() {
+    searchVersion++;
+    searchButton.disabled = false;
     summarizeAfterLogin = false;
     activeRecordId = '';
     if (dialog.open) dialog.close();
@@ -436,6 +518,9 @@
     });
   });
   closeDialog.addEventListener('click', function () { dialog.close(); });
+  excludeButton.addEventListener('click', showExcludeSettings);
+  excludeSave.addEventListener('click', saveExcludeSettings);
+  excludeCancel.addEventListener('click', function () { excludeDialog.close(); });
   dialog.addEventListener('click', function (event) {
     var bounds = dialog.getBoundingClientRect();
     if (event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) dialog.close();
