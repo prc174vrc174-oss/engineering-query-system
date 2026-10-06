@@ -22,6 +22,7 @@
   var previewMeta = document.getElementById('engineeringRecordsPreviewMeta');
   var preview = document.getElementById('engineeringRecordsPreview');
   var signIn = document.getElementById('engineeringRecordsGoogleButton');
+  var settingsSignIn = document.getElementById('engineeringRecordsSettingsGoogleButton');
   var dialog = document.getElementById('engineeringRecordsDialog');
   var closeDialog = document.getElementById('engineeringRecordsDialogClose');
   var summary = document.getElementById('engineeringRecordsSummary');
@@ -36,9 +37,11 @@
   var idToken = '';
   var identityLoading = null;
   var summarizeAfterLogin = false;
+  var saveAfterLogin = false;
   var imageCache = {};
-  var selectionKey = 'engineeringRecordsIncludedFoldersV1';
   var includedFolders = [];
+  var settingsLoaded = false;
+  var settingsLoading = null;
   var folderPaths = null;
   var searchVersion = 0;
 
@@ -59,8 +62,20 @@
     excludeButton.textContent = '搜尋資料夾' + (includedFolders.length ? '（' + includedFolders.length + '）' : '（全部）');
   }
 
-  try { includedFolders = normalizeFolders(JSON.parse(localStorage.getItem(selectionKey) || '[]')); } catch (error) {}
   updateExcludeButton();
+
+  function loadSharedSettings(force) {
+    if (settingsLoading) return settingsLoading;
+    if (settingsLoaded && !force) return Promise.resolve();
+    settingsLoading = request({ action: 'engineeringRecords.settings.get' }).then(function (response) {
+      includedFolders = normalizeFolders(response.includedFolders);
+      settingsLoaded = true;
+      updateExcludeButton();
+    }).finally(function () { settingsLoading = null; });
+    return settingsLoading;
+  }
+
+  loadSharedSettings().catch(function () { setStatus('無法載入共用搜尋資料夾設定，請重新整理頁面。', 'error'); });
 
   function renderFolderOptions() {
     excludeSuggestions.replaceChildren();
@@ -94,34 +109,60 @@
   }
 
   async function showExcludeSettings() {
-    excludeInput.value = includedFolders.join('\n');
+    excludeSave.disabled = true;
     excludeError.textContent = '';
-    excludeSuggestions.textContent = folderPaths ? '' : '正在載入資料夾…';
+    excludeSuggestions.textContent = '正在載入共用設定與資料夾…';
     excludeDialog.showModal();
-    if (folderPaths) { renderFolderOptions(); return; }
     try {
-      var response = await request({ action: 'engineeringRecords.folders' });
-      folderPaths = Array.isArray(response.folders) ? response.folders.filter(function (path) {
-        return !String(path).split('/').some(function (part) { return part.charAt(0) === '.'; });
-      }) : [];
+      await loadSharedSettings(true);
+      if (!excludeDialog.open) return;
+      excludeInput.value = includedFolders.join('\n');
+      excludeSave.disabled = false;
+      if (!folderPaths) {
+        excludeSuggestions.textContent = '正在載入資料夾…';
+        var response = await request({ action: 'engineeringRecords.folders' });
+        folderPaths = Array.isArray(response.folders) ? response.folders.filter(function (path) {
+          return !String(path).split('/').some(function (part) { return part.charAt(0) === '.'; });
+        }) : [];
+      }
       if (excludeDialog.open) renderFolderOptions();
     } catch (error) {
-      if (excludeDialog.open) excludeSuggestions.textContent = '資料夾載入失敗，仍可手動輸入路徑。';
+      if (excludeDialog.open) {
+        excludeSuggestions.textContent = '無法載入資料夾，請稍後再試。';
+        excludeError.textContent = error && error.message || '無法取得共用設定。';
+      }
     }
+    loadIdentity().catch(function (error) {
+      if (excludeDialog.open) excludeError.textContent = error.message || '無法載入 Google 登入。';
+    });
   }
 
-  function saveExcludeSettings() {
+  async function saveExcludeSettings() {
     var next = normalizeFolders(excludeInput.value.split('\n'));
     if (next.length > 30 || next.some(function (value) { return value.length > 120; })) {
       excludeError.textContent = '最多 30 個資料夾，每行最多 120 個字。';
       return;
     }
-    includedFolders = next;
-    try { localStorage.setItem(selectionKey, JSON.stringify(next)); } catch (error) {}
-    updateExcludeButton();
-    excludeDialog.close();
-    if (queryInput.value.trim()) search();
-    else setStatus(next.length ? '已選擇 ' + next.length + ' 個搜尋資料夾，下次搜尋時套用。' : '未選擇資料夾，下次將搜尋全部。', 'success');
+    if (!hasCredential()) {
+      saveAfterLogin = true;
+      excludeError.textContent = '請先使用允許的 Google 帳號登入，再儲存共用設定。';
+      loadIdentity().catch(function (error) { excludeError.textContent = error.message || '無法載入 Google 登入。'; });
+      return;
+    }
+    excludeSave.disabled = true;
+    excludeError.textContent = '';
+    try {
+      var response = await request({ action: 'engineeringRecords.settings.save', includedFolders: next, idToken: idToken });
+      includedFolders = normalizeFolders(response.includedFolders);
+      updateExcludeButton();
+      excludeDialog.close();
+      if (queryInput.value.trim()) search();
+      else setStatus(includedFolders.length ? '已共用 ' + includedFolders.length + ' 個搜尋資料夾。' : '已共用搜尋全部資料夾的設定。', 'success');
+    } catch (error) {
+      excludeError.textContent = error && error.message || '無法儲存共用設定。';
+    } finally {
+      excludeSave.disabled = false;
+    }
   }
 
   function showView(name, focus) {
@@ -372,8 +413,10 @@
     setStatus('正在搜尋 Google Drive…', 'loading');
     list.innerHTML = '<div class="engineering-records-empty">搜尋中…</div>';
     try {
-      var result = await request({ action: 'engineeringRecords.search', query: query, includedFolders: includedFolders });
+      var result = await request({ action: 'engineeringRecords.search', query: query });
       if (version !== searchVersion) return;
+      includedFolders = normalizeFolders(result.includedFolders);
+      updateExcludeButton();
       results = Array.isArray(result.results) ? result.results : [];
       results.sort(function (a, b) {
         return String(b.name || '').localeCompare(String(a.name || ''), 'zh-TW', { numeric: true, sensitivity: 'base' });
@@ -435,7 +478,12 @@
     var identity = parseCredential(idToken);
     if (!identity || !identity.email) { setStatus('Google 登入失敗，請再試一次。', 'error'); return; }
     signIn.innerHTML = '';
-    setStatus('已登入 ' + identity.email + '，可使用 Gemini 摘要。', 'success');
+    settingsSignIn.innerHTML = '';
+    setStatus('已登入 ' + identity.email + '。', 'success');
+    if (saveAfterLogin) {
+      saveAfterLogin = false;
+      if (excludeDialog.open) saveExcludeSettings();
+    }
     if (summarizeAfterLogin) { summarizeAfterLogin = false; summarize(); }
   }
 
@@ -449,6 +497,10 @@
     });
     signIn.innerHTML = '';
     window.google.accounts.id.renderButton(signIn, {
+      type: 'standard', theme: 'outline', size: 'medium', text: 'signin_with', shape: 'rectangular', width: 230, locale: 'zh_TW'
+    });
+    settingsSignIn.innerHTML = '';
+    window.google.accounts.id.renderButton(settingsSignIn, {
       type: 'standard', theme: 'outline', size: 'medium', text: 'signin_with', shape: 'rectangular', width: 230, locale: 'zh_TW'
     });
   }
@@ -544,7 +596,7 @@
     });
   });
   excludeSave.addEventListener('click', saveExcludeSettings);
-  excludeCancel.addEventListener('click', function () { excludeDialog.close(); });
+  excludeCancel.addEventListener('click', function () { saveAfterLogin = false; excludeDialog.close(); });
   dialog.addEventListener('click', function (event) {
     var bounds = dialog.getBoundingClientRect();
     if (event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) dialog.close();
