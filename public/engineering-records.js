@@ -5,13 +5,20 @@
     ? 'https://engineering-query.prc174.chatgpt.site/api/engineering-records'
     : '/api/engineering-records';
   var GOOGLE_CLIENT_ID = '406267166897-8geeu3tpc425nc9n7gmimmmflbckp0ta.apps.googleusercontent.com';
-  
-  // DOM 元素
   var queryInput = document.getElementById('engineeringRecordsQuery');
   var searchButton = document.getElementById('engineeringRecordsSearchBtn');
   var summaryButton = document.getElementById('engineeringRecordsSummaryBtn');
   var clearButton = document.getElementById('engineeringRecordsClearBtn');
   var excludeButton = document.getElementById('engineeringRecordsExcludeBtn');
+  var reloadButton = document.getElementById('engineeringRecordsReloadBtn');
+  if (!reloadButton && excludeButton && excludeButton.parentNode) {
+    reloadButton = document.createElement('button');
+    reloadButton.id = 'engineeringRecordsReloadBtn';
+    reloadButton.className = 'engineering-records-btn';
+    reloadButton.type = 'button';
+    reloadButton.textContent = '🔄 重新載入';
+    excludeButton.parentNode.insertBefore(reloadButton, excludeButton.nextSibling);
+  }
   var excludeDialog = document.getElementById('engineeringRecordsExcludeDialog');
   var excludeInput = document.getElementById('engineeringRecordsExcludeInput');
   var excludeSave = document.getElementById('engineeringRecordsExcludeSave');
@@ -33,55 +40,26 @@
   var summaryTab = document.getElementById('engineeringRecordsSummaryTab');
   var resultsView = document.getElementById('engineeringRecordsResultsView');
   var summaryView = document.getElementById('engineeringRecordsSummaryView');
-
-  if (!queryInput || !searchButton || !summaryButton || !list || !preview) return;
-
-  // 本地快取鍵名
-  var STORAGE_KEY_FOLDERS = 'ENG_REC_SELECTED_FOLDERS_v1';
-  var STORAGE_KEY_CACHE = 'ENG_REC_RECORDS_CACHE_v1';
-  var STORAGE_KEY_TIME = 'ENG_REC_LAST_SYNC_TIME_v1';
-
   var activeRecordId = '';
   var summarizing = false;
   var results = [];
   var idToken = '';
   var identityLoading = null;
   var summarizeAfterLogin = false;
+  var saveAfterLogin = false;
   var imageCache = {};
+  var includedFolders = [];
+  var settingsLoaded = false;
+  var settingsLoading = null;
   var folderPaths = null;
   var searchVersion = 0;
-
-  // 本地資料庫狀態
   var cachedRecords = [];
-  var selectedFolders = [];
-  var lastSyncTime = null;
+  var cacheReady = false;
+  var cacheGeneration = 0;
+  var cacheKey = '';
+  var lastSyncTime = 0;
 
-  // 動態加入「🔄 重新載入」按鈕
-  var reloadButton = document.getElementById('engineeringRecordsReloadBtn');
-  if (!reloadButton && excludeButton && excludeButton.parentNode) {
-    reloadButton = document.createElement('button');
-    reloadButton.id = 'engineeringRecordsReloadBtn';
-    reloadButton.className = 'engineering-records-btn';
-    reloadButton.type = 'button';
-    reloadButton.title = '重新載入所選資料夾的最新筆記';
-    reloadButton.innerHTML = '🔄 重新載入';
-    excludeButton.parentNode.insertBefore(reloadButton, excludeButton.nextSibling);
-  }
-
-  // 初始化本地快取
-  function initLocalStorage() {
-    try {
-      var rawFolders = localStorage.getItem(STORAGE_KEY_FOLDERS);
-      if (rawFolders) selectedFolders = normalizeFolders(JSON.parse(rawFolders));
-      var rawCache = localStorage.getItem(STORAGE_KEY_CACHE);
-      if (rawCache) cachedRecords = JSON.parse(rawCache);
-      var rawTime = localStorage.getItem(STORAGE_KEY_TIME);
-      if (rawTime) lastSyncTime = Number(rawTime);
-    } catch (e) {
-      console.warn('讀取本地快取失敗', e);
-    }
-  }
-  initLocalStorage();
+  if (!queryInput || !searchButton || !summaryButton || !list || !preview) return;
 
   function normalizeFolders(value) {
     var unique = {};
@@ -95,31 +73,147 @@
   }
 
   function updateExcludeButton() {
-    excludeButton.textContent = '搜尋資料夾' + (selectedFolders.length ? '（' + selectedFolders.length + ' 個）' : '（全部）');
+    excludeButton.textContent = '搜尋資料夾' + (includedFolders.length ? '（' + includedFolders.length + '）' : '（全部）');
   }
+
   updateExcludeButton();
 
-  // 更新介面狀態提示
-  function updateReadyStatus() {
-    if (cachedRecords && cachedRecords.length > 0) {
-      var timeStr = lastSyncTime ? ' · 最後載入 ' + formatDate(lastSyncTime) : '';
-      var folderStr = selectedFolders.length ? '（' + selectedFolders.join(', ') + '）' : '（全部）';
-      setStatus('已載入 ' + cachedRecords.length + ' 篇工程筆記 ' + folderStr + timeStr + '，可即時 0 秒搜尋。', 'success');
-    } else {
-      setStatus('尚未載入工程筆記，請點擊「' + excludeButton.textContent + '」勾選資料夾後載入。');
+  function folderKey(folders) {
+    return JSON.stringify(normalizeFolders(folders).map(function (s) { return s.toLowerCase(); }).sort());
+  }
+
+  function openCacheDb() {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) { reject(new Error('此瀏覽器不支援離線儲存。')); return; }
+      var req = indexedDB.open('engineering-records-cache-v2', 1);
+      req.onupgradeneeded = function () {
+        if (!req.result.objectStoreNames.contains('snapshots')) req.result.createObjectStore('snapshots');
+      };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+
+  async function cacheOperation(key, value) {
+    var db = await openCacheDb();
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction('snapshots', value === undefined ? 'readonly' : 'readwrite');
+      var req = value === undefined ? tx.objectStore('snapshots').get(key) : tx.objectStore('snapshots').put(value, key);
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+      tx.oncomplete = function () { db.close(); };
+      tx.onabort = function () { db.close(); reject(tx.error); };
+    });
+  }
+
+  function readyStatus() {
+    if (cacheReady) setStatus('已載入 ' + cachedRecords.length + ' 篇工程筆記，可即時搜尋。' +
+      (lastSyncTime ? ' 上次更新：' + formatDate(lastSyncTime) : ''), 'success');
+    else setStatus('正在準備工程筆記；載入完成後可即時搜尋。', 'loading');
+  }
+
+  async function loadCachedSnapshot() {
+    var key = folderKey(includedFolders);
+    cacheKey = key;
+    cacheReady = false;
+    cachedRecords = [];
+    try {
+      var snapshot = await cacheOperation(key);
+      if (cacheKey !== key) return;
+      if (snapshot && Array.isArray(snapshot.records)) {
+        cachedRecords = snapshot.records;
+        lastSyncTime = Number(snapshot.time || 0);
+        cacheReady = true;
+      }
+    } catch (error) { console.warn('讀取工程紀錄快取失敗', error); }
+    readyStatus();
+    if (queryInput.value.trim() && cacheReady) search();
+  }
+
+  // Read only new or modified files. The previous snapshot remains searchable during refresh.
+  async function refreshRecords() {
+    var generation = ++cacheGeneration;
+    if (reloadButton) reloadButton.disabled = true;
+    try {
+      var catalog = await request({ action: 'engineeringRecords.catalog' });
+      if (generation !== cacheGeneration) return;
+      var folders = normalizeFolders(catalog.includedFolders);
+      if (folderKey(folders) !== folderKey(includedFolders)) {
+        includedFolders = folders;
+        updateExcludeButton();
+        await loadCachedSnapshot();
+      }
+      var key = folderKey(includedFolders);
+      var known = {};
+      if (cacheReady) cachedRecords.forEach(function (record) { known[record.id] = record; });
+      var entries = Array.isArray(catalog.records) ? catalog.records : [];
+      var fresh = {};
+      var toRead = entries.filter(function (meta) {
+        var old = known[meta.id];
+        if (old && old.modifiedTime === meta.modifiedTime && typeof old.content === 'string') {
+          fresh[meta.id] = old;
+          return false;
+        }
+        return true;
+      });
+      var chunks = [];
+      for (var i = 0; i < toRead.length; i += 8) chunks.push(toRead.slice(i, i + 8));
+      var done = 0;
+      var next = 0;
+      if (chunks.length) setStatus('正在載入工程筆記：0／' + toRead.length + ' 篇…', 'loading');
+      async function worker() {
+        while (next < chunks.length && generation === cacheGeneration) {
+          var chunk = chunks[next++];
+          var result = await request({ action: 'engineeringRecords.batchRead', ids: chunk.map(function (meta) { return meta.id; }) });
+          if (generation !== cacheGeneration) return;
+          (result.records || []).forEach(function (record) { fresh[record.id] = record; });
+          done += chunk.length;
+          setStatus('正在載入工程筆記：' + Math.min(done, toRead.length) + '／' + toRead.length + ' 篇…', 'loading');
+        }
+      }
+      await Promise.all([worker(), worker(), worker()]);
+      if (generation !== cacheGeneration) return;
+      var complete = entries.filter(function (meta) { return fresh[meta.id]; }).map(function (meta) { return fresh[meta.id]; });
+      if (complete.length !== entries.length) throw new Error('有 ' + (entries.length - complete.length) + ' 篇筆記無法載入，請重新載入。');
+      cachedRecords = complete;
+      cacheReady = true;
+      cacheKey = key;
+      lastSyncTime = Date.now();
+      try { await cacheOperation(key, { records: complete, time: lastSyncTime }); }
+      catch (error) { console.warn('儲存工程紀錄快取失敗', error); }
+      if (generation !== cacheGeneration) return;
+      readyStatus();
+      if (queryInput.value.trim()) search();
+    } catch (error) {
+      if (generation === cacheGeneration) setStatus('載入失敗：' + (error.message || '請稍後重試。') +
+        (cacheReady ? ' 仍可搜尋上次載入的筆記。' : ' 可按搜尋使用雲端查詢。'), 'error');
+    } finally {
+      if (generation === cacheGeneration && reloadButton) reloadButton.disabled = false;
     }
   }
-  updateReadyStatus();
 
-  // 渲染資料夾勾選清單
+  function loadSharedSettings(force) {
+    if (settingsLoading) return settingsLoading;
+    if (settingsLoaded && !force) return Promise.resolve();
+    settingsLoading = request({ action: 'engineeringRecords.settings.get' }).then(function (response) {
+      includedFolders = normalizeFolders(response.includedFolders);
+      settingsLoaded = true;
+      updateExcludeButton();
+    }).finally(function () { settingsLoading = null; });
+    return settingsLoading;
+  }
+
+  loadSharedSettings().then(loadCachedSnapshot).then(refreshRecords)
+    .catch(function () { setStatus('無法載入共用搜尋資料夾設定，請重新整理頁面。', 'error'); });
+
   function renderFolderOptions() {
     excludeSuggestions.replaceChildren();
-    var currentSelected = normalizeFolders(excludeInput.value.split('\n'));
-    var names = (folderPaths || []).concat(currentSelected.filter(function (name) {
+    var selected = normalizeFolders(excludeInput.value.split('\n'));
+    var names = (folderPaths || []).concat(selected.filter(function (name) {
       return !folderPaths || folderPaths.indexOf(name) < 0;
     }));
     if (!names.length) {
-      excludeSuggestions.textContent = '找不到可選的子資料夾。';
+      excludeSuggestions.textContent = '此資料夾下沒有可選的子資料夾。';
       return;
     }
     names.forEach(function (name) {
@@ -128,7 +222,7 @@
       var checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.value = name;
-      checkbox.checked = currentSelected.indexOf(name) >= 0;
+      checkbox.checked = selected.indexOf(name) >= 0;
       checkbox.addEventListener('change', function () {
         var values = normalizeFolders(excludeInput.value.split('\n'));
         values = values.filter(function (value) { return value !== name; });
@@ -143,16 +237,18 @@
     });
   }
 
-  // 顯示資料夾選擇對話框
   async function showExcludeSettings() {
-    excludeSave.disabled = false;
-    excludeSave.textContent = '確認並載入所選資料夾';
+    excludeSave.disabled = true;
     excludeError.textContent = '';
+    excludeSuggestions.textContent = '正在載入共用設定與資料夾…';
     excludeDialog.showModal();
-    excludeInput.value = selectedFolders.join('\n');
     try {
+      await loadSharedSettings(true);
+      if (!excludeDialog.open) return;
+      excludeInput.value = includedFolders.join('\n');
+      excludeSave.disabled = false;
       if (!folderPaths) {
-        excludeSuggestions.textContent = '正在向雲端讀取資料夾清單…';
+        excludeSuggestions.textContent = '正在載入資料夾…';
         var response = await request({ action: 'engineeringRecords.folders' });
         folderPaths = Array.isArray(response.folders) ? response.folders.filter(function (path) {
           return !String(path).split('/').some(function (part) { return part.charAt(0) === '.'; });
@@ -162,58 +258,40 @@
     } catch (error) {
       if (excludeDialog.open) {
         excludeSuggestions.textContent = '無法載入資料夾，請稍後再試。';
-        excludeError.textContent = error && error.message || '無法取得資料夾清單。';
+        excludeError.textContent = error && error.message || '無法取得共用設定。';
       }
     }
+    loadIdentity().catch(function (error) {
+      if (excludeDialog.open) excludeError.textContent = error.message || '無法載入 Google 登入。';
+    });
   }
 
-  // 儲存資料夾並發起高速載入
   async function saveExcludeSettings() {
     var next = normalizeFolders(excludeInput.value.split('\n'));
     if (next.length > 30 || next.some(function (value) { return value.length > 120; })) {
       excludeError.textContent = '最多 30 個資料夾，每行最多 120 個字。';
       return;
     }
-    selectedFolders = next;
+    if (!hasCredential()) {
+      saveAfterLogin = true;
+      excludeError.textContent = '請先使用允許的 Google 帳號登入，再儲存共用設定。';
+      loadIdentity().catch(function (error) { excludeError.textContent = error.message || '無法載入 Google 登入。'; });
+      return;
+    }
+    excludeSave.disabled = true;
+    excludeError.textContent = '';
     try {
-      localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(selectedFolders));
-    } catch (e) {}
-    updateExcludeButton();
-    excludeDialog.close();
-    await syncFolders(selectedFolders);
-  }
-
-  // 核心同步邏輯：從 Google Drive 載入所選資料夾所有筆記
-  async function syncFolders(foldersToSync) {
-    foldersToSync = normalizeFolders(foldersToSync || selectedFolders);
-    var label = foldersToSync.length ? foldersToSync.join('、') : '全部資料夾';
-    setStatus('正在從 Google Drive 載入【' + label + '】的工程筆記…', 'loading');
-    searchButton.disabled = true;
-    if (reloadButton) reloadButton.disabled = true;
-    try {
-      var res = await request({
-        action: 'engineeringRecords.search',
-        query: '__SYNC_FOLDERS__',
-        folders: foldersToSync
-      });
-      cachedRecords = Array.isArray(res.records) ? res.records : [];
-      lastSyncTime = Date.now();
-      try {
-        localStorage.setItem(STORAGE_KEY_CACHE, JSON.stringify(cachedRecords));
-        localStorage.setItem(STORAGE_KEY_TIME, String(lastSyncTime));
-      } catch (e) {
-        console.warn('快取儲存空間可能不足', e);
-      }
+      var response = await request({ action: 'engineeringRecords.settings.save', includedFolders: next, idToken: idToken });
+      includedFolders = normalizeFolders(response.includedFolders);
       updateExcludeButton();
-      setStatus('成功載入 ' + cachedRecords.length + ' 篇工程筆記（' + label + '）！已支援 0 秒即時搜尋。', 'success');
-      if (queryInput.value.trim()) {
-        search();
-      }
+      excludeDialog.close();
+      cacheGeneration++;
+      await loadCachedSnapshot();
+      refreshRecords();
     } catch (error) {
-      setStatus('載入失敗：' + (error && error.message ? error.message : '雲端連線失敗'), 'error');
+      excludeError.textContent = error && error.message || '無法儲存共用設定。';
     } finally {
-      searchButton.disabled = false;
-      if (reloadButton) reloadButton.disabled = false;
+      excludeSave.disabled = false;
     }
   }
 
@@ -243,7 +321,7 @@
     });
     var result;
     try { result = await response.json(); } catch { throw new Error('伺服器回應格式不正確。'); }
-    if (!response.ok || !result || !result.ok) throw new Error(result && result.error || '工程紀錄操作失敗。');
+    if (!response.ok || !result || !result.ok) throw new Error(result && result.error || '工程紀錄查詢失敗。');
     return result;
   }
 
@@ -453,58 +531,51 @@
     summaryButton.disabled = false;
   }
 
-  // 核心搜尋功能：本地 0 秒記憶體即時過濾（像釘子表一樣）
   async function search() {
     var query = queryInput.value.trim();
+    var version = ++searchVersion;
     if (!query) {
-      if (cachedRecords && cachedRecords.length > 0) {
-        updateReadyStatus();
-        list.innerHTML = '<div class="engineering-records-empty">請輸入客戶編號、名稱或關鍵字（已載入 ' + cachedRecords.length + ' 篇筆記，即打即現）。</div>';
-      } else {
-        queryInput.focus();
-        setStatus('請輸入客戶編號、名稱或工程關鍵字。', 'error');
-      }
+      results = [];
+      list.innerHTML = '<div class="engineering-records-empty">輸入客戶編號、名稱或關鍵字。</div>';
+      summaryButton.disabled = true;
+      readyStatus();
       return;
     }
-
-    var version = ++searchVersion;
     showView('results', false);
     summaryMeta.textContent = '';
     summary.textContent = '勾選搜尋結果後，按「Gemini 摘要」開始整理。';
-
-    // 若本地已有快取資料，直接進行 0 秒記憶體快速過濾！
-    if (cachedRecords && cachedRecords.length > 0) {
-      var terms = query.toLowerCase().split(/[\s，。；、？！?：:（）()／/]+/).filter(Boolean);
-      var matched = cachedRecords.filter(function (r) {
-        var n = String(r.name || '').toLowerCase();
-        var c = String(r.content || '').toLowerCase();
-        return terms.every(function (t) { return n.indexOf(t) >= 0 || c.indexOf(t) >= 0; });
+    if (cacheReady) {
+      var terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map(function (s) { return s.trim().toLowerCase(); })
+        .filter(function (s) { return s && (s.length >= 2 || /^\d+$/.test(s)); }).slice(0, 6);
+      if (!terms.length) terms.push(query.toLowerCase());
+      results = cachedRecords.filter(function (record) {
+        var name = String(record.name || '').toLowerCase();
+        var body = String(record.content || '').toLowerCase();
+        return terms.every(function (term) { return name.indexOf(term) >= 0 || body.indexOf(term) >= 0; });
       });
-
-      matched.sort(function (a, b) {
-        var aName = terms.every(function (t) { return String(a.name || '').toLowerCase().indexOf(t) >= 0; }) ? 1 : 0;
-        var bName = terms.every(function (t) { return String(b.name || '').toLowerCase().indexOf(t) >= 0; }) ? 1 : 0;
-        if (aName !== bName) return bName - aName;
-        return String(b.name || '').localeCompare(String(a.name || ''), 'zh-TW', { numeric: true });
+      results.sort(function (a, b) {
+        return String(b.name || '').localeCompare(String(a.name || ''), 'zh-TW', { numeric: true, sensitivity: 'base' });
       });
-
-      results = matched;
       renderResults();
-      setStatus('找到 ' + results.length + ' 筆工程紀錄（本地 0 秒即時搜尋）。', 'success');
+      setStatus('找到 ' + results.length + ' 筆工程紀錄（已載入的筆記，即時搜尋）。', 'success');
       return;
     }
-
-    // 若無本地快取，回退至遠端查詢
     searchButton.disabled = true;
     summaryButton.disabled = true;
-    setStatus('正在向 Google Drive 搜尋…', 'loading');
+    setStatus('正在搜尋 Google Drive…', 'loading');
     list.innerHTML = '<div class="engineering-records-empty">搜尋中…</div>';
     try {
       var result = await request({ action: 'engineeringRecords.search', query: query });
       if (version !== searchVersion) return;
+      includedFolders = normalizeFolders(result.includedFolders);
+      updateExcludeButton();
       results = Array.isArray(result.results) ? result.results : [];
+      results.sort(function (a, b) {
+        return String(b.name || '').localeCompare(String(a.name || ''), 'zh-TW', { numeric: true, sensitivity: 'base' });
+      });
       renderResults();
-      setStatus('找到 ' + results.length + ' 筆工程紀錄。', 'success');
+      setStatus('找到 ' + results.length + ' 筆工程紀錄' + (includedFolders.length ? '（僅搜尋 ' + includedFolders.length + ' 個資料夾）' : '') + '。', 'success');
+
     } catch (error) {
       if (version !== searchVersion) return;
       results = [];
@@ -515,7 +586,6 @@
     }
   }
 
-  // 開啟筆記預覽（若已有 content 則 0 秒瞬間開啟）
   async function openRecord(record) {
     activeRecordId = record.id;
     if (!dialog.open) dialog.showModal();
@@ -523,22 +593,17 @@
       item.classList.toggle('is-active', item.dataset.recordId === record.id);
     });
     previewTitle.textContent = record.name;
-    
-    // 若本地已有內文，0 秒直接開啟！
-    if (record.content) {
+    if (typeof record.content === 'string') {
       previewMeta.textContent = (record.relativePath || '') + ' · 更新 ' + formatDate(record.modifiedTime);
       renderMarkdown(record.content, record.id);
       return;
     }
-
-    // 否則透過 API 讀取單篇
     previewMeta.textContent = '讀取中…';
     preview.textContent = '';
     try {
       var result = await request({ action: 'engineeringRecords.read', id: record.id });
       if (activeRecordId !== record.id) return;
       var data = result.record || {};
-      record.content = data.content || '';
       previewTitle.textContent = data.name || record.name;
       previewMeta.textContent = (data.relativePath || record.relativePath || '') + ' · 更新 ' + formatDate(data.modifiedTime || record.modifiedTime);
       renderMarkdown(data.content || '', record.id);
@@ -570,8 +635,12 @@
     var identity = parseCredential(idToken);
     if (!identity || !identity.email) { setStatus('Google 登入失敗，請再試一次。', 'error'); return; }
     signIn.innerHTML = '';
-    if (settingsSignIn) settingsSignIn.innerHTML = '';
+    settingsSignIn.innerHTML = '';
     setStatus('已登入 ' + identity.email + '。', 'success');
+    if (saveAfterLogin) {
+      saveAfterLogin = false;
+      if (excludeDialog.open) saveExcludeSettings();
+    }
     if (summarizeAfterLogin) { summarizeAfterLogin = false; summarize(); }
   }
 
@@ -585,6 +654,10 @@
     });
     signIn.innerHTML = '';
     window.google.accounts.id.renderButton(signIn, {
+      type: 'standard', theme: 'outline', size: 'medium', text: 'signin_with', shape: 'rectangular', width: 230, locale: 'zh_TW'
+    });
+    settingsSignIn.innerHTML = '';
+    window.google.accounts.id.renderButton(settingsSignIn, {
       type: 'standard', theme: 'outline', size: 'medium', text: 'signin_with', shape: 'rectangular', width: 230, locale: 'zh_TW'
     });
   }
@@ -628,7 +701,7 @@
       var result = await request({
         action: 'engineeringRecords.summarize', query: queryInput.value.trim(), ids: ids, idToken: idToken
       });
-      summaryMeta.textContent = '根據 ' + (result.sources ? result.sources.length : ids.length) + ' 份搜尋結果整理';
+        summaryMeta.textContent = '根據 ' + (result.sources ? result.sources.length : ids.length) + ' 份搜尋結果整理';
       summary.textContent = result.summary || '';
       setStatus('AI 摘要完成。', 'success');
     } catch (error) {
@@ -659,11 +732,10 @@
     previewMeta.textContent = '';
     preview.textContent = '選取檔名後，這裡會顯示完整 Markdown 內容。';
     summaryButton.disabled = true;
-    updateReadyStatus();
+    readyStatus();
     queryInput.focus();
   }
 
-  // 事件綁定
   resultsTab.addEventListener('click', function () { showView('results', false); });
   summaryTab.addEventListener('click', function () { showView('summary', false); });
   [resultsTab, summaryTab].forEach(function (tab) {
@@ -675,30 +747,26 @@
   });
   closeDialog.addEventListener('click', function () { dialog.close(); });
   excludeButton.addEventListener('click', showExcludeSettings);
-  if (reloadButton) {
-    reloadButton.addEventListener('click', function () { syncFolders(selectedFolders); });
-  }
+  if (reloadButton) reloadButton.addEventListener('click', function () {
+    loadSharedSettings(true).then(refreshRecords).catch(function (error) {
+      setStatus(error.message || '無法載入共用設定。', 'error');
+    });
+  });
   excludeInput.addEventListener('input', function () {
     excludeSuggestions.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
       checkbox.checked = normalizeFolders(excludeInput.value.split('\n')).indexOf(checkbox.value) >= 0;
     });
   });
   excludeSave.addEventListener('click', saveExcludeSettings);
-  excludeCancel.addEventListener('click', function () { excludeDialog.close(); });
+  excludeCancel.addEventListener('click', function () { saveAfterLogin = false; excludeDialog.close(); });
   dialog.addEventListener('click', function (event) {
     var bounds = dialog.getBoundingClientRect();
     if (event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) dialog.close();
   });
   searchButton.addEventListener('click', search);
+  queryInput.addEventListener('input', function () { if (cacheReady) search(); });
   summaryButton.addEventListener('click', summarize);
   clearButton.addEventListener('click', clearAll);
-
-  // 【優化】支援即打即現（像釘子表一樣快速過濾）
-  queryInput.addEventListener('input', function () {
-    if (cachedRecords && cachedRecords.length > 0) {
-      search();
-    }
-  });
   queryInput.addEventListener('keydown', function (event) {
     if (event.key === 'Enter' && !searchButton.disabled) { event.preventDefault(); search(); }
   });
