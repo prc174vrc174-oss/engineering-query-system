@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v195-records-markdown-1';
+const CACHE_NAME = 'engineering-query-pwa-v195-lazy-nail-1';
 const APP_SHELL = [
   './',
   './engineering-query.html',
@@ -6,6 +6,7 @@ const APP_SHELL = [
   './fold-tool-117.html',
   './engineering-coefficients.js',
   './nail-excel-upload.js',
+  './nail-data.js',
   './common-words.js',
   './engineering-records.js',
   './favicon.svg',
