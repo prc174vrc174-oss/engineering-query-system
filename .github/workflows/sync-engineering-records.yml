@@ -20,7 +20,7 @@ jobs:
         run: |
           set -euo pipefail
           base="https://engineering-query.prc174.chatgpt.site"
-          for file in engineering-query.html engineering-records.js service-worker.js developed-calculator.html m-calculator.html; do
+          for file in engineering-query.html nail-data.js engineering-records.js service-worker.js developed-calculator.html m-calculator.html; do
             curl --fail --location --retry 5 --retry-delay 3 --connect-timeout 30 --max-time 240 "$base/$file" -o "public/$file"
           done
       - name: Commit synchronized assets
@@ -28,7 +28,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/engineering-query.html public/engineering-records.js public/service-worker.js public/developed-calculator.html public/m-calculator.html
+          git add public/engineering-query.html public/nail-data.js public/engineering-records.js public/service-worker.js public/developed-calculator.html public/m-calculator.html
           if git diff --cached --quiet; then
             echo "Assets are already current."
           else
