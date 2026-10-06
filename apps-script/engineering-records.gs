@@ -16,8 +16,19 @@ function engineeringRecordsResponse_(payload) {
   try {
     var action = String(payload && payload.action || '');
     var result;
-    if (action === 'engineeringRecords.search') {
+    if (action === 'engineeringRecords.folders') {
+      result = engineeringRecordsFolders_();
+    } else if (action === 'engineeringRecords.settings.get') {
+      result = engineeringRecordsSettings_();
+    } else if (action === 'engineeringRecords.settings.save') {
+      engineeringRecordsVerifyGoogleUser_(payload.idToken);
+      result = engineeringRecordsSaveSettings_(payload.includedFolders);
+    } else if (action === 'engineeringRecords.search') {
       result = engineeringRecordsSearch_(payload.query);
+    } else if (action === 'engineeringRecords.catalog') {
+      result = engineeringRecordsCatalog_();
+    } else if (action === 'engineeringRecords.batchRead') {
+      result = engineeringRecordsBatchRead_(payload.ids);
     } else if (action === 'engineeringRecords.read') {
       result = engineeringRecordsRead_(payload.id);
     } else if (action === 'engineeringRecords.image') {
@@ -34,10 +45,58 @@ function engineeringRecordsResponse_(payload) {
   }
 }
 
+function engineeringRecordsFolders_() {
+  var root = DriveApp.getFolderById(ENGINEERING_RECORDS_ROOT_FOLDER_ID_);
+  var queue = [{ folder: root, path: '' }];
+  var paths = [];
+  var seen = {};
+  while (queue.length && paths.length < 500) {
+    var current = queue.shift();
+    var children = current.folder.getFolders();
+    while (children.hasNext() && paths.length < 500) {
+      var folder = children.next();
+      var id = folder.getId();
+      if (seen[id] || folder.isTrashed()) continue;
+      seen[id] = true;
+      var name = folder.getName();
+      if (name.charAt(0) === '.' || /^(node_modules|附件資料夾|Markdown查詢工具)$/i.test(name)) continue;
+      var path = current.path ? current.path + '/' + name : name;
+      paths.push(path);
+      queue.push({ folder: folder, path: path });
+    }
+  }
+  paths.sort(function(a, b) { return a.localeCompare(b, 'zh-TW', { numeric: true }); });
+  return { folders: paths };
+}
+
+function engineeringRecordsSettings_() {
+  var saved = PropertiesService.getScriptProperties().getProperty('ENGINEERING_RECORDS_INCLUDED_FOLDERS');
+  var folders;
+  try { folders = JSON.parse(saved || '[]'); } catch (error) { folders = []; }
+  return { includedFolders: Array.isArray(folders) ? folders : [] };
+}
+
+function engineeringRecordsSaveSettings_(raw) {
+  if (!Array.isArray(raw)) throw new Error('搜尋資料夾設定不正確。');
+  engineeringRecordsIncludedFolders_(raw);
+  var seen = {};
+  var folders = raw.map(function (value) {
+    return value.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/{2,}/g, '/');
+  }).filter(function (value) {
+    if (!value || seen[value.toLowerCase()]) return false;
+    seen[value.toLowerCase()] = true;
+    return true;
+  });
+  PropertiesService.getScriptProperties().setProperty('ENGINEERING_RECORDS_INCLUDED_FOLDERS', JSON.stringify(folders));
+  return { includedFolders: folders };
+}
+
 function engineeringRecordsSearch_(rawQuery) {
   var query = String(rawQuery || '').trim();
   if (!query) throw new Error('請輸入搜尋關鍵字。');
   if (query.length > 120) throw new Error('搜尋文字過長。');
+  var sharedSettings = engineeringRecordsSettings_();
+  var includedFolders = engineeringRecordsIncludedFolders_(sharedSettings.includedFolders);
   var terms = engineeringRecordsTerms_(query);
   var driveQuery = "trashed = false";
   terms.forEach(function(term) {
@@ -56,6 +115,7 @@ function engineeringRecordsSearch_(rawQuery) {
     if (!engineeringRecordsIsMarkdown_(file)) continue;
     var location = engineeringRecordsLocation_(file, folderCache);
     if (!location.inRoot) continue;
+    if (!engineeringRecordsPathIncluded_(location.relativePath, includedFolders)) continue;
 
     var body;
     try { body = file.getBlob().getDataAsString('UTF-8'); } catch (error) { continue; }
@@ -74,13 +134,96 @@ function engineeringRecordsSearch_(rawQuery) {
   }
 
   results.sort(function(a, b) {
-    var aName = terms.some(function(term) { return a.name.toLowerCase().indexOf(term.toLowerCase()) >= 0; }) ? 1 : 0;
-    var bName = terms.some(function(term) { return b.name.toLowerCase().indexOf(term.toLowerCase()) >= 0; }) ? 1 : 0;
-    if (aName !== bName) return bName - aName;
-    if (a.matchCount !== b.matchCount) return b.matchCount - a.matchCount;
-    return b.modifiedTime.localeCompare(a.modifiedTime);
+    return b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' }) || b.id.localeCompare(a.id);
   });
-  return { query: query, terms: terms, results: results, count: results.length };
+  return { query: query, terms: terms, results: results, count: results.length, includedFolders: sharedSettings.includedFolders };
+}
+
+// One Drive traversal per refresh, rather than one traversal for every keystroke.
+function engineeringRecordsCatalog_() {
+  var sharedSettings = engineeringRecordsSettings_();
+  var included = engineeringRecordsIncludedFolders_(sharedSettings.includedFolders);
+  var queue = [{ folder: DriveApp.getFolderById(ENGINEERING_RECORDS_ROOT_FOLDER_ID_), path: '' }];
+  var seenFolders = {};
+  var seenFiles = {};
+  var records = [];
+  var visited = 0;
+  while (queue.length && visited < 500 && records.length < 1500) {
+    var current = queue.shift();
+    var folderId = current.folder.getId();
+    if (seenFolders[folderId]) continue;
+    seenFolders[folderId] = true;
+    visited++;
+    if (!included.length || included.some(function(rule) {
+      var path = current.path.toLowerCase();
+      return path === rule || path.indexOf(rule + '/') === 0;
+    })) {
+      var files = current.folder.getFiles();
+      while (files.hasNext() && records.length < 1500) {
+        var file = files.next();
+        var id = file.getId();
+        if (seenFiles[id] || file.isTrashed() || !engineeringRecordsIsMarkdown_(file)) continue;
+        seenFiles[id] = true;
+        records.push({
+          id: id, name: file.getName(),
+          relativePath: (current.path ? current.path + '/' : '') + file.getName(),
+          modifiedTime: file.getLastUpdated().toISOString()
+        });
+      }
+    }
+    var children = current.folder.getFolders();
+    while (children.hasNext() && visited + queue.length < 500) {
+      var child = children.next();
+      if (child.isTrashed() || engineeringRecordsIgnoredFolder_(child.getName()) || child.getName().charAt(0) === '.') continue;
+      var path = current.path ? current.path + '/' + child.getName() : child.getName();
+      var lower = path.toLowerCase();
+      if (included.length && !included.some(function(rule) {
+        return rule === lower || rule.indexOf(lower + '/') === 0 || lower.indexOf(rule + '/') === 0;
+      })) continue;
+      queue.push({ folder: child, path: path });
+    }
+  }
+  if (queue.length || records.length >= 1500) throw new Error('工程筆記數量超過預載上限，請縮小搜尋資料夾。');
+  records.sort(function(a, b) { return b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' }); });
+  return { records: records, includedFolders: sharedSettings.includedFolders };
+}
+
+function engineeringRecordsBatchRead_(rawIds) {
+  if (!Array.isArray(rawIds) || !rawIds.length || rawIds.length > 8 ||
+      rawIds.some(function(id) { return typeof id !== 'string' || !/^[\w-]{10,100}$/.test(id); })) {
+    throw new Error('批次讀取的檔案清單不正確。');
+  }
+  var records = [];
+  var missingIds = [];
+  rawIds.forEach(function(id) {
+    try { records.push(engineeringRecordsRead_(id).record); }
+    catch (error) { missingIds.push(id); }
+  });
+  return { records: records, missingIds: missingIds };
+}
+
+function engineeringRecordsIncludedFolders_(raw) {
+  if (raw == null) return [];
+  if (!Array.isArray(raw) || raw.length > 30) throw new Error('搜尋資料夾設定不正確。');
+  var seen = {};
+  return raw.map(function (value) {
+    if (typeof value !== 'string' || value.length > 120) throw new Error('搜尋資料夾設定不正確。');
+    return value.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/{2,}/g, '/').toLowerCase();
+  }).filter(function (value) {
+    if (!value || seen[value]) return false;
+    seen[value] = true;
+    return true;
+  });
+}
+
+function engineeringRecordsPathIncluded_(relativePath, includedFolders) {
+  if (!includedFolders.length) return true;
+  var parts = String(relativePath || '').split('/');
+  parts.pop();
+  var folderPath = parts.join('/').toLowerCase();
+  return includedFolders.some(function (rule) {
+    return folderPath === rule || folderPath.indexOf(rule + '/') === 0;
+  });
 }
 
 function engineeringRecordsRead_(rawId) {
