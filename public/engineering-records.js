@@ -39,6 +39,7 @@
   var imageCache = {};
   var exclusionKey = 'engineeringRecordsExcludedFoldersV1';
   var excludedFolders = [];
+  var folderPaths = null;
   var searchVersion = 0;
 
   if (!queryInput || !searchButton || !summaryButton || !list || !preview) return;
@@ -61,34 +62,50 @@
   try { excludedFolders = normalizeExclusions(JSON.parse(localStorage.getItem(exclusionKey) || '[]')); } catch (error) {}
   updateExcludeButton();
 
-  function showExcludeSettings() {
+  function renderFolderOptions() {
+    excludeSuggestions.replaceChildren();
+    var selected = normalizeExclusions(excludeInput.value.split('\n'));
+    var names = (folderPaths || []).concat(selected.filter(function (name) {
+      return !folderPaths || folderPaths.indexOf(name) < 0;
+    }));
+    if (!names.length) {
+      excludeSuggestions.textContent = '此資料夾下沒有可選的子資料夾。';
+      return;
+    }
+    names.forEach(function (name) {
+      var label = document.createElement('label');
+      label.className = 'engineering-records-folder-option';
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = name;
+      checkbox.checked = selected.indexOf(name) >= 0;
+      checkbox.addEventListener('change', function () {
+        var values = normalizeExclusions(excludeInput.value.split('\n'));
+        values = values.filter(function (value) { return value !== name; });
+        if (checkbox.checked) values.push(name);
+        excludeInput.value = values.join('\n');
+      });
+      var title = document.createElement('span');
+      title.textContent = name;
+      label.appendChild(checkbox);
+      label.appendChild(title);
+      excludeSuggestions.appendChild(label);
+    });
+  }
+
+  async function showExcludeSettings() {
     excludeInput.value = excludedFolders.join('\n');
     excludeError.textContent = '';
-    excludeSuggestions.replaceChildren();
-    var folders = {};
-    results.forEach(function (record) {
-      var parts = String(record.relativePath || '').split('/');
-      parts.pop();
-      for (var i = 1; i <= parts.length; i++) folders[parts.slice(0, i).join('/')] = true;
-    });
-    var names = Object.keys(folders).sort(function (a, b) { return a.localeCompare(b, 'zh-TW'); }).slice(0, 30);
-    if (names.length) {
-      var label = document.createElement('p');
-      label.textContent = '從目前搜尋結果加入：';
-      excludeSuggestions.appendChild(label);
-      names.forEach(function (name) {
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'engineering-records-folder-option';
-        button.textContent = name;
-        button.addEventListener('click', function () {
-          excludeInput.value = normalizeExclusions(excludeInput.value.split('\n').concat(name)).join('\n');
-        });
-        excludeSuggestions.appendChild(button);
-      });
-    }
+    excludeSuggestions.textContent = folderPaths ? '' : '正在載入資料夾…';
     excludeDialog.showModal();
-    excludeInput.focus();
+    if (folderPaths) { renderFolderOptions(); return; }
+    try {
+      var response = await request({ action: 'engineeringRecords.folders' });
+      folderPaths = Array.isArray(response.folders) ? response.folders : [];
+      if (excludeDialog.open) renderFolderOptions();
+    } catch (error) {
+      if (excludeDialog.open) excludeSuggestions.textContent = '資料夾載入失敗，仍可手動輸入路徑。';
+    }
   }
 
   function saveExcludeSettings() {
@@ -519,6 +536,11 @@
   });
   closeDialog.addEventListener('click', function () { dialog.close(); });
   excludeButton.addEventListener('click', showExcludeSettings);
+  excludeInput.addEventListener('input', function () {
+    excludeSuggestions.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
+      checkbox.checked = normalizeExclusions(excludeInput.value.split('\n')).indexOf(checkbox.value) >= 0;
+    });
+  });
   excludeSave.addEventListener('click', saveExcludeSettings);
   excludeCancel.addEventListener('click', function () { excludeDialog.close(); });
   dialog.addEventListener('click', function (event) {
