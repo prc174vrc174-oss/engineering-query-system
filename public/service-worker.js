@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v197-records-d1-2';
+const CACHE_NAME = 'engineering-query-pwa-v198-d1-only';
 const APP_SHELL = [
   './',
   './engineering-query.html',
@@ -8,7 +8,6 @@ const APP_SHELL = [
   './nail-excel-upload.js',
   './nail-data.js',
   './common-words.js',
-  './engineering-records.js',
   './engineering-records-d1.js',
   './favicon.svg',
   './app-icon-192.png',
@@ -17,6 +16,8 @@ const APP_SHELL = [
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
+  // Remove the retired browser full-text cache when this update installs.
+  if (self.indexedDB) self.indexedDB.deleteDatabase('engineering-records-cache-v2');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => Promise.allSettled(APP_SHELL.map((path) => cache.add(path))))

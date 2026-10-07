@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v197/);
+  assert.match(serviceWorker, /engineering-query-pwa-v198/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -489,55 +489,67 @@ test("special symbols tab copies the Notion symbol collection", async () => {
   assert.match(source, /current === 'symbols'[\s\S]*?data-sys="die-setup"/);
 });
 
-test("engineering records search and Gemini summary are integrated", async () => {
-  const source = await readFile(
-    new URL("../public/engineering-query.html", import.meta.url),
-    "utf8",
-  );
-  const client = await readFile(
-    new URL("../public/engineering-records.js", import.meta.url),
-    "utf8",
-  );
-  const route = await readFile(
-    new URL("../app/api/engineering-records/route.ts", import.meta.url),
-    "utf8",
-  );
-  const appsScript = await readFile(
-    new URL("../apps-script/engineering-records.gs", import.meta.url),
-    "utf8",
-  );
-  const serviceWorker = await readFile(
-    new URL("../public/service-worker.js", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(source, /data-sys="engineering-records">工程紀錄<\/button>/);
-  assert.match(source, /id="engineering-records-panel"/);
-  assert.match(source, /id="engineeringRecordsSummaryBtn"[^>]*>Gemini 摘要<\/button>/);
-  assert.match(source, /<script src="engineering-records\.js"><\/script>/);
-  assert.match(client, /engineeringRecords\.search/);
-  assert.match(client, /engineeringRecords\.read/);
-  assert.match(client, /engineeringRecords\.summarize/);
-  assert.match(client, /idToken: idToken/);
-  assert.match(route, /engineeringRecords\.summarize/);
-  assert.match(appsScript, /ENGINEERING_RECORDS_ROOT_FOLDER_ID_ = '1wKASN7T_XbpvnRWn-V9nm8g0XJ8NS6N7'/);
-  assert.match(appsScript, /getProperty\('GEMINI_API_KEY'\)/);
-  assert.match(appsScript, /generativelanguage\.googleapis\.com\/v1beta\/interactions/);
-  assert.match(appsScript, /model: 'gemini-3\.5-flash-lite'/);
-  assert.match(serviceWorker, /engineering-query-pwa-v197/);
-  assert.match(serviceWorker, /\.\/engineering-records\.js/);
-});
-
-test("D1 engineering records are separate from the original search", async () => {
+test("D1 is the only engineering records surface", async () => {
   const html = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
   const client = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
-  const route = await readFile(new URL("../app/api/engineering-records-d1/route.ts", import.meta.url), "utf8");
-  const seed = JSON.parse(await readFile(new URL("../db/engineering-records-seed.json", import.meta.url), "utf8"));
+  const route = await readFile(new URL("../app/api/engineering-records-drive/route.ts", import.meta.url), "utf8");
   assert.match(html, /data-sys="engineering-records-d1">工程紀錄 D1<\/button>/);
-  assert.match(html, /id="engineering-records-d1-panel"/);
-  assert.match(html, /<script src="engineering-records-d1\.js"><\/script>/);
+  assert.doesNotMatch(html, /id="engineering-records-panel"|data-sys="engineering-records"|src="engineering-records\.js"|engineeringRecordsExclude/);
+  assert.match(html, /id="d1RecordsSettingsDialog"/);
   assert.match(client, /api\/engineering-records-d1/);
-  assert.match(route, /refreshEngineeringD1/);
-  assert.equal(seed.records.length, 342);
-  assert.ok(seed.records.every((record) => typeof record.content === "string"));
+  assert.match(client, /renderMarkdown\(result.record.content/);
+  assert.match(client, /engineeringRecords\.settings.save/);
+  assert.match(client, /engineeringRecords\.summarize/);
+  assert.doesNotMatch(client, /loadStaticSnapshot|cachedRecords|activateEngineeringRecords\(/);
+  assert.doesNotMatch(route, /engineeringRecords\.(search|read|catalog|batchRead)/);
+});
+
+test("D1 client searches, renders full text and opens its own folder settings", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
+  class Element {
+    constructor() { this.children = []; this.value = ''; this.textContent = ''; this.listeners = {}; }
+    replaceChildren(...nodes) { this.children = nodes; }
+    append(...nodes) { this.children.push(...nodes); }
+    appendChild(node) { this.children.push(node); }
+    setAttribute(name, value) { this[name] = value; }
+    addEventListener(name, callback) { this.listeners[name] = callback; }
+    showModal() { this.open = true; }
+    close() { this.open = false; }
+    querySelectorAll() { return []; }
+  }
+  const elements = new Map([...html.matchAll(/id="(d1Records[^"]+)"/g)].map((m) => [m[1], new Element()]));
+  const requests = [];
+  const note = { id: 'record123456789', name: '10239.md', relativePath: '工程/10239.md', content: '# 德承\n- 沙拉孔', modifiedTime: '2026-10-07' };
+  const window = {};
+  const document = {
+    getElementById: (id) => { assert.ok(elements.has(id), `Missing ${id}`); return elements.get(id); },
+    createElement: () => new Element(), createDocumentFragment: () => new Element(),
+    createTextNode: (text) => Object.assign(new Element(), { textContent: text }),
+  };
+  runInNewContext(source, {
+    window, document, location: { hostname: 'prc174vrc174-oss.github.io' },
+    URL, Intl, Date, setTimeout, clearTimeout,
+    fetch: async (url, options) => {
+      const action = options?.body ? JSON.parse(options.body).action : new URL(url).searchParams.get('action');
+      requests.push({ url, action });
+      const value = action === 'search' ? { results: [note] } : action === 'read' ? { record: note } : action === 'engineeringRecords.folders' ? { folders: ['工程', '.hidden'] } : { total: 350, includedFolders: ['工程'], changed: 0 };
+      return { ok: true, json: async () => ({ ok: true, ...value }) };
+    },
+  });
+  await window.activateEngineeringRecordsD1();
+  const query = elements.get('d1RecordsQuery'); query.value = '10239';
+  query.listeners.keydown({ key: 'Enter', preventDefault() {} });
+  await new Promise((resolve) => setImmediate(resolve));
+  const item = elements.get('d1RecordsList').children[0].children[0];
+  item.children[1].onclick();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(elements.get('d1RecordsDialog').open, true);
+  assert.ok(elements.get('d1RecordsPreview').children.length > 0);
+  await elements.get('d1RecordsFolders').onclick();
+  assert.equal(elements.get('d1RecordsSettingsDialog').open, true);
+  assert.equal(elements.get('d1RecordsSettingsInput').value, '工程');
+  assert.equal(elements.get('d1RecordsSettingsSuggestions').children.length, 1);
+  assert.ok(requests.some((r) => r.action === 'read' && r.url.includes('/api/engineering-records-d1')));
+  assert.ok(requests.some((r) => r.action === 'engineeringRecords.folders' && r.url.includes('/api/engineering-records-drive')));
 });

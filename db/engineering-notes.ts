@@ -1,5 +1,4 @@
 import { env } from "cloudflare:workers";
-import snapshot from "./engineering-records-seed.json";
 
 type Note = { id: string; name: string; relativePath: string; modifiedTime: string; content: string };
 type Meta = { id: string; modifiedTime: string };
@@ -23,22 +22,7 @@ async function batches(db: D1Database, statements: D1PreparedStatement[]) {
   for (let i = 0; i < statements.length; i += 20) await db.batch(statements.slice(i, i + 20));
 }
 
-// The published snapshot is the initial import only. Later Drive syncs own the D1 rows.
-export async function ensureEngineeringSeed() {
-  const db = database();
-  const seeded = await db.prepare("SELECT value FROM engineering_sync WHERE key = 'seeded'").first<{ value: string }>();
-  if (seeded) return;
-  await batches(db, (snapshot.records as Note[]).map((note) => upsert(db, note)));
-  await db.batch([
-    db.prepare("INSERT OR IGNORE INTO engineering_sync (key, value, updated_at) VALUES ('seeded', ?, ?)")
-      .bind(snapshot.generatedAt, Date.now()),
-    db.prepare("INSERT OR IGNORE INTO engineering_sync (key, value, updated_at) VALUES ('folders', ?, ?)")
-      .bind(JSON.stringify(snapshot.includedFolders), Date.now()),
-  ]);
-}
-
 export async function engineeringStatus() {
-  await ensureEngineeringSeed();
   const db = database();
   const [count, settings] = await Promise.all([
     db.prepare("SELECT COUNT(*) AS total FROM engineering_notes").first<{ total: number }>(),
@@ -51,7 +35,6 @@ export async function engineeringStatus() {
 }
 
 export async function searchEngineeringD1(query: string) {
-  await ensureEngineeringSeed();
   const terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map((s) => s.trim().toLowerCase())
     .filter((s) => s && (s.length >= 2 || /^\d+$/.test(s))).slice(0, 6);
   if (!terms.length) terms.push(query.toLowerCase());
@@ -67,7 +50,6 @@ export async function searchEngineeringD1(query: string) {
 }
 
 export async function readEngineeringD1(id: string) {
-  await ensureEngineeringSeed();
   return database().prepare(`SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime, content
     FROM engineering_notes WHERE id = ?`).bind(id).first<Note>();
 }
@@ -85,12 +67,18 @@ async function drive(action: string, extra: Record<string, unknown> = {}) {
 }
 
 export async function refreshEngineeringD1(force: boolean) {
-  await ensureEngineeringSeed();
   const db = database();
   const now = Date.now();
   const last = await db.prepare("SELECT updated_at FROM engineering_sync WHERE key = 'last_sync'")
     .first<{ updated_at: number }>();
-  if (last && now - last.updated_at < (force ? 30_000 : 10 * 60_000)) {
+  // A newly saved folder selection must sync even during the reload cooldown.
+  let foldersChanged = false;
+  if (force && last && now - last.updated_at < 30_000) {
+    const settings = await drive("engineeringRecords.settings.get");
+    const current = await engineeringStatus();
+    foldersChanged = JSON.stringify(settings.includedFolders || []) !== JSON.stringify(current.includedFolders);
+  }
+  if (!foldersChanged && last && now - last.updated_at < (force ? 30_000 : 10 * 60_000)) {
     return { ...(await engineeringStatus()), changed: 0, skipped: true };
   }
   await db.prepare("INSERT OR IGNORE INTO engineering_sync (key, value, updated_at) VALUES ('lock', '0', 0)").run();

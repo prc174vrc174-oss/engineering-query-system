@@ -37,23 +37,24 @@ export async function POST(request: Request) {
   }
   const action = typeof payload.action === "string" ? payload.action : "";
   const allowed = new Set([
-    "engineeringRecords.search",
-    "engineeringRecords.read",
+    "engineeringRecords.folders",
+    "engineeringRecords.settings.get",
+    "engineeringRecords.settings.save",
     "engineeringRecords.image",
     "engineeringRecords.summarize",
   ]);
   if (!allowed.has(action)) {
     return json(request, { ok: false, error: "不支援的工程紀錄操作。" }, 400);
   }
-  if (action === "engineeringRecords.search") {
-    const query = typeof payload.query === "string" ? payload.query.trim() : "";
-    if (!query || query.length > 120) {
-      return json(request, { ok: false, error: "請輸入 1～120 個字元的搜尋內容。" }, 400);
+  if (action === "engineeringRecords.settings.save") {
+    if (typeof payload.idToken !== "string" || !payload.idToken) {
+      return json(request, { ok: false, error: "請先使用允許的 Google 帳號登入。" }, 401);
     }
-    payload.query = query;
-  }
-  if (action === "engineeringRecords.read" && typeof payload.id !== "string") {
-    return json(request, { ok: false, error: "找不到要開啟的工程紀錄。" }, 400);
+    const folders = payload.includedFolders ?? [];
+    if (!Array.isArray(folders) || folders.length > 30 || folders.some((folder) => typeof folder !== "string" || folder.length > 120)) {
+      return json(request, { ok: false, error: "搜尋資料夾設定不正確。" }, 400);
+    }
+    payload.includedFolders = folders;
   }
   if (action === "engineeringRecords.image" && (typeof payload.id !== "string" || typeof payload.name !== "string")) {
     return json(request, { ok: false, error: "圖片參照不正確。" }, 400);

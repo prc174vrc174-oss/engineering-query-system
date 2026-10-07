@@ -23,8 +23,7 @@ function engineeringRecordsResponse_(payload) {
     } else if (action === 'engineeringRecords.settings.save') {
       engineeringRecordsVerifyGoogleUser_(payload.idToken);
       result = engineeringRecordsSaveSettings_(payload.includedFolders);
-    } else if (action === 'engineeringRecords.search') {
-      result = engineeringRecordsSearch_(payload.query);
+
     } else if (action === 'engineeringRecords.catalog') {
       result = engineeringRecordsCatalog_();
     } else if (action === 'engineeringRecords.batchRead') {
@@ -91,55 +90,6 @@ function engineeringRecordsSaveSettings_(raw) {
   return { includedFolders: folders };
 }
 
-function engineeringRecordsSearch_(rawQuery) {
-  var query = String(rawQuery || '').trim();
-  if (!query) throw new Error('請輸入搜尋關鍵字。');
-  if (query.length > 120) throw new Error('搜尋文字過長。');
-  var sharedSettings = engineeringRecordsSettings_();
-  var includedFolders = engineeringRecordsIncludedFolders_(sharedSettings.includedFolders);
-  var terms = engineeringRecordsTerms_(query);
-  var driveQuery = "trashed = false";
-  terms.forEach(function(term) {
-    driveQuery += " and fullText contains '" + engineeringRecordsEscapeQuery_(term) + "'";
-  });
-
-  var files = DriveApp.searchFiles(driveQuery);
-  var results = [];
-  var seen = {};
-  var folderCache = {};
-  while (files.hasNext() && results.length < ENGINEERING_RECORDS_MAX_RESULTS_) {
-    var file = files.next();
-    var id = file.getId();
-    if (seen[id]) continue;
-    seen[id] = true;
-    if (!engineeringRecordsIsMarkdown_(file)) continue;
-    var location = engineeringRecordsLocation_(file, folderCache);
-    if (!location.inRoot) continue;
-    if (!engineeringRecordsPathIncluded_(location.relativePath, includedFolders)) continue;
-
-    var body;
-    try { body = file.getBlob().getDataAsString('UTF-8'); } catch (error) { continue; }
-    var name = file.getName();
-    var verified = engineeringRecordsMatch_(name, body, terms);
-    if (!verified.matched) continue;
-    results.push({
-      id: id,
-      name: name,
-      relativePath: location.relativePath,
-      lineNumber: verified.lineNumber,
-      matchCount: verified.matchCount,
-      snippet: verified.snippet,
-      modifiedTime: file.getLastUpdated().toISOString()
-    });
-  }
-
-  results.sort(function(a, b) {
-    return b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' }) || b.id.localeCompare(a.id);
-  });
-  return { query: query, terms: terms, results: results, count: results.length, includedFolders: sharedSettings.includedFolders };
-}
-
-// One Drive traversal per refresh, rather than one traversal for every keystroke.
 function engineeringRecordsCatalog_() {
   var sharedSettings = engineeringRecordsSettings_();
   var included = engineeringRecordsIncludedFolders_(sharedSettings.includedFolders);
@@ -367,45 +317,6 @@ function engineeringRecordsGeminiText_(data) {
   return chunks.map(function(value) { return String(value || '').trim(); }).filter(String).join('\n').trim();
 }
 
-function engineeringRecordsTerms_(query) {
-  var values = query.split(/[\s，。；、？！?：:（）()／/]+/).map(function(value) {
-    return String(value || '').trim();
-  }).filter(function(value) { return value && (value.length >= 2 || /^\d+$/.test(value)); });
-  var unique = [];
-  values.forEach(function(value) {
-    if (unique.indexOf(value) < 0 && unique.length < 6) unique.push(value);
-  });
-  if (!unique.length) unique.push(query);
-  return unique;
-}
-
-function engineeringRecordsMatch_(name, body, terms) {
-  var nameLower = String(name || '').toLowerCase();
-  var bodyLower = String(body || '').toLowerCase();
-  var matched = terms.every(function(term) {
-    var value = term.toLowerCase();
-    return nameLower.indexOf(value) >= 0 || bodyLower.indexOf(value) >= 0;
-  });
-  if (!matched) return { matched: false };
-  var lines = String(body || '').split(/\r?\n/);
-  var firstLine = 0;
-  var snippet = '檔名相符';
-  var count = 0;
-  lines.forEach(function(line, index) {
-    var lower = line.toLowerCase();
-    var hit = terms.some(function(term) { return lower.indexOf(term.toLowerCase()) >= 0; });
-    if (!hit) return;
-    count += 1;
-    if (!firstLine) {
-      firstLine = index + 1;
-      snippet = line.trim() || '內文相符';
-      if (snippet.length > 180) snippet = snippet.substring(0, 180) + '…';
-    }
-  });
-  if (count > 1) snippet += '（共 ' + count + ' 處命中）';
-  return { matched: true, lineNumber: firstLine, matchCount: Math.max(1, count), snippet: snippet };
-}
-
 function engineeringRecordsLocation_(file, cache) {
   var queue = [];
   var parents = file.getParents();
@@ -437,10 +348,6 @@ function engineeringRecordsIsMarkdown_(file) {
 
 function engineeringRecordsIgnoredFolder_(name) {
   return /^(\.git|\.obsidian|\.smart-env|\.trash|\.codex|\.agents|\.claude|\.claudian|\.copilot|\.opencode|\.vscode|node_modules|附件資料夾|Markdown查詢工具|copilot|copilot-conversations)$/i.test(String(name || ''));
-}
-
-function engineeringRecordsEscapeQuery_(value) {
-  return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 function engineeringRecordsVerifyGoogleUser_(idToken) {
