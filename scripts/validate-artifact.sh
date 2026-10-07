@@ -19,7 +19,7 @@ hosting="${SITES_PROJECT_ROOT}/dist/.openai/hosting.json"
   exit 66
 }
 
-node --input-type=module - "${worker}" "${hosting}" <<'NODE'
+node --no-warnings --loader "${SITES_PROJECT_ROOT}/scripts/cloudflare-validation-loader.mjs" --input-type=module - "${worker}" "${hosting}" <<'NODE'
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 

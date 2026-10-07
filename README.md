@@ -99,6 +99,25 @@ notes immediately, then checks Drive for newer files in the background. If the
 shared folder selection expands beyond the snapshot, regenerate and publish it
 to retain fast first-load search for those folders.
 
+## Engineering records D1 test tab
+
+The separate **工程紀錄 D1** tab queries the shared Sites D1 database through
+`/api/engineering-records-d1`; GitHub Pages calls the same API on the Sites
+domain. The original 工程紀錄 tab and its browser cache are unchanged. The first
+D1 request imports the 342-note public snapshot from
+`db/engineering-records-seed.json`. Later tab openings check the Drive catalog
+in the background (at most once per ten minutes), and the tab's reload button
+requests an immediate check. Changed notes are reread; removed notes are
+deleted from D1 after the catalog and changed content have loaded successfully.
+The folder button opens the original tab's shared folder settings. Gemini
+summaries still use its existing Google sign-in and Drive-backed API.
+
+The D1 migration lives in `drizzle/0000_lively_nebula.sql` and is applied by
+Sites before deploying the Worker. To refresh the initial import for a new
+database, regenerate the public snapshot and then regenerate
+`db/engineering-records-seed.json` from the same snapshot; an existing D1
+database receives subsequent changes via Drive sync instead.
+
 ## Diagnostic Commands
 
 - `npm run install:ci`: perform the one bounded lockfile install

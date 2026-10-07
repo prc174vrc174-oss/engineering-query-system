@@ -3457,6 +3457,7 @@ h3 {
                 <button class="tab-btn" data-sys="die-setup">配模計算</button>
                 <button class="tab-btn" data-sys="symbols">字元符號</button>
                 <button class="tab-btn" data-sys="engineering-records">工程紀錄</button>
+                <button class="tab-btn" data-sys="engineering-records-d1">工程紀錄 D1</button>
             </nav>
         </div>
 <span class="site-version" aria-label="網站版次 Version 195 測試">Version 195 測試</span>
@@ -4330,6 +4331,42 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                     <p id="engineeringRecordsPreviewMeta"></p>
                 </div><button id="engineeringRecordsDialogClose" class="engineering-records-btn engineering-records-dialog-close" type="button">關閉</button></div>
                 <article id="engineeringRecordsPreview" class="engineering-records-preview">選取檔名後，這裡會顯示完整 Markdown 內容。</article>
+            </dialog>
+        </main>
+    </div>
+    <!-- D1 version has its own controls and API; the existing Drive/snapshot tab remains intact. -->
+    <div id="engineering-records-d1-panel" class="sys-panel" style="display:none">
+        <main class="engineering-records-shell">
+            <header class="engineering-records-header">
+                <h2 class="engineering-records-title">工程紀錄 D1</h2>
+                <p class="engineering-records-subtitle">各台電腦共用資料庫；輸入關鍵字即搜尋檔名與全文。</p>
+            </header>
+            <section class="engineering-records-toolbar" aria-label="D1 工程紀錄搜尋">
+                <div class="engineering-records-controls">
+                    <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" aria-label="搜尋 D1 工程紀錄" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
+                    <button id="d1RecordsReload" class="engineering-records-btn" type="button">🔄 重新載入</button>
+                    <button id="d1RecordsGemini" class="engineering-records-btn is-ai" type="button" disabled>Gemini 摘要</button>
+                    <button id="d1RecordsFolders" class="engineering-records-btn" type="button">搜尋資料夾</button>
+                </div>
+                <div id="d1RecordsGoogleButton" class="engineering-records-google"></div>
+                <div id="d1RecordsStatus" class="engineering-records-status" role="status" aria-live="polite"></div>
+            </section>
+            <div class="engineering-records-tabs" role="tablist" aria-label="D1 工程紀錄檢視">
+                <button id="d1RecordsResultsTab" class="engineering-records-tab" type="button" role="tab" aria-selected="true">搜尋結果</button>
+                <button id="d1RecordsSummaryTab" class="engineering-records-tab" type="button" role="tab" aria-selected="false">Gemini 摘要</button>
+            </div>
+            <section id="d1RecordsResultsView" class="engineering-records-view engineering-records-results" role="tabpanel">
+                <div id="d1RecordsList" class="engineering-records-list"><div class="engineering-records-empty">輸入關鍵字即可搜尋。</div></div>
+            </section>
+            <section id="d1RecordsSummaryView" class="engineering-records-view engineering-records-summary-card" role="tabpanel" hidden>
+                <div class="engineering-records-preview-head"><h3>Gemini 摘要</h3></div>
+                <pre id="d1RecordsSummary" class="engineering-records-preview" aria-live="polite">勾選搜尋結果後，按「Gemini 摘要」。</pre>
+            </section>
+            <dialog id="d1RecordsDialog" class="engineering-records-dialog" aria-labelledby="d1RecordsPreviewTitle">
+                <div class="engineering-records-preview-head"><div>
+                    <h3 id="d1RecordsPreviewTitle">內容預覽</h3><p id="d1RecordsPreviewMeta"></p>
+                </div><button id="d1RecordsDialogClose" class="engineering-records-btn engineering-records-dialog-close" type="button">關閉</button></div>
+                <pre id="d1RecordsPreview" class="engineering-records-preview">選取檔名後顯示完整內容。</pre>
             </dialog>
         </main>
     </div>
@@ -6530,7 +6567,8 @@ init();
                 'fold-tool': document.getElementById('fold-tool-panel'),
                 'die-setup': document.getElementById('die-setup-panel'),
                 symbols: document.getElementById('symbols-panel'),
-                'engineering-records': document.getElementById('engineering-records-panel')
+                'engineering-records': document.getElementById('engineering-records-panel'),
+                'engineering-records-d1': document.getElementById('engineering-records-d1-panel')
             };
 
             var symbolGroups = {
@@ -6625,6 +6663,7 @@ init();
                     var target = btn.dataset.sys;
                     if (target === 'nail' && window.activateNailSystem) window.activateNailSystem();
             if (target === 'engineering-records' && window.activateEngineeringRecords) window.activateEngineeringRecords();
+                    if (target === 'engineering-records-d1' && window.activateEngineeringRecordsD1) window.activateEngineeringRecordsD1();
                     try { localStorage.setItem('engineeringActiveTab', target); } catch (e) {}
                     revealActiveTab(btn);
                     
@@ -6681,6 +6720,8 @@ init();
                 else if (dx < 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="die-setup"]');
                 else if (dx < 0 && current === 'die-setup') target = document.querySelector('.tab-btn[data-sys="symbols"]');
                 else if (dx < 0 && current === 'symbols') target = document.querySelector('.tab-btn[data-sys="engineering-records"]');
+                else if (dx < 0 && current === 'engineering-records') target = document.querySelector('.tab-btn[data-sys="engineering-records-d1"]');
+                else if (dx > 0 && current === 'engineering-records-d1') target = document.querySelector('.tab-btn[data-sys="engineering-records"]');
                 else if (dx > 0 && current === 'engineering-records') target = document.querySelector('.tab-btn[data-sys="symbols"]');
                 else if (dx > 0 && current === 'symbols') target = document.querySelector('.tab-btn[data-sys="die-setup"]');
                 else if (dx > 0 && current === 'die-setup') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
@@ -6701,6 +6742,7 @@ init();
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
     <script src="engineering-records.js"></script>
+    <script src="engineering-records-d1.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

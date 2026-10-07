@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v196/);
+  assert.match(serviceWorker, /engineering-query-pwa-v197/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -524,6 +524,20 @@ test("engineering records search and Gemini summary are integrated", async () =>
   assert.match(appsScript, /getProperty\('GEMINI_API_KEY'\)/);
   assert.match(appsScript, /generativelanguage\.googleapis\.com\/v1beta\/interactions/);
   assert.match(appsScript, /model: 'gemini-3\.5-flash-lite'/);
-  assert.match(serviceWorker, /engineering-query-pwa-v196/);
+  assert.match(serviceWorker, /engineering-query-pwa-v197/);
   assert.match(serviceWorker, /\.\/engineering-records\.js/);
+});
+
+test("D1 engineering records are separate from the original search", async () => {
+  const html = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
+  const client = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/engineering-records-d1/route.ts", import.meta.url), "utf8");
+  const seed = JSON.parse(await readFile(new URL("../db/engineering-records-seed.json", import.meta.url), "utf8"));
+  assert.match(html, /data-sys="engineering-records-d1">工程紀錄 D1<\/button>/);
+  assert.match(html, /id="engineering-records-d1-panel"/);
+  assert.match(html, /<script src="engineering-records-d1\.js"><\/script>/);
+  assert.match(client, /api\/engineering-records-d1/);
+  assert.match(route, /refreshEngineeringD1/);
+  assert.equal(seed.records.length, 342);
+  assert.ok(seed.records.every((record) => typeof record.content === "string"));
 });

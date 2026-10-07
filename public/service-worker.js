@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v196-record-snapshot-1';
+const CACHE_NAME = 'engineering-query-pwa-v197-records-d1-1';
 const APP_SHELL = [
   './',
   './engineering-query.html',
@@ -9,6 +9,7 @@ const APP_SHELL = [
   './nail-data.js',
   './common-words.js',
   './engineering-records.js',
+  './engineering-records-d1.js',
   './favicon.svg',
   './app-icon-192.png',
   './app-icon-512.png'
