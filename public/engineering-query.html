@@ -3329,7 +3329,7 @@ h3 {
         .engineering-records-subtitle { margin: 6px 0 0; color: #667085; font-size: 14px; }
         .engineering-records-toolbar {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+            grid-template-columns: auto auto;
             gap: 8px;
             padding: 14px;
             border: 1px solid #d8e0eb;
@@ -3337,6 +3337,7 @@ h3 {
             background: #fff;
             box-shadow: 0 4px 14px rgba(15,23,42,.05);
         }
+        .engineering-records-search-row { grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
         .engineering-records-query {
             min-width: 0;
             height: 42px;
@@ -3437,10 +3438,7 @@ h3 {
             .engineering-records-shell { padding: 14px 12px 30px; }
             .engineering-records-title { font-size: 24px; }
             .engineering-records-toolbar { grid-template-columns: 1fr 1fr; }
-            .engineering-records-query { grid-column: 1 / -1; }
-            .engineering-records-btn.is-primary { grid-column: 1 / 2; }
-            .engineering-records-btn.is-ai { grid-column: 2 / 3; }
-            .engineering-records-btn:not(.is-primary):not(.is-ai) { grid-column: 1 / -1; }
+            .engineering-records-search-row { grid-template-columns:minmax(0,1fr) auto; }
             .engineering-records-list { max-height: 420px; }
 
         }
@@ -4283,17 +4281,18 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <p class="engineering-records-subtitle">搜尋 Google Drive 裡的 Markdown 工程筆記；多個關鍵字採全部符合。</p>
             </header>
             <section class="engineering-records-toolbar" aria-label="工程紀錄搜尋">
-                <input id="engineeringRecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
-                <button id="engineeringRecordsSearchBtn" class="engineering-records-btn is-primary" type="button">搜尋</button>
+                <div class="engineering-records-search-row">
+                    <input id="engineeringRecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" aria-label="搜尋工程紀錄" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
+                    <button id="engineeringRecordsReloadBtn" class="engineering-records-btn" type="button">🔄 重新載入</button>
+                </div>
                 <button id="engineeringRecordsSummaryBtn" class="engineering-records-btn is-ai" type="button" disabled>Gemini 摘要</button>
-                <button id="engineeringRecordsClearBtn" class="engineering-records-btn" type="button">清除</button>
                 <button id="engineeringRecordsExcludeBtn" class="engineering-records-btn" type="button">搜尋資料夾（全部）</button>
                 <div id="engineeringRecordsGoogleButton" class="engineering-records-google"></div>
                 <div id="engineeringRecordsStatus" class="engineering-records-status" role="status" aria-live="polite"></div>
             </section>
             <dialog id="engineeringRecordsExcludeDialog" class="engineering-records-settings" aria-labelledby="engineeringRecordsExcludeTitle">
                 <h3 id="engineeringRecordsExcludeTitle">選擇搜尋資料夾</h3>
-                <p>勾選要搜尋的資料夾，包含其子資料夾；未勾選時搜尋全部。所有電腦共用設定，登入後才能修改。</p>
+                <p>勾選要搜尋的資料夾，包含其子資料夾；未勾選時搜尋全部。所有電腦共用設定，讀取不用登入；修改需登入。</p>
                 <div>選擇資料夾</div>
                 <div id="engineeringRecordsExcludeSuggestions" class="engineering-records-folder-options"></div>
                 <details class="engineering-records-manual">
