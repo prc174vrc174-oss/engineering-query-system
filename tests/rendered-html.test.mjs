@@ -6,6 +6,51 @@ import { runInNewContext } from "node:vm";
 const developmentPreviewMeta =
   /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
 
+test("engineering record folder selections match root-relative subtrees", async () => {
+  const source = await readFile(new URL("../apps-script/engineering-records.gs", import.meta.url), "utf8");
+  const context = {};
+  runInNewContext(source, context);
+  const rules = context.engineeringRecordsIncludedFolders_(["01.每日筆記", "02.主題筆記/舊資料"]);
+  assert.equal(context.engineeringRecordsPathIncluded_("01.每日筆記/2026/記錄.md", rules), true);
+  assert.equal(context.engineeringRecordsPathIncluded_("02.主題筆記/舊資料/子目錄/記錄.md", rules), true);
+  assert.equal(context.engineeringRecordsPathIncluded_("02.主題筆記/新資料/記錄.md", rules), false);
+  assert.equal(context.engineeringRecordsPathIncluded_("02.主題筆記/記錄.md", rules), false);
+  assert.equal(context.engineeringRecordsPathIncluded_("01.每日筆記外/記錄.md", rules), false);
+  assert.equal(context.engineeringRecordsPathIncluded_("任何資料夾/記錄.md", []), true);
+});
+
+test("engineering record folder picker lists root-relative nested folders", async () => {
+  const source = await readFile(new URL("../apps-script/engineering-records.gs", import.meta.url), "utf8");
+  const leaf = { getId: () => "leaf", getName: () => "2026", isTrashed: () => false, getFolders: () => iterator([]) };
+  const child = { getId: () => "child", getName: () => "01.每日筆記", isTrashed: () => false, getFolders: () => iterator([leaf]) };
+  const root = { getFolders: () => iterator([child]) };
+  function iterator(items) {
+    const values = [...items];
+    return { hasNext: () => values.length > 0, next: () => values.shift() };
+  }
+  const context = { DriveApp: { getFolderById: () => root } };
+  runInNewContext(source, context);
+  assert.deepEqual(Array.from(context.engineeringRecordsFolders_().folders), ["01.每日筆記", "01.每日筆記/2026"]);
+});
+
+test("engineering record folder settings are shared through script properties", async () => {
+  const source = await readFile(new URL("../apps-script/engineering-records.gs", import.meta.url), "utf8");
+  const values = new Map();
+  const context = {
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperty: (key) => values.get(key),
+        setProperty: (key, value) => values.set(key, value),
+      }),
+    },
+  };
+  runInNewContext(source, context);
+  assert.deepEqual(Array.from(context.engineeringRecordsSettings_().includedFolders), []);
+  context.engineeringRecordsSaveSettings_(["01.每日筆記", "01.每日筆記"]);
+  assert.deepEqual(Array.from(context.engineeringRecordsSettings_().includedFolders), ["01.每日筆記"]);
+  assert.deepEqual(Array.from(context.engineeringRecordsIncludedFolders_(context.engineeringRecordsSettings_().includedFolders)), ["01.每日筆記"]);
+});
+
 test("renders development preview metadata", async () => {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
@@ -221,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v195/);
+  assert.match(serviceWorker, /engineering-query-pwa-v196/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -479,6 +524,6 @@ test("engineering records search and Gemini summary are integrated", async () =>
   assert.match(appsScript, /getProperty\('GEMINI_API_KEY'\)/);
   assert.match(appsScript, /generativelanguage\.googleapis\.com\/v1beta\/interactions/);
   assert.match(appsScript, /model: 'gemini-3\.5-flash-lite'/);
-  assert.match(serviceWorker, /engineering-query-pwa-v195/);
+  assert.match(serviceWorker, /engineering-query-pwa-v196/);
   assert.match(serviceWorker, /\.\/engineering-records\.js/);
 });

@@ -88,6 +88,17 @@ or enforce explicit server-side membership or allowlist checks.
 Use SIWC for account pages, user-specific dashboards, saved records, and write
 actions tied to the current ChatGPT user. Leave public content anonymous.
 
+## Engineering record snapshot
+
+`python scripts/export-engineering-records.py` regenerates
+`public/engineering-records-data.js` from the folders currently selected in the
+shared engineering-record settings. Publish the resulting file to both sites
+after updating it. This JS file contains the full text of the selected notes
+and is publicly downloadable from either site. The browser displays the bundled
+notes immediately, then checks Drive for newer files in the background. If the
+shared folder selection expands beyond the snapshot, regenerate and publish it
+to retain fast first-load search for those folders.
+
 ## Diagnostic Commands
 
 - `npm run install:ci`: perform the one bounded lockfile install

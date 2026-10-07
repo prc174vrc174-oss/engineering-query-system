@@ -6624,6 +6624,7 @@ init();
                     
                     var target = btn.dataset.sys;
                     if (target === 'nail' && window.activateNailSystem) window.activateNailSystem();
+            if (target === 'engineering-records' && window.activateEngineeringRecords) window.activateEngineeringRecords();
                     try { localStorage.setItem('engineeringActiveTab', target); } catch (e) {}
                     revealActiveTab(btn);
                     

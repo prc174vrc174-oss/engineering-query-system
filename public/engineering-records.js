@@ -50,6 +50,8 @@
   var cacheGeneration = 0;
   var cacheKey = '';
   var lastSyncTime = 0;
+  var staticSnapshot = null;
+  var recordsStarted = false;
 
   if (!queryInput || !summaryButton || !list || !preview) return;
 
@@ -72,6 +74,35 @@
 
   function folderKey(folders) {
     return JSON.stringify(normalizeFolders(folders).map(function (s) { return s.toLowerCase(); }).sort());
+  }
+
+  function loadStaticSnapshot() {
+    return new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.src = './engineering-records-data.js';
+      script.onload = function () {
+        var data = window.ENGINEERING_RECORDS_SNAPSHOT;
+        if (!data || !Array.isArray(data.records)) { reject(new Error('工程紀錄資料檔格式不正確。')); return; }
+        staticSnapshot = data;
+        delete window.ENGINEERING_RECORDS_SNAPSHOT;
+        resolve();
+      };
+      script.onerror = function () { reject(new Error('無法載入工程紀錄資料檔。')); };
+      document.head.appendChild(script);
+    });
+  }
+
+  function staticRecordsForFolders(folders) {
+    if (!staticSnapshot || !folders.length) return null;
+    var exported = normalizeFolders(staticSnapshot.includedFolders).map(function (s) { return s.toLowerCase(); });
+    var selected = normalizeFolders(folders).map(function (s) { return s.toLowerCase(); });
+    if (!selected.every(function (path) {
+      return exported.some(function (root) { return path === root || path.indexOf(root + '/') === 0; });
+    })) return null;
+    return staticSnapshot.records.filter(function (record) {
+      var path = String(record.relativePath || '').toLowerCase();
+      return selected.some(function (root) { return path.indexOf(root + '/') === 0; });
+    });
   }
 
   function openCacheDb() {
@@ -110,13 +141,22 @@
     cacheReady = false;
     cachedRecords = [];
     totalRecords = 0;
+    var bundled = staticRecordsForFolders(includedFolders);
+    var bundledTime = staticSnapshot ? Date.parse(staticSnapshot.generatedAt) || 0 : 0;
+    if (bundled) {
+      cachedRecords = bundled;
+      totalRecords = bundled.length;
+      cacheReady = true;
+      lastSyncTime = bundledTime;
+    }
     try {
       var snapshot = await cacheOperation(key);
       if (cacheKey !== key) return;
-      if (snapshot && Array.isArray(snapshot.records)) {
+      if (snapshot && Array.isArray(snapshot.records) && (!bundled || Number(snapshot.time || 0) > bundledTime)) {
         cachedRecords = snapshot.records;
         lastSyncTime = Number(snapshot.time || 0);
         cacheReady = snapshot.complete !== false;
+        totalRecords = snapshot.records.length;
       }
     } catch (error) { console.warn('讀取工程紀錄快取失敗', error); }
     readyStatus();
@@ -214,8 +254,29 @@
     return settingsLoading;
   }
 
-  loadSharedSettings().then(loadCachedSnapshot).then(refreshRecords)
-    .catch(function () { setStatus('無法載入共用搜尋資料夾設定，請重新整理頁面。', 'error'); });
+  window.activateEngineeringRecords = function () {
+    if (recordsStarted) return;
+    recordsStarted = true;
+    if (reloadButton) reloadButton.disabled = true;
+    setStatus('正在載入工程紀錄資料…', 'loading');
+    var settingsError = null;
+    Promise.all([
+      loadStaticSnapshot().catch(function (error) { console.warn(error.message); }),
+      loadSharedSettings().catch(function (error) { settingsError = error; })
+    ]).then(function () {
+      if (settingsError) {
+        if (!staticSnapshot) throw settingsError;
+        includedFolders = normalizeFolders(staticSnapshot.includedFolders);
+        updateExcludeButton();
+      }
+      return loadCachedSnapshot();
+    }).then(refreshRecords)
+      .catch(function () {
+        if (reloadButton) reloadButton.disabled = false;
+        setStatus('無法載入工程紀錄，請按重新載入。', 'error');
+      });
+  };
+  if (document.querySelector('.tab-btn[data-sys="engineering-records"].active')) window.activateEngineeringRecords();
 
   function renderFolderOptions() {
     excludeSuggestions.replaceChildren();
