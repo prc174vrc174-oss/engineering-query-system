@@ -6,19 +6,9 @@
     : '/api/engineering-records';
   var GOOGLE_CLIENT_ID = '406267166897-8geeu3tpc425nc9n7gmimmmflbckp0ta.apps.googleusercontent.com';
   var queryInput = document.getElementById('engineeringRecordsQuery');
-  var searchButton = document.getElementById('engineeringRecordsSearchBtn');
   var summaryButton = document.getElementById('engineeringRecordsSummaryBtn');
-  var clearButton = document.getElementById('engineeringRecordsClearBtn');
   var excludeButton = document.getElementById('engineeringRecordsExcludeBtn');
   var reloadButton = document.getElementById('engineeringRecordsReloadBtn');
-  if (!reloadButton && excludeButton && excludeButton.parentNode) {
-    reloadButton = document.createElement('button');
-    reloadButton.id = 'engineeringRecordsReloadBtn';
-    reloadButton.className = 'engineering-records-btn';
-    reloadButton.type = 'button';
-    reloadButton.textContent = '🔄 重新載入';
-    excludeButton.parentNode.insertBefore(reloadButton, excludeButton.nextSibling);
-  }
   var excludeDialog = document.getElementById('engineeringRecordsExcludeDialog');
   var excludeInput = document.getElementById('engineeringRecordsExcludeInput');
   var excludeSave = document.getElementById('engineeringRecordsExcludeSave');
@@ -53,13 +43,15 @@
   var settingsLoading = null;
   var folderPaths = null;
   var searchVersion = 0;
+  var searchTimer = null;
   var cachedRecords = [];
   var cacheReady = false;
+  var totalRecords = 0;
   var cacheGeneration = 0;
   var cacheKey = '';
   var lastSyncTime = 0;
 
-  if (!queryInput || !searchButton || !summaryButton || !list || !preview) return;
+  if (!queryInput || !summaryButton || !list || !preview) return;
 
   function normalizeFolders(value) {
     var unique = {};
@@ -117,6 +109,7 @@
     cacheKey = key;
     cacheReady = false;
     cachedRecords = [];
+    totalRecords = 0;
     try {
       var snapshot = await cacheOperation(key);
       if (cacheKey !== key) return;
@@ -147,6 +140,7 @@
       var known = {};
       cachedRecords.forEach(function (record) { known[record.id] = record; });
       var entries = Array.isArray(catalog.records) ? catalog.records : [];
+      totalRecords = entries.length;
       var fresh = {};
       var toRead = entries.filter(function (meta) {
         var old = known[meta.id];
@@ -169,7 +163,9 @@
           if (generation !== cacheGeneration) return;
           (result.records || []).forEach(function (record) { fresh[record.id] = record; });
           done += chunk.length;
-          setStatus('正在載入工程筆記：' + Math.min(done, toRead.length) + '／' + toRead.length + ' 篇…', 'loading');
+          cachedRecords = Object.keys(fresh).map(function (id) { return fresh[id]; });
+          if (queryInput.value.trim()) search();
+          else setStatus('正在載入工程筆記：' + cachedRecords.length + '／' + entries.length + ' 篇…', 'loading');
           if (done % 24 === 0) {
             var partial = Object.keys(fresh).map(function (id) { return fresh[id]; });
             checkpoint = checkpoint.then(function () {
@@ -196,10 +192,10 @@
       if (generation === cacheGeneration) {
         if (/不支援的工程紀錄操作/.test(error.message || '')) {
           setStatus(cacheReady ? '預載更新尚未啟用；目前可搜尋上次載入的筆記。' :
-            '預載功能等待後端更新；目前可按「搜尋」使用雲端查詢。');
+            '預載功能等待後端更新；輸入關鍵字仍可使用雲端查詢。');
         } else {
           setStatus('載入失敗：' + (error.message || '請稍後重試。') +
-            (cacheReady ? ' 仍可搜尋上次載入的筆記。' : ' 可按搜尋使用雲端查詢。'), 'error');
+            (cacheReady ? ' 仍可搜尋上次載入的筆記。' : ' 輸入關鍵字仍可使用雲端查詢。'), 'error');
         }
       }
     } finally {
@@ -529,13 +525,8 @@
       var body = document.createElement('button');
       body.type = 'button';
       body.className = 'engineering-record-open';
-      var icon = document.createElement('span');
-      icon.className = 'engineering-record-icon';
-      icon.setAttribute('aria-hidden', 'true');
-      icon.textContent = record.name.indexOf('📣') !== -1 ? '📣' : '💬';
       var title = document.createElement('span');
-      title.textContent = record.name.replace(/\.md$/i, '').replace(/[📣💬]/gu, '');
-      body.appendChild(icon);
+      title.textContent = record.name.replace(/\.md$/i, '');
       body.appendChild(title);
       body.addEventListener('click', function () { openRecord(record); });
       item.appendChild(checkbox);
@@ -559,7 +550,7 @@
     showView('results', false);
     summaryMeta.textContent = '';
     summary.textContent = '勾選搜尋結果後，按「Gemini 摘要」開始整理。';
-    if (cacheReady) {
+    if (cacheReady || cachedRecords.length) {
       var terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map(function (s) { return s.trim().toLowerCase(); })
         .filter(function (s) { return s && (s.length >= 2 || /^\d+$/.test(s)); }).slice(0, 6);
       if (!terms.length) terms.push(query.toLowerCase());
@@ -572,10 +563,10 @@
         return String(b.name || '').localeCompare(String(a.name || ''), 'zh-TW', { numeric: true, sensitivity: 'base' });
       });
       renderResults();
-      setStatus('找到 ' + results.length + ' 筆工程紀錄（已載入的筆記，即時搜尋）。', 'success');
+      setStatus('找到 ' + results.length + ' 筆工程紀錄（已搜尋 ' + cachedRecords.length +
+        (cacheReady ? ' 篇筆記）。' : '／' + totalRecords + ' 篇載入中的筆記，結果尚未齊）。'), cacheReady ? 'success' : 'loading');
       return;
     }
-    searchButton.disabled = true;
     summaryButton.disabled = true;
     setStatus('正在搜尋 Google Drive…', 'loading');
     list.innerHTML = '<div class="engineering-records-empty">搜尋中…</div>';
@@ -596,8 +587,6 @@
       results = [];
       renderResults();
       setStatus(error && error.message ? error.message : '搜尋失敗。', 'error');
-    } finally {
-      if (version === searchVersion) searchButton.disabled = false;
     }
   }
 
@@ -706,8 +695,6 @@
       return;
     }
     summarizing = true;
-    searchButton.disabled = true;
-    clearButton.disabled = true;
     summaryButton.disabled = true;
     summaryMeta.textContent = '正在整理 ' + ids.length + ' 份工程紀錄…';
     summary.textContent = '';
@@ -725,30 +712,26 @@
       setStatus(summary.textContent, 'error');
     } finally {
       summarizing = false;
-      searchButton.disabled = false;
-      clearButton.disabled = false;
       summaryButton.disabled = !results.length;
     }
   }
 
   function clearAll() {
+    clearTimeout(searchTimer);
     searchVersion++;
-    searchButton.disabled = false;
     summarizeAfterLogin = false;
     activeRecordId = '';
     if (dialog.open) dialog.close();
     showView('results', false);
     summaryMeta.textContent = '';
     summary.textContent = '勾選搜尋結果後，按「Gemini 摘要」開始整理。';
-    queryInput.value = '';
     results = [];
-    list.innerHTML = '<div class="engineering-records-empty">輸入關鍵字後開始搜尋。</div>';
+    list.innerHTML = '<div class="engineering-records-empty">輸入關鍵字即可搜尋。</div>';
     previewTitle.textContent = '內容預覽';
     previewMeta.textContent = '';
     preview.textContent = '選取檔名後，這裡會顯示完整 Markdown 內容。';
     summaryButton.disabled = true;
     readyStatus();
-    queryInput.focus();
   }
 
   resultsTab.addEventListener('click', function () { showView('results', false); });
@@ -778,11 +761,15 @@
     var bounds = dialog.getBoundingClientRect();
     if (event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) dialog.close();
   });
-  searchButton.addEventListener('click', search);
-  queryInput.addEventListener('input', function () { if (cacheReady) search(); });
+  queryInput.addEventListener('input', function () {
+    clearTimeout(searchTimer);
+    searchVersion++;
+    if (!queryInput.value.trim()) { clearAll(); return; }
+    if (cacheReady || cachedRecords.length) search();
+    else searchTimer = setTimeout(search, 400);
+  });
   summaryButton.addEventListener('click', summarize);
-  clearButton.addEventListener('click', clearAll);
   queryInput.addEventListener('keydown', function (event) {
-    if (event.key === 'Enter' && !searchButton.disabled) { event.preventDefault(); search(); }
+    if (event.key === 'Enter') { event.preventDefault(); clearTimeout(searchTimer); search(); }
   });
 })();
