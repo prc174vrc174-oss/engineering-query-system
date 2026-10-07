@@ -491,8 +491,9 @@
     parent.appendChild(document.createTextNode(value.slice(offset)));
   }
 
-  function renderMarkdown(value, recordId) {
-    preview.replaceChildren();
+  function renderMarkdown(value, recordId, target) {
+    target = target || preview;
+    target.replaceChildren();
     var lines = String(value || '').replace(/\r\n?/g, '\n').split('\n');
     var fragment = document.createDocumentFragment();
     var listStack = [];
@@ -556,8 +557,10 @@
         listStack = []; quote = null;
       }
     }
-    preview.appendChild(fragment);
+    target.appendChild(fragment);
   }
+
+  window.renderEngineeringRecordsMarkdown = renderMarkdown;
 
   function selectedIds() {
     return Array.prototype.slice.call(list.querySelectorAll('input[data-record-select]:checked'))

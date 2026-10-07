@@ -97,7 +97,8 @@
       var result = await call(api + '?action=read&id=' + encodeURIComponent(record.id));
       if (!dialog.open || previewTitle.textContent !== record.name) return;
       previewMeta.textContent = result.record.relativePath + ' · 更新 ' + date(result.record.modifiedTime);
-      preview.textContent = result.record.content;
+      if (window.renderEngineeringRecordsMarkdown) window.renderEngineeringRecordsMarkdown(result.record.content, record.id, preview);
+      else preview.textContent = result.record.content;
     } catch (error) { previewMeta.textContent = ''; preview.textContent = error.message; }
   }
   async function refresh(force) {
