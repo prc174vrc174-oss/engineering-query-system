@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v204/);
+  assert.match(serviceWorker, /engineering-query-pwa-v205/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -570,7 +570,7 @@ test("Gemini Markdown renders structure and keeps unsafe content inert", async (
   };
   const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf("  excludeInput.addEventListener"));
   const value = '[來源：note.md]\n[[note|相關紀錄]]\n[紀錄](note.md)\n[官方](https://example.com/manual)\nhttps://example.com/help。\n\n### 工程重點\n**需確認**\n- 第一項\n  - 子項\n\n| 規格 | 備註 |\n| --- | --- |\n| M3 | **注意** |\n\n<script>alert(1)</script>\n[連結](javascript:alert)\n\n```js\n<script>raw</script>\n```';
-  runInNewContext(code + '\nrenderMarkdown(value, "", target);', { document, target, value, URL, rows: [{ id: 'note123456789', name: 'note.md' }], summarySources: [], openRecord: async () => {}, window: { location: { href: 'https://example.com/' } } });
+  runInNewContext(code + '\nrenderMarkdown(value, "", target);', { document, target, value, URL, rows: [{ id: 'note123456789', name: 'note.md' }], summarySources: [], openRecord: async () => {}, window: { location: { href: 'https://example.com/' }, open: () => ({ opener: {} }) } });
   const nodes = [];
   function walk(node) { nodes.push(node); node.children.forEach(walk); }
   walk(target);
@@ -584,12 +584,14 @@ test("Gemini Markdown renders structure and keeps unsafe content inert", async (
   assert.ok(nodes.some(n => n.tag === 'code' && n.textContent === '<script>raw</script>'));
   assert.ok(!nodes.some(n => n.tag === 'script'));
   const links = nodes.filter(n => n.tag === 'a');
-  assert.equal(links.length, 2);
+  assert.equal(links.length, 5);
   assert.ok(links.every(n => n.href.startsWith('https://example.com/') && n.target === '_blank'));
-  const noteLinks = nodes.filter(n => n.tag === 'button');
+  const noteLinks = links.filter(n => n.href.includes('recordId='));
   assert.equal(noteLinks.length, 3);
-  await noteLinks[0].onclick();
-  assert.equal(noteLinks[0].disabled, false);
+  let prevented = false;
+  noteLinks[0].onclick({ preventDefault() { prevented = true; } });
+  assert.ok(prevented);
+  assert.ok(noteLinks.every(n => n.href.includes('recordId=note123456789')));
 });
 
 
@@ -639,4 +641,23 @@ test("Search counts and Gemini progress stay separate across tab switches", asyn
   assert.equal(context.status.textContent, '找到 23 筆工程紀錄。');
   context.view('summary');
   assert.equal(context.status.textContent, 'Gemini 摘要完成，共整理 23 篇。');
+});
+
+
+test("Record windows load linked IDs and filename references directly", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf('  function appendInline('));
+  for (const query of ['recordId=note123456789', 'recordName=note.md']) {
+    const opened = [], classes = [];
+    const context = {
+      recordParams: new URL('https://example.com/?' + query).searchParams,
+      document: { documentElement: { classList: { add: value => classes.push(value) } } },
+      dialog: { showModal() {} }, previewTitle: {}, previewMeta: {}, preview: {}, api: '/api/records',
+      call: async () => ({ results: [{ id: 'note123456789', name: 'note.md', relativePath: '工程/note.md' }] }),
+      openRecord: async record => opened.push(record.id),
+    };
+    await runInNewContext(code + '\nloadLinkedRecord();', context);
+    assert.deepEqual(opened, ['note123456789']);
+    assert.deepEqual(classes, ['engineering-record-window']);
+  }
 });

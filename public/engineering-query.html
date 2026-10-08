@@ -3474,6 +3474,12 @@ h3 {
         .engineering-markdown-table th, .engineering-markdown-table td { padding:10px 12px; border:1px solid #dfe5ee; text-align:left; vertical-align:top; }
         .engineering-markdown-table th { background:#f3f4fa; color:#344054; font-weight:750; }
         .engineering-markdown-table tbody tr:nth-child(even) { background:#fafbfe; }
+        .engineering-record-window body { background:#fff; }
+        .engineering-record-window .app-header-tabs, .engineering-record-window .sys-panel { display:none !important; }
+        .engineering-record-window #engineering-records-d1-panel { display:block !important; }
+        .engineering-record-window .engineering-records-shell > :not(#d1RecordsDialog) { display:none !important; }
+        .engineering-record-window #d1RecordsDialog { width:100vw; height:100dvh; max-width:none; max-height:none; margin:0; border:0; border-radius:0; box-shadow:none; }
+        .engineering-record-window #d1RecordsDialog::backdrop { background:#fff; }
         .engineering-records-dialog-close { flex-shrink:0; min-height:34px; padding:0 12px; }
         @media (max-width: 760px) {
             .engineering-records-dialog { width:calc(100vw - 20px); height:calc(100dvh - 20px); max-height:calc(100dvh - 20px); }

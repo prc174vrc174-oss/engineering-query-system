@@ -16,6 +16,8 @@
   var excludeSave = byId('SettingsSave'), excludeError = byId('SettingsError');
   var excludeSuggestions = byId('SettingsSuggestions'), settingsSignIn = byId('SettingsGoogleButton');
   var started = false, rows = [], resultVersion = 0, timer = 0, token = '', signInPending = false;
+  var recordParams = window.location ? new URL(window.location.href).searchParams : null;
+  var recordWindow = recordParams && (recordParams.has('recordId') || recordParams.has('recordName'));
   var activeView = 'results';
   var viewStatuses = { results: { message: '', state: '' }, summary: { message: '', state: '' } };
   if (!query) return;
@@ -120,6 +122,8 @@
     try {
       var result = await call(api + '?action=read&id=' + encodeURIComponent(record.id));
       if (!dialog.open || previewTitle.textContent !== record.name) return;
+      previewTitle.textContent = result.record.name;
+      if (recordWindow) document.title = result.record.name.replace(/\.md$/i, '') + '｜工程紀錄';
       previewMeta.textContent = result.record.relativePath + ' · 更新 ' + date(result.record.modifiedTime);
       renderMarkdown(result.record.content, record.id, preview);
     } catch (error) { previewMeta.textContent = ''; preview.textContent = error.message; }
@@ -173,7 +177,7 @@
   folders.onclick = showExcludeSettings;
   resultsTab.onclick = function () { view('results'); };
   summaryTab.onclick = function () { view('summary'); };
-  byId('DialogClose').onclick = function () { dialog.close(); };
+  byId('DialogClose').onclick = function () { if (recordWindow) window.close(); else dialog.close(); };
 
   function credentialValid() {
     try { return !!token && JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000 > Date.now() + 30000; }
@@ -367,31 +371,48 @@
     try { name = decodeURIComponent(name); } catch (_) {}
     return name.replace(/\\/g, '/').split('#')[0].replace(/\.md$/i, '').toLowerCase();
   }
+  function findLinkedRecord(records, reference) {
+    var wanted = recordLinkName(reference);
+    var exact = records.find(function (record) { return recordLinkName(record.relativePath) === wanted; });
+    if (exact) return exact;
+    var matches = records.filter(function (record) { return recordLinkName(record.name) === wanted.split('/').pop(); });
+    var ids = new Set(matches.map(function (record) { return record.id; }));
+    return ids.size === 1 ? matches[0] : null;
+  }
   function appendRecordLink(parent, label, reference) {
-    var link = document.createElement('button');
-    link.type = 'button';
+    var link = document.createElement('a');
     link.className = 'engineering-markdown-link engineering-markdown-record-link';
     link.textContent = label;
-    link.title = '開啟工程紀錄：' + reference;
-    link.onclick = async function () {
-      link.disabled = true;
-      try {
-        var wanted = recordLinkName(reference);
-        var matches = function (record) {
-          return recordLinkName(record.relativePath) === wanted || recordLinkName(record.name) === wanted ||
-            recordLinkName(record.name) === wanted.split('/').pop();
-        };
-        var record = rows.concat(summarySources).find(matches);
-        if (!record) {
-          var result = await call(api + '?action=search&q=' + encodeURIComponent(wanted.split('/').pop().slice(0, 120)));
-          record = (result.results || []).find(matches);
-        }
-        if (!record) throw new Error('找不到連結的工程紀錄：' + reference);
-        await openRecord(record);
-      } catch (error) { setStatus(error.message, 'error', activeView); }
-      finally { link.disabled = false; }
+    link.title = '在新視窗開啟工程紀錄：' + reference;
+    var destination = new URL('engineering-query.html', window.location.href);
+    var record = findLinkedRecord(rows.concat(summarySources), reference);
+    destination.searchParams.set(record ? 'recordId' : 'recordName', record ? record.id : reference);
+    link.href = destination.href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.onclick = function (event) {
+      var popup = window.open(link.href, '_blank', 'popup,width=1080,height=780,resizable=yes,scrollbars=yes');
+      if (popup) { popup.opener = null; event.preventDefault(); }
     };
     parent.appendChild(link);
+  }
+  async function loadLinkedRecord() {
+    document.documentElement.classList.add('engineering-record-window');
+    dialog.showModal();
+    previewTitle.textContent = '工程紀錄';
+    previewMeta.textContent = '讀取中…';
+    try {
+      var id = recordParams.get('recordId');
+      var name = recordParams.get('recordName');
+      var record = id ? { id: id, name: '工程紀錄' } : null;
+      if (!record) {
+        var wanted = recordLinkName(name);
+        var result = await call(api + '?action=search&q=' + encodeURIComponent(wanted.split('/').pop().slice(0, 120)));
+        record = findLinkedRecord(result.results || [], name);
+      }
+      if (!record) throw new Error('找不到連結的工程紀錄，或有多篇同名紀錄：' + name);
+      await openRecord(record);
+    } catch (error) { previewMeta.textContent = ''; preview.textContent = error.message; }
   }
 
   function appendInline(parent, value, recordId) {
@@ -583,6 +604,8 @@
   });
   excludeSave.onclick = saveExcludeSettings;
   byId('SettingsCancel').onclick = function () { saveAfterLogin = false; excludeDialog.close(); };
-  dialog.addEventListener('click', function (event) { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener('click', function (event) { if (!recordWindow && event.target === dialog) dialog.close(); });
+  dialog.addEventListener('cancel', function (event) { if (recordWindow) { event.preventDefault(); window.close(); } });
   gemini.onclick = summarize;
+  if (recordWindow) loadLinkedRecord();
 })();
