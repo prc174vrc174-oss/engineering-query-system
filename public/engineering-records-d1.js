@@ -298,13 +298,13 @@
     var summaries = [], summaryQuery = query.value.trim();
     summarySources = [];
     try {
-      for (var start = 0; start < ids.length; start += 20) {
-        var batch = ids.slice(start, start + 20);
+      for (var start = 0; start < ids.length; start += 40) {
+        var batch = ids.slice(start, start + 40);
         setSummaryStatus('Gemini 正在整理 ' + ids.length + ' 篇（' + start + '/' + ids.length + '）…', 'loading');
         var result = await call(driveApi, { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'engineeringRecords.summarize', query: summaryQuery, ids: batch, idToken: token }) });
         summarySources = summarySources.concat(result.sources || []);
-        var heading = ids.length > 20 ? '## 工程紀錄摘要（第 ' + (start + 1) + '–' + (start + batch.length) + ' 篇）\n\n' : '';
+        var heading = ids.length > 40 ? '## 工程紀錄摘要（第 ' + (start + 1) + '–' + (start + batch.length) + ' 篇）\n\n' : '';
         summaries.push(heading + (result.summary || ''));
         renderSummary(summaries.join('\n\n---\n\n'));
       }

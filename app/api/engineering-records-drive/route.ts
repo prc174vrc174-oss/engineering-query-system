@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     if (!Array.isArray(payload.ids) || !payload.ids.length) {
       return json(request, { ok: false, error: "目前沒有可摘要的搜尋結果。" }, 400);
     }
-    payload.ids = payload.ids.slice(0, 20);
+    payload.ids = payload.ids.slice(0, 40);
   }
 
   const controller = new AbortController();

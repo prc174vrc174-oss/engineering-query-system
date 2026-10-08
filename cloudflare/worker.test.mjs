@@ -62,3 +62,16 @@ test('CORS, invalid IDs, unsupported routes, and Google authentication',async()=
   assert.equal((await request('/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.settings.save',includedFolders:[]})})).status,401);
   assert.equal((await request('/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.summarize',ids:['record_test_001']})})).status,401);
 });
+
+test('Gemini proxy forwards all 40 selected IDs in one request',async()=>{
+  const ids=Array.from({length:40},(_,i)=>'record_'+String(i).padStart(6,'0'));
+  const original=globalThis.fetch,calls=[];
+  globalThis.fetch=async(url,options)=>{calls.push(JSON.parse(options.body));return Response.json({ok:true,summary:'摘要',sources:ids.map(id=>({id}))});};
+  try {
+    const response=await worker.fetch(new Request('https://api/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.summarize',ids,idToken:'test-token'})}),{DB:database()});
+    assert.equal(response.status,200);
+    assert.equal((await response.json()).sources.length,40);
+    assert.equal(calls.length,1);
+    assert.deepEqual(calls[0].ids,ids);
+  } finally {globalThis.fetch=original;}
+});

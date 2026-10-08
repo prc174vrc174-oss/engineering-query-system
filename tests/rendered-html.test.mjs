@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v215/);
+  assert.match(serviceWorker, /engineering-query-pwa-v216/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -682,9 +682,10 @@ test("Summary citations reuse numbers and open the corresponding source record",
   assert.match(opened[0].features, /width=720,height=510,left=16,top=32/);
 });
 
-test("Gemini summarizes all 23 selected records in bounded batches", async () => {
+test("Gemini summarizes up to 40 records in one request and splits only above 40", async () => {
   const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
-  const selected = Array.from({ length: 23 }, (_, i) => ({ value: 'record' + i }));
+  for (const count of [20, 23, 40, 43]) {
+  const selected = Array.from({ length: count }, (_, i) => ({ value: 'record' + i }));
   const calls = [], statuses = [], output = [];
   const code = source.slice(source.indexOf('  async function summarize()'), source.indexOf('  function normalizeFolders('));
   const context = {
@@ -701,11 +702,13 @@ test("Gemini summarizes all 23 selected records in bounded batches", async () =>
     },
   };
   await runInNewContext(code + '\nsummarize();', context);
-  assert.deepEqual(calls.map(call => call.ids.length), [20, 3]);
+  assert.deepEqual(calls.map(call => call.ids.length), count <= 40 ? [count] : [40, 3]);
   assert.deepEqual(calls.flatMap(call => call.ids), selected.map(row => row.value));
-  assert.ok(output.at(-1).includes('record22'));
-  assert.ok(statuses.at(-1).text.includes('23'));
+  assert.ok(output.at(-1).includes('record' + (count - 1)));
+  assert.equal(output.at(-1).includes('第 1–'), count > 40);
+  assert.ok(statuses.at(-1).text.includes(String(count)));
   assert.equal(statuses.at(-1).state, 'success');
+  }
 });
 
 
@@ -922,4 +925,23 @@ test("Summary source-list title variants are omitted without hiding later batche
   }
   const body = '### 三、來源檔案清單注意事項\n這是一般工程內容。';
   assert.equal(context.summarySections(body).body, body);
+});
+
+test("Sites Gemini API forwards 40 records to Apps Script without losing IDs", async () => {
+  const { POST } = await import('../app/api/engineering-records-drive/route.ts');
+  const ids = Array.from({ length: 40 }, (_, i) => 'record_' + String(i).padStart(6, '0'));
+  const original = globalThis.fetch, calls = [];
+  globalThis.fetch = async (_, options) => {
+    calls.push(JSON.parse(options.body));
+    return Response.json({ ok: true, summary: '摘要', sources: ids.map(id => ({ id })) });
+  };
+  try {
+    const response = await POST(new Request('https://example.com/api/engineering-records-drive', {
+      method: 'POST', body: JSON.stringify({ action: 'engineeringRecords.summarize', ids, idToken: 'test-token' }),
+    }));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).sources.length, 40);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].ids, ids);
+  } finally { globalThis.fetch = original; }
 });

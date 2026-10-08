@@ -99,7 +99,7 @@ async function proxy(payload) {
   if (payload.action==='engineeringRecords.image' && (typeof payload.id!=='string' || !ID.test(payload.id) || typeof payload.name!=='string')) return [{ok:false,error:'圖片參照不正確。'},400];
   if (payload.action==='engineeringRecords.summarize') {
     if (!Array.isArray(payload.ids) || !payload.ids.length || payload.ids.some(id=>typeof id!=='string' || !ID.test(id))) return [{ok:false,error:'目前沒有可摘要的搜尋結果。'},400];
-    payload.ids=payload.ids.slice(0,20);
+    payload.ids=payload.ids.slice(0,40);
   }
   return [await drive(payload.action,Object.fromEntries(Object.entries(payload).filter(([key])=>key!=='action'))),200];
 }
