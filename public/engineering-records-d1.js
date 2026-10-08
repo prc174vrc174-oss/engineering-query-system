@@ -6,6 +6,8 @@
   var clientId = '406267166897-8geeu3tpc425nc9n7gmimmmflbckp0ta.apps.googleusercontent.com';
   var byId = function (id) { return document.getElementById('d1Records' + id); };
   var query = byId('Query'), reload = byId('Reload'), gemini = byId('Gemini');
+  var regenerate = byId('Regenerate'), summaryStart = byId('SummaryStart');
+  var signInDialog = byId('SignInDialog'), signInStatus = byId('SignInStatus'), summarizing = false;
   var folders = byId('Folders'), status = byId('Status'), list = byId('List');
   var resultsTab = byId('ResultsTab'), summaryTab = byId('SummaryTab');
   var resultsView = byId('ResultsView'), summaryView = byId('SummaryView'), summary = byId('Summary');
@@ -63,7 +65,7 @@
   }
   function render() {
     list.replaceChildren();
-    gemini.disabled = !rows.length;
+    updateSummaryButtons();
     if (!rows.length) {
       var empty = document.createElement('div');
       empty.className = 'engineering-records-empty';
@@ -97,7 +99,7 @@
     if (!value) {
       rows = [];
       list.innerHTML = '<div class="engineering-records-empty">輸入關鍵字即可搜尋。</div>';
-      gemini.disabled = true;
+      updateSummaryButtons();
       setStatus('輸入關鍵字即可搜尋。', 'success');
       return;
     }
@@ -179,6 +181,16 @@
   summaryTab.onclick = function () { view('summary'); };
   byId('DialogClose').onclick = function () { if (recordWindow) window.close(); else dialog.close(); };
 
+  function updateSummaryButtons() {
+    gemini.disabled = regenerate.disabled = summarizing || !rows.length;
+  }
+  function cancelSummarySignIn() {
+    signInPending = false;
+    setSummaryStatus('已取消登入。');
+    if (signInDialog.open) signInDialog.close();
+  }
+  byId('SignInCancel').onclick = cancelSummarySignIn;
+  signInDialog.addEventListener('cancel', function (event) { event.preventDefault(); cancelSummarySignIn(); });
   function credentialValid() {
     try { return !!token && JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000 > Date.now() + 30000; }
     catch (error) { return false; }
@@ -189,32 +201,43 @@
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.onload = showGoogleButton;
-    script.onerror = function () { setStatus('無法載入 Google 登入。', 'error'); };
+    script.onerror = function () {
+      if (signInPending) signInStatus.textContent = '無法載入 Google 登入，請關閉後再試一次。';
+      if (saveAfterLogin) excludeError.textContent = '無法載入 Google 登入，請再試一次。';
+    };
     document.head.appendChild(script);
   }
   function showGoogleButton() {
+    signInStatus.textContent = '';
+    googleButton.replaceChildren();
+    settingsSignIn.replaceChildren();
     google.accounts.id.initialize({ client_id: clientId, callback: function (response) {
       token = response.credential || '';
       googleButton.replaceChildren();
       settingsSignIn.replaceChildren();
       if (saveAfterLogin) { saveAfterLogin = false; saveExcludeSettings(); }
-      if (signInPending) { signInPending = false; summarize(); }
+      if (signInPending) { signInPending = false; if (signInDialog.open) signInDialog.close(); summarize(); }
     } });
     google.accounts.id.renderButton(settingsSignIn, { type: 'standard', theme: 'outline', size: 'medium', locale: 'zh_TW' });
     google.accounts.id.renderButton(googleButton, { type: 'standard', theme: 'outline', size: 'medium', text: 'signin_with', locale: 'zh_TW' });
   }
   async function summarize() {
+    if (summarizing) return;
     var ids = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(function (box) { return box.value; });
-    if (!ids.length) { setStatus('請至少勾選一筆工程紀錄。', 'error'); return; }
+    if (!ids.length) { view('summary'); setSummaryStatus('請至少勾選一筆工程紀錄。', 'error'); return; }
     view('summary');
     if (!credentialValid()) {
       signInPending = true;
       setSummaryStatus('待登入後整理 ' + ids.length + ' 篇工程紀錄。');
-      summary.textContent = '請先使用允許的 Google 帳號登入；登入後會自動產生摘要。';
+      signInStatus.textContent = '正在載入 Google 登入…';
+      if (!signInDialog.open) signInDialog.showModal();
       loadGoogle();
       return;
     }
-    gemini.disabled = true;
+    summarizing = true;
+    updateSummaryButtons();
+    summaryStart.hidden = true;
+    summary.hidden = false;
     summary.textContent = 'Gemini 正在產生摘要…';
     setSummaryStatus('Gemini 正在整理 ' + ids.length + ' 篇…', 'loading');
     var summaries = [], summaryQuery = query.value.trim();
@@ -236,7 +259,7 @@
       else summary.textContent = error.message;
       setSummaryStatus('摘要尚未完成：' + error.message, 'error');
     }
-    finally { gemini.disabled = !rows.length; }
+    finally { summarizing = false; updateSummaryButtons(); }
   }
   function normalizeFolders(value) {
     var unique = {};
@@ -809,5 +832,6 @@
   dialog.addEventListener('click', function (event) { if (!recordWindow && event.target === dialog) dialog.close(); });
   dialog.addEventListener('cancel', function (event) { if (recordWindow) { event.preventDefault(); window.close(); } });
   gemini.onclick = summarize;
+  regenerate.onclick = summarize;
   if (recordWindow) loadLinkedRecord();
 })();

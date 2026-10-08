@@ -3468,6 +3468,16 @@ h3 {
         .engineering-records-summary-card .engineering-records-preview { min-height:220px; padding:22px 26px 30px; color:#253044; font-size:15px; line-height:1.85; white-space:normal; }
         .engineering-records-summary-card .engineering-records-preview-head { background:#f8f7fe; border-bottom-color:#e9e5f6; }
         .engineering-records-summary-card .engineering-records-preview-head h3 { color:#5b46a3; }
+        .engineering-records-summary-head { justify-content:flex-start; gap:10px; }
+        .engineering-records-regenerate { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; flex:none; padding:0; border:1px solid #ded7f3; border-radius:8px; background:#fff; color:#6d5bd0; font:inherit; font-size:25px; cursor:pointer; }
+        .engineering-records-regenerate:hover { background:#eeeafb; }
+        .engineering-records-regenerate:disabled { opacity:.45; cursor:default; }
+        .engineering-records-summary-start { min-height:260px; display:flex; align-items:center; justify-content:center; padding:24px; }
+        .engineering-records-summary-start[hidden], #d1RecordsSummary[hidden] { display:none; }
+        .engineering-records-signin { box-sizing:border-box; width:min(420px,calc(100vw - 28px)); }
+        .engineering-records-signin p { font-size:14px; line-height:1.7; }
+        #d1RecordsSignInStatus { margin:12px 0; color:#64748b; font-size:14px; }
+        .engineering-records-signin .engineering-records-google { min-height:36px; }
         .engineering-records-summary-card .engineering-records-preview h2 { font-size:23px; }
         .engineering-records-summary-card .engineering-records-preview h3 { font-size:20px; }
         .engineering-records-summary-card .engineering-records-preview h4 { font-size:18px; border-bottom:1px solid #e9e5f6; padding-bottom:8px; }
@@ -3534,7 +3544,7 @@ h3 {
             .engineering-records-dialog .engineering-records-preview { padding:22px 18px 32px; }
             .engineering-records-shell { padding: 14px 12px 30px; }
             .engineering-records-title { font-size: 24px; }
-            .engineering-records-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px 6px; }
+            .engineering-records-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 6px; }
             .engineering-records-controls .engineering-records-query { grid-column:1 / -1; width:100%; box-sizing:border-box; }
             .engineering-records-controls .engineering-records-btn { min-width:0; padding:0 2px; font-size:14px; white-space:nowrap; }
             .engineering-records-controls .engineering-button-full { display:none; }
@@ -4386,11 +4396,16 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <div class="engineering-records-controls">
                     <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" aria-label="搜尋工程紀錄" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
                     <button id="d1RecordsReload" class="engineering-records-btn" type="button"><span class="engineering-button-full">🔄 重新載入</span><span class="engineering-button-compact">重新載入</span></button>
-                    <button id="d1RecordsGemini" class="engineering-records-btn is-ai" type="button" disabled><span class="engineering-button-full">Gemini 摘要</span><span class="engineering-button-compact">Gemini摘要</span></button>
                     <button id="d1RecordsFolders" class="engineering-records-btn" type="button"><span class="engineering-button-full">搜尋資料夾</span><span class="engineering-button-compact">資料夾</span></button>
                 </div>
-                <div id="d1RecordsGoogleButton" class="engineering-records-google"></div>
             </section>
+            <dialog id="d1RecordsSignInDialog" class="engineering-records-settings engineering-records-signin" aria-labelledby="d1RecordsSignInTitle">
+                <h3 id="d1RecordsSignInTitle">登入後產生摘要</h3>
+                <p>請使用允許的 Google 帳號登入，登入後會自動整理已勾選的工程紀錄。</p>
+                <div id="d1RecordsSignInStatus" role="status" aria-live="polite"></div>
+                <div id="d1RecordsGoogleButton" class="engineering-records-google"></div>
+                <div class="engineering-records-settings-actions"><button id="d1RecordsSignInCancel" class="engineering-records-btn" type="button">取消</button></div>
+            </dialog>
             <dialog id="d1RecordsSettingsDialog" class="engineering-records-settings" aria-labelledby="d1RecordsSettingsTitle">
                 <h3 id="d1RecordsSettingsTitle">選擇搜尋資料夾</h3>
                 <p>勾選要搜尋的資料夾，包含其子資料夾；未勾選時搜尋全部。所有電腦共用設定，讀取不用登入；修改需登入。</p>
@@ -4419,8 +4434,9 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <div id="d1RecordsList" class="engineering-records-list"><div class="engineering-records-empty">輸入關鍵字即可搜尋。</div></div>
             </section>
             <section id="d1RecordsSummaryView" class="engineering-records-view engineering-records-summary-card" role="tabpanel" hidden>
-                <div class="engineering-records-preview-head"><h3>Gemini 摘要</h3></div>
-                <div id="d1RecordsSummary" class="engineering-records-preview" aria-live="polite">勾選搜尋結果後，按「Gemini 摘要」。</div>
+                <div class="engineering-records-preview-head engineering-records-summary-head"><h3>Gemini 摘要</h3><button id="d1RecordsRegenerate" class="engineering-records-regenerate" type="button" aria-label="重新摘要" title="重新摘要" disabled>↻</button></div>
+                <div id="d1RecordsSummaryStart" class="engineering-records-summary-start"><button id="d1RecordsGemini" class="engineering-records-btn is-ai" type="button" disabled>產生 Gemini 摘要</button></div>
+                <div id="d1RecordsSummary" class="engineering-records-preview" aria-live="polite" hidden></div>
             </section>
             <dialog id="d1RecordsDialog" class="engineering-records-dialog" aria-labelledby="d1RecordsPreviewTitle">
                 <div class="engineering-records-preview-head"><div>
@@ -6835,7 +6851,7 @@ init();
     </script>
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
-    <script src="engineering-records-d1.js?v=212"></script>
+    <script src="engineering-records-d1.js?v=213"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
