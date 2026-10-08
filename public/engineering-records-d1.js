@@ -407,7 +407,7 @@
       var record = id ? { id: id, name: '工程紀錄' } : null;
       if (!record) {
         var wanted = recordLinkName(name);
-        var result = await call(api + '?action=search&q=' + encodeURIComponent(wanted.split('/').pop().slice(0, 120)));
+        var result = await call(api + '?action=search&query=' + encodeURIComponent(wanted.split('/').pop().slice(0, 120)));
         record = findLinkedRecord(result.results || [], name);
       }
       if (!record) throw new Error('找不到連結的工程紀錄，或有多篇同名紀錄：' + name);

@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v205/);
+  assert.match(serviceWorker, /engineering-query-pwa-v206/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -653,7 +653,10 @@ test("Record windows load linked IDs and filename references directly", async ()
       recordParams: new URL('https://example.com/?' + query).searchParams,
       document: { documentElement: { classList: { add: value => classes.push(value) } } },
       dialog: { showModal() {} }, previewTitle: {}, previewMeta: {}, preview: {}, api: '/api/records',
-      call: async () => ({ results: [{ id: 'note123456789', name: 'note.md', relativePath: '工程/note.md' }] }),
+      call: async url => {
+        assert.equal(new URL(url, 'https://example.com').searchParams.get('query'), 'note');
+        return { results: [{ id: 'note123456789', name: 'note.md', relativePath: '工程/note.md' }] };
+      },
       openRecord: async record => opened.push(record.id),
     };
     await runInNewContext(code + '\nloadLinkedRecord();', context);
