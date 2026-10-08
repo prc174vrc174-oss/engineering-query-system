@@ -8,7 +8,7 @@ const APP_SHELL = [
   './nail-excel-upload.js',
   './nail-data.js',
   './common-words.js',
-  './engineering-records-d1.js',
+  './engineering-records-d1.js?v=206',
   './favicon.svg',
   './app-icon-192.png',
   './app-icon-512.png'
