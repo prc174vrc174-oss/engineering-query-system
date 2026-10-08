@@ -23,4 +23,4 @@ source = source.replace(previous,continued);
 await writeFile(path,source);
 const servicePath = new URL('public/service-worker.js',root);
 const service = await readFile(servicePath,'utf8');
-await writeFile(servicePath,service.replace(/const CACHE_NAME = '[^']+';/,"const CACHE_NAME = 'engineering-query-pwa-v210-cloudflare-centered-note-window';"));
+await writeFile(servicePath,service.replace(/const CACHE_NAME = '[^']+';/,"const CACHE_NAME = 'engineering-query-pwa-v211-cloudflare-single-summary-sources';"));

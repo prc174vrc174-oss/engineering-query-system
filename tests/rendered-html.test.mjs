@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v210/);
+  assert.match(serviceWorker, /engineering-query-pwa-v211/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -618,22 +618,26 @@ test("Summary citations reuse numbers and open the corresponding source record",
   const opened = [];
   const context = {
     document, summary, URL, rows: [],
-    summarySources: [{ id: 'first123', name: '壓注意.md', relativePath: '工程/壓注意.md' }, { id: 'second456', name: '烤漆.md', relativePath: '工程/烤漆.md' }],
+    summarySources: [{ id: 'first123', name: '壓注意.md', relativePath: '工程/壓注意.md' }, { id: 'second456', name: '烤漆.md', relativePath: '工程/烤漆.md' }, { id: 'third789', name: '只列來源.md', relativePath: '工程/只列來源.md' }],
     dialog: { getBoundingClientRect: () => ({ width: 900, height: 700 }) },
     window: { location: { href: 'https://example.com/engineering-query.html' }, open: (url, target, features) => { opened.push({ url, features }); return {}; } },
   };
   const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf("  excludeInput.addEventListener"));
-  runInNewContext(code + '\nrenderSummary("**規則** [來源：壓注意.md]\\n- 重複 [來源：壓注意.md]\\n- 另一篇 [來源：烤漆.md]\\n- 合併 [來源：壓注意.md、烤漆.md]");', context);
+  runInNewContext(code + '\nrenderSummary("**規則** [來源：壓注意.md]\\n- 重複 [來源：壓注意.md]\\n- 另一篇 [來源：烤漆.md]\\n- 合併 [來源：壓注意.md、烤漆.md]\\n\\n### 📁 來源檔案\\n1. `只列來源.md` [來源：只列來源.md]\\n\\n---\\n\\n## 第二批摘要\\n其他重點 [來源：烤漆.md]");', context);
   const nodes = [];
   function walk(node) { nodes.push(node); node.children.forEach(walk); }
   walk(summary);
   const citations = nodes.filter(node => node.className?.includes('engineering-summary-citation'));
-  assert.deepEqual(citations.map(node => node.textContent), ['[1]', '[1]', '[2]', '[1]', '[2]']);
+  assert.deepEqual(citations.map(node => node.textContent), ['[1]', '[1]', '[2]', '[1]', '[2]', '[2]']);
   assert.ok(citations[0].href.includes('recordId=first123'));
   assert.ok(citations[2].href.includes('recordId=second456'));
   const footer = summary.children.at(-1);
   assert.equal(footer.children[0].textContent, '主要來源頁面');
-  assert.equal(footer.children[1].children.length, 2);
+  assert.equal(footer.children[1].children.length, 3);
+  assert.ok(!nodes.some(node => node.textContent.includes('📁 來源檔案')));
+  assert.ok(nodes.some(node => node.textContent === '第二批摘要'));
+  assert.ok(footer.children[1].children[2].children[0].href.includes('recordId=third789'));
+  assert.equal(context.summarySections('```\n### 來源檔案\n```').body, '```\n### 來源檔案\n```');
   citations[2].onclick({ preventDefault() {} });
   assert.ok(opened[0].url.includes('recordId=second456'));
   assert.match(opened[0].features, /width=720,height=510,left=16,top=32/);

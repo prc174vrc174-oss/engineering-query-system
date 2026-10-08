@@ -443,9 +443,28 @@
       link.setAttribute('aria-label', '來源 ' + (index + 1) + '：' + citations.entries[index].name);
     });
   }
+  function summarySections(value) {
+    var body = [], sources = [], sourceLevel = 0, inCode = false;
+    String(value || '').replace(/\r/g, '').split('\n').forEach(function (line) {
+      var trimmed = line.trim();
+      var heading = /^(#{1,6})\s+(.+)$/.exec(trimmed);
+      var title = (heading ? heading[2] : trimmed).replace(/\*\*|__/g, '').replace(/^[^\u3400-\u9fffA-Za-z0-9]+/u, '').replace(/[：:]\s*$/, '').trim();
+      if (!inCode && /^(?:[一二三四五六七八九十\d]+[、.．]\s*)?來源(?:檔案|文件)$/.test(title)) {
+        sourceLevel = heading ? heading[1].length : 6;
+      } else if (!inCode && sourceLevel && ((heading && heading[1].length <= sourceLevel) || /^---+$/.test(trimmed))) {
+        sourceLevel = 0;
+      }
+      (sourceLevel ? sources : body).push(line);
+      if (/^```/.test(trimmed)) inCode = !inCode;
+    });
+    return { body: body.join('\n'), sources: sources.join('\n') };
+  }
   function renderSummary(value) {
     var citations = { entries: [] };
-    renderMarkdown(value, '', summary, citations);
+    var sections = summarySections(value);
+    renderMarkdown(sections.body, '', summary, citations);
+    // Keep references from Gemini's source list in the single source footer.
+    if (sections.sources) renderMarkdown(sections.sources, '', document.createElement('div'), citations);
     if (!citations.entries.length) return;
     var section = document.createElement('section');
     section.className = 'engineering-summary-sources';
