@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v201/);
+  assert.match(serviceWorker, /engineering-query-pwa-v202/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -528,7 +528,7 @@ test("D1 client searches, renders full text and opens its own folder settings", 
     fetch: async (url, options) => {
       const action = options?.body ? JSON.parse(options.body).action : new URL(url).searchParams.get('action');
       requests.push({ url, action });
-      const value = action === 'search' ? { results: [note] } : action === 'read' ? { record: note } : action === 'engineeringRecords.folders' ? { folders: ['工程', '.hidden'] } : { total: 350, includedFolders: ['工程'], changed: 0 };
+      const value = action === 'search' ? { results: Array.from({ length: 23 }, (_, i) => ({ ...note, id: note.id + i })) } : action === 'read' ? { record: note } : action === 'engineeringRecords.folders' ? { folders: ['工程', '.hidden'] } : { total: 350, includedFolders: ['工程'], changed: 0 };
       return { ok: true, json: async () => ({ ok: true, ...value }) };
     },
   });
@@ -536,7 +536,10 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   const query = elements.get('d1RecordsQuery'); query.value = '10239';
   query.listeners.keydown({ key: 'Enter', preventDefault() {} });
   await new Promise((resolve) => setImmediate(resolve));
-  const item = elements.get('d1RecordsList').children[0].children[0];
+  const renderedItems = elements.get('d1RecordsList').children[0].children;
+  assert.equal(renderedItems.length, 23);
+  assert.ok(renderedItems.every(item => item.children[0].checked));
+  const item = renderedItems[0];
   item.children[1].onclick();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(elements.get('d1RecordsDialog').open, true);
@@ -548,4 +551,68 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   assert.ok(requests.every((r) => r.url.startsWith('https://engineering-records-api.janyu056.workers.dev/')));
   assert.ok(requests.some((r) => r.action === 'read' && r.url.includes('/api/engineering-records-d1')));
   assert.ok(requests.some((r) => r.action === 'engineeringRecords.folders' && r.url.includes('/api/engineering-records-drive')));
+});
+
+
+test("Gemini Markdown renders structure and keeps unsafe content inert", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  class Node {
+    constructor(tag, text = '') { this.tag = tag; this.textContent = text; this.children = []; }
+    appendChild(node) { this.children.push(node); }
+    replaceChildren(...nodes) { this.children = nodes; }
+    setAttribute(key, value) { this[key] = value; }
+  }
+  const target = new Node('div');
+  const document = {
+    createElement: (tag) => new Node(tag),
+    createTextNode: (text) => new Node('#text', text),
+    createDocumentFragment: () => new Node('#fragment'),
+  };
+  const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf("  excludeInput.addEventListener"));
+  const value = '[來源：note.md]\n[[note|相關紀錄]]\n[紀錄](note.md)\n[官方](https://example.com/manual)\nhttps://example.com/help。\n\n### 工程重點\n**需確認**\n- 第一項\n  - 子項\n\n| 規格 | 備註 |\n| --- | --- |\n| M3 | **注意** |\n\n<script>alert(1)</script>\n[連結](javascript:alert)\n\n```js\n<script>raw</script>\n```';
+  runInNewContext(code + '\nrenderMarkdown(value, "", target);', { document, target, value, URL, rows: [{ id: 'note123456789', name: 'note.md' }], summarySources: [], openRecord: async () => {}, window: { location: { href: 'https://example.com/' } } });
+  const nodes = [];
+  function walk(node) { nodes.push(node); node.children.forEach(walk); }
+  walk(target);
+  assert.equal(nodes.filter(n => n.tag === 'h4').length, 1);
+  assert.equal(nodes.filter(n => n.tag === 'strong').length, 2);
+  assert.equal(nodes.filter(n => n.tag === 'ul').length, 2);
+  assert.equal(nodes.filter(n => n.tag === 'table').length, 1);
+  assert.equal(nodes.filter(n => n.tag === 'th').length, 2);
+  assert.equal(nodes.filter(n => n.tag === 'td').length, 2);
+  assert.ok(nodes.some(n => n.tag === '#text' && n.textContent.includes('<script>alert(1)</script>')));
+  assert.ok(nodes.some(n => n.tag === 'code' && n.textContent === '<script>raw</script>'));
+  assert.ok(!nodes.some(n => n.tag === 'script'));
+  const links = nodes.filter(n => n.tag === 'a');
+  assert.equal(links.length, 2);
+  assert.ok(links.every(n => n.href.startsWith('https://example.com/') && n.target === '_blank'));
+  const noteLinks = nodes.filter(n => n.tag === 'button');
+  assert.equal(noteLinks.length, 3);
+  await noteLinks[0].onclick();
+  assert.equal(noteLinks[0].disabled, false);
+});
+
+
+test("Gemini summarizes all 23 selected records in bounded batches", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  const selected = Array.from({ length: 23 }, (_, i) => ({ value: 'record' + i }));
+  const calls = [], statuses = [], output = [];
+  const code = source.slice(source.indexOf('  async function summarize()'), source.indexOf('  function normalizeFolders('));
+  const context = {
+    list: { querySelectorAll: () => selected }, summary: {}, gemini: {}, rows: selected,
+    query: { value: '10258' }, token: 'test-credential', driveApi: '/api/test', summarySources: [],
+    view() {}, credentialValid: () => true,
+    setStatus: (text, state) => statuses.push({ text, state }),
+    renderMarkdown: (value) => output.push(value),
+    call: async (_, options) => {
+      const payload = JSON.parse(options.body); calls.push(payload);
+      return { summary: '**重點** ' + payload.ids.join(', '), sources: [] };
+    },
+  };
+  await runInNewContext(code + '\nsummarize();', context);
+  assert.deepEqual(calls.map(call => call.ids.length), [20, 3]);
+  assert.deepEqual(calls.flatMap(call => call.ids), selected.map(row => row.value));
+  assert.ok(output.at(-1).includes('record22'));
+  assert.ok(statuses.at(-1).text.includes('23'));
+  assert.equal(statuses.at(-1).state, 'success');
 });

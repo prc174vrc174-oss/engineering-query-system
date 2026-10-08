@@ -11,7 +11,7 @@
   var resultsView = byId('ResultsView'), summaryView = byId('SummaryView'), summary = byId('Summary');
   var dialog = byId('Dialog'), preview = byId('Preview'), previewTitle = byId('PreviewTitle');
   var previewMeta = byId('PreviewMeta'), googleButton = byId('GoogleButton');
-  var includedFolders = [], folderPaths = null, imageCache = {}, saveAfterLogin = false;
+  var includedFolders = [], folderPaths = null, imageCache = {}, summarySources = [], saveAfterLogin = false;
   var excludeDialog = byId('SettingsDialog'), excludeInput = byId('SettingsInput');
   var excludeSave = byId('SettingsSave'), excludeError = byId('SettingsError');
   var excludeSuggestions = byId('SettingsSuggestions'), settingsSignIn = byId('SettingsGoogleButton');
@@ -51,12 +51,12 @@
     }
     var items = document.createElement('ul');
     items.className = 'engineering-records-items';
-    rows.forEach(function (record, index) {
+    rows.forEach(function (record) {
       var item = document.createElement('li');
       item.className = 'engineering-record-item';
       var checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
-      checkbox.checked = index < 20;
+      checkbox.checked = true;
       checkbox.value = record.id;
       checkbox.setAttribute('aria-label', '選取 ' + record.name + ' 供 Gemini 摘要');
       var button = document.createElement('button');
@@ -180,7 +180,7 @@
     google.accounts.id.renderButton(googleButton, { type: 'standard', theme: 'outline', size: 'medium', text: 'signin_with', locale: 'zh_TW' });
   }
   async function summarize() {
-    var ids = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(function (box) { return box.value; }).slice(0, 20);
+    var ids = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(function (box) { return box.value; });
     if (!ids.length) { setStatus('請至少勾選一筆工程紀錄。', 'error'); return; }
     view('summary');
     if (!credentialValid()) {
@@ -192,12 +192,25 @@
     gemini.disabled = true;
     summary.textContent = 'Gemini 正在產生摘要…';
     setStatus('Gemini 正在整理 ' + ids.length + ' 篇…', 'loading');
+    var summaries = [], summaryQuery = query.value.trim();
+    summarySources = [];
     try {
-      var result = await call(driveApi, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'engineeringRecords.summarize', query: query.value.trim(), ids: ids, idToken: token }) });
-      summary.textContent = result.summary || '';
-      setStatus('Gemini 摘要完成。', 'success');
-    } catch (error) { summary.textContent = error.message; setStatus('摘要失敗：' + error.message, 'error'); }
+      for (var start = 0; start < ids.length; start += 20) {
+        var batch = ids.slice(start, start + 20);
+        setStatus('Gemini 正在整理 ' + ids.length + ' 篇（' + start + '/' + ids.length + '）…', 'loading');
+        var result = await call(driveApi, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'engineeringRecords.summarize', query: summaryQuery, ids: batch, idToken: token }) });
+        summarySources = summarySources.concat(result.sources || []);
+        var heading = ids.length > 20 ? '## 工程紀錄摘要（第 ' + (start + 1) + '–' + (start + batch.length) + ' 篇）\n\n' : '';
+        summaries.push(heading + (result.summary || ''));
+        renderMarkdown(summaries.join('\n\n---\n\n'), '', summary);
+      }
+      setStatus('Gemini 摘要完成，共整理 ' + ids.length + ' 篇。', 'success');
+    } catch (error) {
+      if (summaries.length) renderMarkdown(summaries.join('\n\n---\n\n') + '\n\n> 部分摘要尚未完成：' + error.message, '', summary);
+      else summary.textContent = error.message;
+      setStatus('摘要尚未完成：' + error.message, 'error');
+    }
     finally { gemini.disabled = !rows.length; }
   }
   function normalizeFolders(value) {
@@ -328,8 +341,40 @@
     }).catch(function () { img.remove(); hint.textContent = '圖片無法預覽：' + (label || source); delete imageCache[key]; });
   }
 
+  function recordLinkName(value) {
+    var name = String(value || '').trim();
+    try { name = decodeURIComponent(name); } catch (_) {}
+    return name.replace(/\\/g, '/').split('#')[0].replace(/\.md$/i, '').toLowerCase();
+  }
+  function appendRecordLink(parent, label, reference) {
+    var link = document.createElement('button');
+    link.type = 'button';
+    link.className = 'engineering-markdown-link engineering-markdown-record-link';
+    link.textContent = label;
+    link.title = '開啟工程紀錄：' + reference;
+    link.onclick = async function () {
+      link.disabled = true;
+      try {
+        var wanted = recordLinkName(reference);
+        var matches = function (record) {
+          return recordLinkName(record.relativePath) === wanted || recordLinkName(record.name) === wanted ||
+            recordLinkName(record.name) === wanted.split('/').pop();
+        };
+        var record = rows.concat(summarySources).find(matches);
+        if (!record) {
+          var result = await call(api + '?action=search&q=' + encodeURIComponent(wanted.split('/').pop().slice(0, 120)));
+          record = (result.results || []).find(matches);
+        }
+        if (!record) throw new Error('找不到連結的工程紀錄：' + reference);
+        await openRecord(record);
+      } catch (error) { setStatus(error.message, 'error'); }
+      finally { link.disabled = false; }
+    };
+    parent.appendChild(link);
+  }
+
   function appendInline(parent, value, recordId) {
-    var tokens = /(!?\[\[[^\]]+\]\]|!\[[^\]]*\]\([^)]*\)|\[[^\]]+\]\([^)]*\)|\*\*[^*]+\*\*|`[^`]+`|(?:^|\s)#[^\s#]+)/g;
+    var tokens = /(!?\[\[[^\]]+\]\]|!\[[^\]]*\]\([^)]*\)|\[[^\]]+\]\([^)]*\)|\[來源[：:][^\]]+\]|\*\*[^*]+\*\*|`[^`]+`|https?:\/\/[^\s<>]+|(?:^|\s)#[^\s#]+)/g;
     var offset = 0;
     var match;
     while ((match = tokens.exec(value))) {
@@ -345,12 +390,18 @@
           offset = match.index + token.length;
           continue;
         }
-        element.textContent = target.split('|').pop();
-        element.title = target.split('|')[0];
-      } else if (/^!?\[/.test(token)) {
+        appendRecordLink(parent, target.split('|').pop(), target.split('|')[0]);
+        offset = match.index + token.length;
+        continue;
+      } else if (/^!?\[[^\]]*\]\(/.test(token)) {
         var link = /^!?\[([^\]]*)\]\(([^)]*)\)$/.exec(token);
         if (token[0] === '!') {
           appendImage(parent, link[1], link[2], recordId);
+          offset = match.index + token.length;
+          continue;
+        }
+        if (!/^[a-z][a-z0-9+.-]*:/i.test(link[2]) && /\.md(?:#.*)?$/i.test(link[2])) {
+          appendRecordLink(parent, link[1], link[2]);
           offset = match.index + token.length;
           continue;
         }
@@ -366,9 +417,24 @@
           element.className = 'engineering-markdown-link';
         }
         element.textContent = link[1];
+      } else if (/^https?:\/\//.test(token)) {
+        var address = token.replace(/[.,，。;；!！、）]+$/, '');
+        element = document.createElement('a');
+        element.href = address;
+        element.target = '_blank';
+        element.rel = 'noopener noreferrer';
+        element.textContent = address;
+        parent.appendChild(element);
+        parent.appendChild(document.createTextNode(token.slice(address.length)));
+        offset = match.index + token.length;
+        continue;
+      } else if (/^\[來源[：:]/.test(token)) {
+        appendRecordLink(parent, token, token.slice(1, -1).replace(/^來源[：:]\s*/, ''));
+        offset = match.index + token.length;
+        continue;
       } else if (token.slice(0, 2) === '**') {
         element = document.createElement('strong');
-        element.textContent = token.slice(2, -2);
+        appendInline(element, token.slice(2, -2), recordId);
       } else if (token[0] === '`') {
         element = document.createElement('code');
         element.textContent = token.slice(1, -1);
@@ -382,6 +448,12 @@
       offset = match.index + token.length;
     }
     parent.appendChild(document.createTextNode(value.slice(offset)));
+  }
+
+  function tableCells(line) {
+    return line.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map(function (cell) {
+      return cell.trim().replace(/\\\|/g, '|');
+    });
   }
 
   function renderMarkdown(value, recordId, target) {
@@ -409,6 +481,37 @@
       }
       if (code) { code.textContent += (code.textContent ? '\n' : '') + line; continue; }
       if (!trimmed) { paragraph = null; listStack = []; quote = null; continue; }
+      if (trimmed.indexOf('|') !== -1 && i + 1 < lines.length &&
+        tableCells(lines[i + 1]).every(function (cell) { return /^:?-{3,}:?$/.test(cell); })) {
+        var headers = tableCells(line);
+        var separators = tableCells(lines[i + 1]);
+        if (headers.length === separators.length) {
+          var wrapper = document.createElement('div');
+          wrapper.className = 'engineering-markdown-table';
+          var table = document.createElement('table');
+          var head = document.createElement('thead');
+          var headRow = document.createElement('tr');
+          headers.forEach(function (cell) {
+            var th = document.createElement('th'); th.setAttribute('scope', 'col');
+            appendInline(th, cell, recordId); headRow.appendChild(th);
+          });
+          head.appendChild(headRow); table.appendChild(head);
+          var body = document.createElement('tbody');
+          i += 2;
+          while (i < lines.length && lines[i].trim() && lines[i].indexOf('|') !== -1) {
+            var cells = tableCells(lines[i]);
+            var row = document.createElement('tr');
+            headers.forEach(function (_, column) {
+              var td = document.createElement('td');
+              appendInline(td, cells[column] || '', recordId); row.appendChild(td);
+            });
+            body.appendChild(row); i++;
+          }
+          i--; table.appendChild(body); wrapper.appendChild(table); fragment.appendChild(wrapper);
+          paragraph = null; listStack = []; quote = null;
+          continue;
+        }
+      }
       var heading = /^(#{1,6})\s+(.+)$/.exec(trimmed);
       var bullet = /^(\s*)([-*+] |\d+\. )(.+)$/.exec(line.replace(/\t/g, '    '));
       var element;
