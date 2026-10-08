@@ -228,11 +228,11 @@
         summarySources = summarySources.concat(result.sources || []);
         var heading = ids.length > 20 ? '## 工程紀錄摘要（第 ' + (start + 1) + '–' + (start + batch.length) + ' 篇）\n\n' : '';
         summaries.push(heading + (result.summary || ''));
-        renderMarkdown(summaries.join('\n\n---\n\n'), '', summary);
+        renderSummary(summaries.join('\n\n---\n\n'));
       }
       setSummaryStatus('Gemini 摘要完成，共整理 ' + ids.length + ' 篇。', 'success');
     } catch (error) {
-      if (summaries.length) renderMarkdown(summaries.join('\n\n---\n\n') + '\n\n> 部分摘要尚未完成：' + error.message, '', summary);
+      if (summaries.length) renderSummary(summaries.join('\n\n---\n\n') + '\n\n> 部分摘要尚未完成：' + error.message);
       else summary.textContent = error.message;
       setSummaryStatus('摘要尚未完成：' + error.message, 'error');
     }
@@ -418,7 +418,46 @@
     } catch (error) { previewMeta.textContent = ''; preview.textContent = error.message; }
   }
 
-  function appendInline(parent, value, recordId) {
+  function appendSummaryCitation(parent, reference, citations) {
+    var record = findLinkedRecord(summarySources.concat(rows), reference);
+    var references = record ? [record.relativePath || record.name] : [reference];
+    if (!record) {
+      var contained = summarySources.filter(function (source) { return source.name && reference.indexOf(source.name) !== -1; });
+      if (contained.length) references = contained.sort(function (a, b) { return reference.indexOf(a.name) - reference.indexOf(b.name); }).map(function (source) { return source.relativePath || source.name; });
+    }
+    references.forEach(function (ref) {
+      var source = findLinkedRecord(summarySources.concat(rows), ref);
+      var key = source ? source.id : recordLinkName(ref);
+      var index = citations.entries.findIndex(function (entry) { return entry.key === key; });
+      if (index === -1) {
+        index = citations.entries.length;
+        citations.entries.push({ key: key, reference: ref, name: source ? source.name : ref });
+      }
+      appendRecordLink(parent, '[' + (index + 1) + ']', ref);
+      var link = parent.lastChild;
+      link.className += ' engineering-summary-citation';
+      link.setAttribute('aria-label', '來源 ' + (index + 1) + '：' + citations.entries[index].name);
+    });
+  }
+  function renderSummary(value) {
+    var citations = { entries: [] };
+    renderMarkdown(value, '', summary, citations);
+    if (!citations.entries.length) return;
+    var section = document.createElement('section');
+    section.className = 'engineering-summary-sources';
+    var heading = document.createElement('h3');
+    heading.textContent = '主要來源頁面';
+    var sourcesList = document.createElement('ol');
+    citations.entries.forEach(function (entry) {
+      var item = document.createElement('li');
+      appendRecordLink(item, entry.name.replace(/\.md$/i, ''), entry.reference);
+      sourcesList.appendChild(item);
+    });
+    section.appendChild(heading);
+    section.appendChild(sourcesList);
+    summary.appendChild(section);
+  }
+  function appendInline(parent, value, recordId, citations) {
     var tokens = /(!?\[\[[^\]]+\]\]|!\[[^\]]*\]\([^)]*\)|\[[^\]]+\]\([^)]*\)|\[來源[：:][^\]]+\]|\*\*[^*]+\*\*|`[^`]+`|https?:\/\/[^\s<>]+|(?:^|\s)#[^\s#]+)/g;
     var offset = 0;
     var match;
@@ -435,7 +474,8 @@
           offset = match.index + token.length;
           continue;
         }
-        appendRecordLink(parent, target.split('|').pop(), target.split('|')[0]);
+        if (citations) appendSummaryCitation(parent, target.split('|')[0], citations);
+        else appendRecordLink(parent, target.split('|').pop(), target.split('|')[0]);
         offset = match.index + token.length;
         continue;
       } else if (/^!?\[[^\]]*\]\(/.test(token)) {
@@ -446,7 +486,8 @@
           continue;
         }
         if (!/^[a-z][a-z0-9+.-]*:/i.test(link[2]) && /\.md(?:#.*)?$/i.test(link[2])) {
-          appendRecordLink(parent, link[1], link[2]);
+          if (citations) appendSummaryCitation(parent, link[2], citations);
+          else appendRecordLink(parent, link[1], link[2]);
           offset = match.index + token.length;
           continue;
         }
@@ -474,12 +515,14 @@
         offset = match.index + token.length;
         continue;
       } else if (/^\[來源[：:]/.test(token)) {
-        appendRecordLink(parent, token, token.slice(1, -1).replace(/^來源[：:]\s*/, ''));
+        var reference = token.slice(1, -1).replace(/^來源[：:]\s*/, '').trim();
+        if (citations) appendSummaryCitation(parent, reference, citations);
+        else appendRecordLink(parent, token, reference);
         offset = match.index + token.length;
         continue;
       } else if (token.slice(0, 2) === '**') {
         element = document.createElement('strong');
-        appendInline(element, token.slice(2, -2), recordId);
+        appendInline(element, token.slice(2, -2), recordId, citations);
       } else if (token[0] === '`') {
         element = document.createElement('code');
         element.textContent = token.slice(1, -1);
@@ -501,7 +544,7 @@
     });
   }
 
-  function renderMarkdown(value, recordId, target) {
+  function renderMarkdown(value, recordId, target, citations) {
     target = target || preview;
     target.replaceChildren();
     var lines = String(value || '').replace(/\r\n?/g, '\n').split('\n');
@@ -538,7 +581,7 @@
           var headRow = document.createElement('tr');
           headers.forEach(function (cell) {
             var th = document.createElement('th'); th.setAttribute('scope', 'col');
-            appendInline(th, cell, recordId); headRow.appendChild(th);
+            appendInline(th, cell, recordId, citations); headRow.appendChild(th);
           });
           head.appendChild(headRow); table.appendChild(head);
           var body = document.createElement('tbody');
@@ -548,7 +591,7 @@
             var row = document.createElement('tr');
             headers.forEach(function (_, column) {
               var td = document.createElement('td');
-              appendInline(td, cells[column] || '', recordId); row.appendChild(td);
+              appendInline(td, cells[column] || '', recordId, citations); row.appendChild(td);
             });
             body.appendChild(row); i++;
           }
@@ -562,7 +605,7 @@
       var element;
       if (heading) {
         element = document.createElement('h' + Math.min(heading[1].length + 1, 6));
-        appendInline(element, heading[2], recordId);
+        appendInline(element, heading[2], recordId, citations);
         fragment.appendChild(element);
         paragraph = null; listStack = []; quote = null;
       } else if (bullet) {
@@ -578,14 +621,14 @@
         }
         element = document.createElement('li');
         var content = bullet[3].replace(/^\[[ xX]\]\s*/, '');
-        appendInline(element, content, recordId);
+        appendInline(element, content, recordId, citations);
         listStack[listStack.length - 1].list.appendChild(element);
         listStack[listStack.length - 1].lastItem = element;
         paragraph = null; quote = null;
       } else if (/^>\s?/.test(trimmed)) {
         if (!quote) { quote = document.createElement('blockquote'); fragment.appendChild(quote); }
         element = document.createElement('p');
-        appendInline(element, trimmed.replace(/^>\s?/, ''), recordId);
+        appendInline(element, trimmed.replace(/^>\s?/, ''), recordId, citations);
         quote.appendChild(element);
         paragraph = null; listStack = [];
       } else if (/^([-*_])\1{2,}$/.test(trimmed)) {
@@ -594,7 +637,7 @@
       } else {
         if (!paragraph) { paragraph = document.createElement('p'); fragment.appendChild(paragraph); }
         else paragraph.appendChild(document.createElement('br'));
-        appendInline(paragraph, trimmed, recordId);
+        appendInline(paragraph, trimmed, recordId, citations);
         listStack = []; quote = null;
       }
     }

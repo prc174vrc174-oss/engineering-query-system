@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v208/);
+  assert.match(serviceWorker, /engineering-query-pwa-v209/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -495,7 +495,7 @@ test("D1 is the only engineering records surface", async () => {
   assert.match(client, /renderMarkdown\(result.record.content/);
   assert.match(client, /engineeringRecords\.settings.save/);
   assert.match(client, /engineeringRecords\.summarize/);
-  assert.match(client, /renderMarkdown\(summaries.join/);
+  assert.match(client, /renderSummary\(summaries.join/);
   assert.doesNotMatch(client, /loadStaticSnapshot|cachedRecords|activateEngineeringRecords\(/);
   assert.doesNotMatch(route, /engineeringRecords\.(search|read|catalog|batchRead)/);
 });
@@ -601,6 +601,41 @@ test("Gemini Markdown renders structure and keeps unsafe content inert", async (
 });
 
 
+test("Summary citations reuse numbers and open the corresponding source record", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  class Node {
+    constructor(tag, text = '') { this.tag = tag; this.textContent = text; this.children = []; }
+    get lastChild() { return this.children.at(-1); }
+    appendChild(node) { this.children.push(node); }
+    replaceChildren(...nodes) { this.children = nodes; }
+    setAttribute(key, value) { this[key] = value; }
+  }
+  const summary = new Node('div');
+  const document = { createElement: tag => new Node(tag), createTextNode: text => new Node('#text', text), createDocumentFragment: () => new Node('#fragment') };
+  const opened = [];
+  const context = {
+    document, summary, URL, rows: [],
+    summarySources: [{ id: 'first123', name: '壓注意.md', relativePath: '工程/壓注意.md' }, { id: 'second456', name: '烤漆.md', relativePath: '工程/烤漆.md' }],
+    dialog: { getBoundingClientRect: () => ({ width: 900, height: 700 }) },
+    window: { location: { href: 'https://example.com/engineering-query.html' }, open: (url, target, features) => { opened.push({ url, features }); return {}; } },
+  };
+  const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf("  excludeInput.addEventListener"));
+  runInNewContext(code + '\nrenderSummary("**規則** [來源：壓注意.md]\\n- 重複 [來源：壓注意.md]\\n- 另一篇 [來源：烤漆.md]\\n- 合併 [來源：壓注意.md、烤漆.md]");', context);
+  const nodes = [];
+  function walk(node) { nodes.push(node); node.children.forEach(walk); }
+  walk(summary);
+  const citations = nodes.filter(node => node.className?.includes('engineering-summary-citation'));
+  assert.deepEqual(citations.map(node => node.textContent), ['[1]', '[1]', '[2]', '[1]', '[2]']);
+  assert.ok(citations[0].href.includes('recordId=first123'));
+  assert.ok(citations[2].href.includes('recordId=second456'));
+  const footer = summary.children.at(-1);
+  assert.equal(footer.children[0].textContent, '主要來源頁面');
+  assert.equal(footer.children[1].children.length, 2);
+  citations[2].onclick({ preventDefault() {} });
+  assert.ok(opened[0].url.includes('recordId=second456'));
+  assert.match(opened[0].features, /width=900,height=700/);
+});
+
 test("Gemini summarizes all 23 selected records in bounded batches", async () => {
   const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
   const selected = Array.from({ length: 23 }, (_, i) => ({ value: 'record' + i }));
@@ -612,7 +647,7 @@ test("Gemini summarizes all 23 selected records in bounded batches", async () =>
     view() {}, credentialValid: () => true,
     setStatus: (text, state) => statuses.push({ text, state }),
     setSummaryStatus: (text, state) => statuses.push({ text, state }),
-    renderMarkdown: (value) => output.push(value),
+    renderSummary: (value) => output.push(value),
     call: async (_, options) => {
       const payload = JSON.parse(options.body); calls.push(payload);
       return { summary: '**重點** ' + payload.ids.join(', '), sources: [] };
