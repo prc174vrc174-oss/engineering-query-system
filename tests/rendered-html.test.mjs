@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v220/);
+  assert.match(serviceWorker, /engineering-query-pwa-v221/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -726,12 +726,14 @@ test("Search counts and Gemini progress stay separate across tab switches", asyn
   context.setSummaryStatus('Gemini 正在整理 23 篇…', 'loading');
   assert.equal(context.status.textContent, '找到 23 筆工程紀錄。');
   context.view('summary');
-  assert.equal(context.status.textContent, 'Gemini 正在整理 23 篇…');
+  assert.equal(context.status.textContent, 'Gemini 正在整理 23 篇…（3.5 Flash-lite）');
   context.view('results');
   context.setSummaryStatus('Gemini 摘要完成，共整理 23 篇。', 'success');
   assert.equal(context.status.textContent, '找到 23 筆工程紀錄。');
   context.view('summary');
-  assert.equal(context.status.textContent, 'Gemini 摘要完成，共整理 23 篇。');
+  assert.equal(context.status.textContent, 'Gemini 摘要完成，共整理 23 篇。（3.5 Flash-lite）');
+  context.setSummaryStatus('');
+  assert.equal(context.status.textContent, '');
 });
 
 

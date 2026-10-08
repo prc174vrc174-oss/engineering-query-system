@@ -44,7 +44,10 @@
     viewStatuses[scope] = { message: message, state: state || '' };
     if (scope === activeView) paintStatus();
   }
-  function setSummaryStatus(message, state) { setStatus(message, state, 'summary'); }
+  function setSummaryStatus(message, state) {
+    if (message && (state === 'loading' || state === 'success')) message += '（3.5 Flash-lite）';
+    setStatus(message, state, 'summary');
+  }
   async function call(url, options) {
     var response = await fetch(url, Object.assign({ cache: 'no-store' }, options || {}));
     var value = await response.json();
