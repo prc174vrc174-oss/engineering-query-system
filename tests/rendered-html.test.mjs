@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v202/);
+  assert.match(serviceWorker, /engineering-query-pwa-v203/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -603,6 +603,7 @@ test("Gemini summarizes all 23 selected records in bounded batches", async () =>
     query: { value: '10258' }, token: 'test-credential', driveApi: '/api/test', summarySources: [],
     view() {}, credentialValid: () => true,
     setStatus: (text, state) => statuses.push({ text, state }),
+    setSummaryStatus: (text, state) => statuses.push({ text, state }),
     renderMarkdown: (value) => output.push(value),
     call: async (_, options) => {
       const payload = JSON.parse(options.body); calls.push(payload);
@@ -615,4 +616,27 @@ test("Gemini summarizes all 23 selected records in bounded batches", async () =>
   assert.ok(output.at(-1).includes('record22'));
   assert.ok(statuses.at(-1).text.includes('23'));
   assert.equal(statuses.at(-1).state, 'success');
+});
+
+
+test("Search counts and Gemini progress stay separate across tab switches", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  const context = {
+    activeView: 'results', viewStatuses: { results: { message: '', state: '' }, summary: { message: '', state: '' } },
+    status: {}, resultsView: {}, summaryView: {},
+    resultsTab: { setAttribute() {} }, summaryTab: { setAttribute() {} },
+  };
+  const code = source.slice(source.indexOf('  function paintStatus()'), source.indexOf('  async function call(')) +
+    source.slice(source.indexOf('  function view('), source.indexOf('  function date('));
+  runInNewContext(code, context);
+  context.setStatus('找到 23 筆工程紀錄。', 'success');
+  context.setSummaryStatus('Gemini 正在整理 23 篇…', 'loading');
+  assert.equal(context.status.textContent, '找到 23 筆工程紀錄。');
+  context.view('summary');
+  assert.equal(context.status.textContent, 'Gemini 正在整理 23 篇…');
+  context.view('results');
+  context.setSummaryStatus('Gemini 摘要完成，共整理 23 篇。', 'success');
+  assert.equal(context.status.textContent, '找到 23 筆工程紀錄。');
+  context.view('summary');
+  assert.equal(context.status.textContent, 'Gemini 摘要完成，共整理 23 篇。');
 });

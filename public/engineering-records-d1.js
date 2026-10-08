@@ -16,12 +16,21 @@
   var excludeSave = byId('SettingsSave'), excludeError = byId('SettingsError');
   var excludeSuggestions = byId('SettingsSuggestions'), settingsSignIn = byId('SettingsGoogleButton');
   var started = false, rows = [], resultVersion = 0, timer = 0, token = '', signInPending = false;
+  var activeView = 'results';
+  var viewStatuses = { results: { message: '', state: '' }, summary: { message: '', state: '' } };
   if (!query) return;
 
-  function setStatus(message, state) {
-    status.textContent = message;
-    status.className = 'engineering-records-status' + (state ? ' is-' + state : '');
+  function paintStatus() {
+    var current = viewStatuses[activeView];
+    status.textContent = current.message;
+    status.className = 'engineering-records-status' + (current.state ? ' is-' + current.state : '');
   }
+  function setStatus(message, state, scope) {
+    scope = scope || 'results';
+    viewStatuses[scope] = { message: message, state: state || '' };
+    if (scope === activeView) paintStatus();
+  }
+  function setSummaryStatus(message, state) { setStatus(message, state, 'summary'); }
   async function call(url, options) {
     var response = await fetch(url, Object.assign({ cache: 'no-store' }, options || {}));
     var value = await response.json();
@@ -29,6 +38,8 @@
     return value;
   }
   function view(name) {
+    activeView = name === 'summary' ? 'summary' : 'results';
+    paintStatus();
     var showingSummary = name === 'summary';
     resultsView.hidden = showingSummary;
     summaryView.hidden = !showingSummary;
@@ -185,19 +196,20 @@
     view('summary');
     if (!credentialValid()) {
       signInPending = true;
+      setSummaryStatus('待登入後整理 ' + ids.length + ' 篇工程紀錄。');
       summary.textContent = '請先使用允許的 Google 帳號登入；登入後會自動產生摘要。';
       loadGoogle();
       return;
     }
     gemini.disabled = true;
     summary.textContent = 'Gemini 正在產生摘要…';
-    setStatus('Gemini 正在整理 ' + ids.length + ' 篇…', 'loading');
+    setSummaryStatus('Gemini 正在整理 ' + ids.length + ' 篇…', 'loading');
     var summaries = [], summaryQuery = query.value.trim();
     summarySources = [];
     try {
       for (var start = 0; start < ids.length; start += 20) {
         var batch = ids.slice(start, start + 20);
-        setStatus('Gemini 正在整理 ' + ids.length + ' 篇（' + start + '/' + ids.length + '）…', 'loading');
+        setSummaryStatus('Gemini 正在整理 ' + ids.length + ' 篇（' + start + '/' + ids.length + '）…', 'loading');
         var result = await call(driveApi, { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'engineeringRecords.summarize', query: summaryQuery, ids: batch, idToken: token }) });
         summarySources = summarySources.concat(result.sources || []);
@@ -205,11 +217,11 @@
         summaries.push(heading + (result.summary || ''));
         renderMarkdown(summaries.join('\n\n---\n\n'), '', summary);
       }
-      setStatus('Gemini 摘要完成，共整理 ' + ids.length + ' 篇。', 'success');
+      setSummaryStatus('Gemini 摘要完成，共整理 ' + ids.length + ' 篇。', 'success');
     } catch (error) {
       if (summaries.length) renderMarkdown(summaries.join('\n\n---\n\n') + '\n\n> 部分摘要尚未完成：' + error.message, '', summary);
       else summary.textContent = error.message;
-      setStatus('摘要尚未完成：' + error.message, 'error');
+      setSummaryStatus('摘要尚未完成：' + error.message, 'error');
     }
     finally { gemini.disabled = !rows.length; }
   }
@@ -367,7 +379,7 @@
         }
         if (!record) throw new Error('找不到連結的工程紀錄：' + reference);
         await openRecord(record);
-      } catch (error) { setStatus(error.message, 'error'); }
+      } catch (error) { setStatus(error.message, 'error', activeView); }
       finally { link.disabled = false; }
     };
     parent.appendChild(link);
