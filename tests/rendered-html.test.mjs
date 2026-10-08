@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v213/);
+  assert.match(serviceWorker, /engineering-query-pwa-v214/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -656,6 +656,7 @@ test("Summary citations reuse numbers and open the corresponding source record",
   const opened = [];
   const context = {
     document, summary, URL, rows: [],
+    updateSummaryButtons() {}, summaryHasContent: false,
     summarySources: [{ id: 'first123', name: '壓注意.md', relativePath: '工程/壓注意.md' }, { id: 'second456', name: '烤漆.md', relativePath: '工程/烤漆.md' }, { id: 'third789', name: '只列來源.md', relativePath: '工程/只列來源.md' }],
     dialog: { getBoundingClientRect: () => ({ width: 900, height: 700 }) },
     window: { location: { href: 'https://example.com/engineering-query.html' }, open: (url, target, features) => { opened.push({ url, features }); return {}; } },
@@ -759,7 +760,7 @@ test("Summary sign-in opens a dialog, cancellation stops automatic generation, a
   const button = () => ({ replaceChildren() {} });
   const context = {
     gemini: {}, regenerate: {}, rows: [{ id: 'note1' }], summarizing: false,
-    signInPending: false, saveAfterLogin: false, token: '', summarySources: [], summaryStart: { hidden: false },
+    signInPending: false, saveAfterLogin: false, summaryHasContent: false, token: '', summarySources: [], summaryStart: { hidden: false },
     summary: { textContent: '保留原摘要', hidden: false }, signInStatus: {}, settingsSignIn: button(), googleButton: button(),
     signInDialog: { open: false, showModal() { this.open = true; }, close() { this.open = false; }, addEventListener() {} },
     byId: () => ({}), query: { value: '10017' }, clientId: 'test', driveApi: '/test',
@@ -792,4 +793,114 @@ test("Summary sign-in opens a dialog, cancellation stops automatic generation, a
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(context.gemini.disabled, false);
   assert.equal(context.regenerate.disabled, false);
+});
+
+test("Inline and named footnotes keep nested note links and balanced URL parentheses clickable", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  class Node {
+    constructor(tag, text = '') { this.tag = tag; this.textContent = text; this.children = []; }
+    appendChild(node) { this.children.push(node); }
+    replaceChildren(...nodes) { this.children = nodes; }
+    setAttribute(key, value) { this[key] = value; }
+  }
+  const preview = new Node('div');
+  const document = { createElement: tag => new Node(tag), createTextNode: text => new Node('#text', text), createDocumentFragment: () => new Node('#fragment') };
+  const value = '規則 ^[參閱 [[B(新版)|筆記 B]]、[原文](B(新版).md) 及 [網頁](https://example.com/a(b))，`a]b` 不截斷]，命名註腳[^named]。\n\n[^named]: [另一頁](C.md) 與 [[B(新版)]]\n';
+  const opened = [], code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf("  excludeInput.addEventListener"));
+  runInNewContext(code + '\nrenderMarkdown(value, "record1", preview);', {
+    document, preview, value, URL, rows: [{ id: 'b', name: 'B(新版).md' }, { id: 'c', name: 'C.md' }], summarySources: [],
+    openRecord: record => opened.push(record.id), window: { matchMedia: () => ({ matches: true }), location: { href: 'https://example.com/' } },
+  });
+  const all = []; (function walk(node) { all.push(node); node.children.forEach(walk); })(preview);
+  const notes = all.filter(n => n.tag === 'li');
+  assert.equal(notes.length, 2);
+  const links = all.filter(n => n.tag === 'a' && n.className?.includes('engineering-markdown-record-link'));
+  assert.equal(links.length, 4);
+  links.forEach(link => link.onclick({ preventDefault() {} }));
+  assert.deepEqual(opened, ['b', 'b', 'c', 'b']);
+  assert.ok(all.some(n => n.tag === 'a' && n.href === 'https://example.com/a(b)'));
+  assert.ok(all.some(n => n.tag === 'code' && n.textContent === 'a]b'));
+});
+
+test("Mobile note links stay in the app and closing or browser back restores the previous note and search", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
+  class Element {
+    constructor(tag = 'div', text = '') { this.tag = tag; this.children = []; this.value = ''; this.textContent = text; this.listeners = {}; this.scrollTop = 0; }
+    get childNodes() { return this.children; }
+    replaceChildren(...nodes) { this.children = nodes; }
+    append(...nodes) { this.children.push(...nodes); }
+    appendChild(node) { this.children.push(node); }
+    setAttribute(name, value) { this[name] = value; }
+    addEventListener(name, callback) { this.listeners[name] = callback; }
+    showModal() { this.open = true; }
+    close() { this.open = false; }
+    querySelectorAll() { return []; }
+  }
+  const elements = new Map([...html.matchAll(/id="(d1Records[^"]+)"/g)].map(m => [m[1], new Element()]));
+  const notes = [{ id: 'a', name: 'A.md', content: '# A\n[[B]]' }, { id: 'b', name: 'B.md', content: '# B' }];
+  const events = {}, states = [{ preserved: 'app-state' }]; let index = 0, closed = 0, popups = 0;
+  const window = {
+    location: { href: 'https://example.com/engineering-query.html' }, matchMedia: () => ({ matches: true }),
+    addEventListener: (name, callback) => { events[name] = callback; }, close: () => { closed++; }, open: () => { popups++; },
+    history: {
+      get state() { return states[index]; },
+      pushState(state) { states.splice(index + 1); states.push(state); index++; },
+      back() { index--; events.popstate({ state: states[index] }); },
+    },
+  };
+  const document = {
+    title: '查詢系統', getElementById: id => elements.get(id),
+    createElement: tag => new Element(tag), createDocumentFragment: () => new Element('#fragment'), createTextNode: text => new Element('#text', text),
+  };
+  runInNewContext(source, { window, document, location: { hostname: 'example.com' }, URL, Intl, Date, setTimeout, clearTimeout,
+    fetch: async url => {
+      const params = new URL(url, window.location.href).searchParams;
+      return { ok: true, json: async () => ({ ok: true, results: notes, record: notes.find(n => n.id === params.get('id')) }) };
+    },
+  });
+  const query = elements.get('d1RecordsQuery'); query.value = '保留的關鍵字';
+  query.listeners.keydown({ key: 'Enter', preventDefault() {} });
+  await new Promise(resolve => setImmediate(resolve));
+  const rendered = elements.get('d1RecordsList').children[0].children;
+  const first = rendered.find(item => item.children[0].value === 'a');
+  await first.children[1].onclick(); await new Promise(resolve => setImmediate(resolve));
+  const preview = elements.get('d1RecordsPreview'), dialog = elements.get('d1RecordsDialog');
+  preview.scrollTop = 145;
+  const nodes = []; (function walk(node) { nodes.push(node); node.children.forEach(walk); })(preview);
+  const link = nodes.find(n => n.tag === 'a');
+  link.onclick({ preventDefault() {} }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(elements.get('d1RecordsPreviewTitle').textContent, 'B.md');
+  assert.equal(window.history.state.preserved, 'app-state');
+  elements.get('d1RecordsDialogClose').onclick();
+  assert.equal(elements.get('d1RecordsPreviewTitle').textContent, 'A.md');
+  assert.equal(preview.scrollTop, 145);
+  assert.equal(dialog.open, true);
+  elements.get('d1RecordsDialogClose').onclick();
+  assert.equal(dialog.open, false);
+  assert.equal(query.value, '保留的關鍵字');
+  assert.ok(rendered.every(item => item.children[0].checked));
+  first.children[1].onclick(); await new Promise(resolve => setImmediate(resolve));
+  window.history.back();
+  assert.equal(dialog.open, false);
+  assert.equal(closed, 0);
+  assert.equal(popups, 0);
+});
+
+test("Standalone mobile reader returns to the system and regeneration appears only after summary content", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  const returned = [], context = {
+    isMobileReader: () => true, readerStack: [], recordWindow: true,
+    window: { location: { href: 'https://example.com/engineering-query.html?recordId=a#note', replace: url => returned.push(url) }, close() { throw new Error('Must not close mobile app'); } }, URL,
+  };
+  runInNewContext(source.slice(source.indexOf('  function closeRecordReader()'), source.indexOf('  if (window.addEventListener)')), context);
+  context.closeRecordReader();
+  assert.deepEqual(returned, ['https://example.com/engineering-query.html']);
+  const controls = { gemini: {}, regenerate: {}, rows: [{}], summarizing: false, summaryHasContent: false };
+  runInNewContext(source.slice(source.indexOf('  function updateSummaryButtons()'), source.indexOf('  function cancelSummarySignIn()')), controls);
+  controls.updateSummaryButtons(); assert.equal(controls.regenerate.hidden, true);
+  controls.summaryHasContent = true;
+  controls.updateSummaryButtons(); assert.equal(controls.regenerate.hidden, false);
+  controls.summarizing = true;
+  controls.updateSummaryButtons(); assert.equal(controls.regenerate.disabled, true);
 });

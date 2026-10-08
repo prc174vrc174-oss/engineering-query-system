@@ -3349,8 +3349,6 @@ h3 {
             padding: 18px 24px 40px;
             font-family: 'Outfit', 'Inter', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
         }
-        .engineering-records-header { display: block; min-height: 0; margin-bottom: 12px; }
-        .engineering-records-title { margin: 0; color: #111827; font-size: 28px; font-weight: 850; }
         .engineering-records-toolbar {
             display: grid;
             grid-template-columns: minmax(0, 1fr);
@@ -3468,8 +3466,9 @@ h3 {
         .engineering-records-summary-card .engineering-records-preview { min-height:220px; padding:22px 26px 30px; color:#253044; font-size:15px; line-height:1.85; white-space:normal; }
         .engineering-records-summary-card .engineering-records-preview-head { background:#f8f7fe; border-bottom-color:#e9e5f6; }
         .engineering-records-summary-card .engineering-records-preview-head h3 { color:#5b46a3; }
-        .engineering-records-summary-head { justify-content:flex-start; gap:10px; }
-        .engineering-records-regenerate { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; flex:none; padding:0; border:1px solid #ded7f3; border-radius:8px; background:#fff; color:#6d5bd0; font:inherit; font-size:25px; cursor:pointer; }
+        .engineering-records-summary-head { justify-content:flex-start; align-items:center; gap:6px; }
+        .engineering-records-regenerate { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; flex:none; padding:0; border:0; border-radius:5px; background:transparent; color:#6d5bd0; font:inherit; font-size:16px; line-height:1; cursor:pointer; }
+        .engineering-records-regenerate[hidden] { display:none; }
         .engineering-records-regenerate:hover { background:#eeeafb; }
         .engineering-records-regenerate:disabled { opacity:.45; cursor:default; }
         .engineering-records-summary-start { min-height:260px; display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -3538,7 +3537,7 @@ h3 {
         .engineering-record-window #d1RecordsDialog::backdrop { background:#fff; }
         .engineering-records-dialog-close { flex-shrink:0; min-height:34px; padding:0 12px; }
         @media (max-width: 760px) {
-            .engineering-records-dialog { width:calc(100vw - 20px); height:calc(100dvh - 20px); max-height:calc(100dvh - 20px); }
+            .engineering-records-dialog { width:100vw; height:100dvh; max-width:none; max-height:none; margin:0; border:0; border-radius:0; }
             :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview { padding:18px 16px 28px; }
             .engineering-records-dialog .engineering-records-preview-head { padding:18px; }
             .engineering-records-dialog .engineering-records-preview { padding:22px 18px 32px; }
@@ -4389,9 +4388,6 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
     <!-- 7. 工程紀錄 -->
     <div id="engineering-records-d1-panel" class="sys-panel" style="display:none">
         <main class="engineering-records-shell">
-            <header class="engineering-records-header">
-                <h2 class="engineering-records-title">工程紀錄</h2>
-            </header>
             <section class="engineering-records-toolbar" aria-label="工程紀錄搜尋">
                 <div class="engineering-records-controls">
                     <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" aria-label="搜尋工程紀錄" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
@@ -4434,7 +4430,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <div id="d1RecordsList" class="engineering-records-list"><div class="engineering-records-empty">輸入關鍵字即可搜尋。</div></div>
             </section>
             <section id="d1RecordsSummaryView" class="engineering-records-view engineering-records-summary-card" role="tabpanel" hidden>
-                <div class="engineering-records-preview-head engineering-records-summary-head"><h3>Gemini 摘要</h3><button id="d1RecordsRegenerate" class="engineering-records-regenerate" type="button" aria-label="重新摘要" title="重新摘要" disabled>↻</button></div>
+                <div class="engineering-records-preview-head engineering-records-summary-head"><h3>Gemini 摘要</h3><button id="d1RecordsRegenerate" class="engineering-records-regenerate" type="button" aria-label="重新摘要" title="重新摘要" hidden disabled>↻</button></div>
                 <div id="d1RecordsSummaryStart" class="engineering-records-summary-start"><button id="d1RecordsGemini" class="engineering-records-btn is-ai" type="button" disabled>產生 Gemini 摘要</button></div>
                 <div id="d1RecordsSummary" class="engineering-records-preview" aria-live="polite" hidden></div>
             </section>
@@ -6851,7 +6847,7 @@ init();
     </script>
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
-    <script src="engineering-records-d1.js?v=213"></script>
+    <script src="engineering-records-d1.js?v=214"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

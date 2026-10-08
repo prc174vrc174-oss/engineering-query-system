@@ -7,7 +7,7 @@
   var byId = function (id) { return document.getElementById('d1Records' + id); };
   var query = byId('Query'), reload = byId('Reload'), gemini = byId('Gemini');
   var regenerate = byId('Regenerate'), summaryStart = byId('SummaryStart');
-  var signInDialog = byId('SignInDialog'), signInStatus = byId('SignInStatus'), summarizing = false;
+  var signInDialog = byId('SignInDialog'), signInStatus = byId('SignInStatus'), summarizing = false, summaryHasContent = false;
   var folders = byId('Folders'), status = byId('Status'), list = byId('List');
   var resultsTab = byId('ResultsTab'), summaryTab = byId('SummaryTab');
   var resultsView = byId('ResultsView'), summaryView = byId('SummaryView'), summary = byId('Summary');
@@ -20,6 +20,7 @@
   var started = false, rows = [], resultVersion = 0, timer = 0, token = '', signInPending = false;
   var recordParams = window.location ? new URL(window.location.href).searchParams : null;
   var recordWindow = recordParams && (recordParams.has('recordId') || recordParams.has('recordName'));
+  var readerStack = [], readerRequest = 0, readerSession = String(Date.now()), readerTitle = document.title;
   var activeView = 'results';
   var viewStatuses = { results: { message: '', state: '' }, summary: { message: '', state: '' } };
   if (!query) return;
@@ -116,20 +117,73 @@
       setStatus('搜尋失敗：' + error.message, 'error');
     }
   }
-  async function openRecord(record) {
-    dialog.showModal();
+  async function openRecord(record, initialWindow) {
+    if (isMobileReader() && !initialWindow) {
+      readerStack.push(dialog.open ? {
+        title: previewTitle.textContent, meta: previewMeta.textContent,
+        nodes: Array.from(preview.childNodes), scrollTop: preview.scrollTop, documentTitle: document.title
+      } : null);
+      if (window.history && window.history.pushState) {
+        var state = Object.assign({}, window.history.state, { engineeringRecordReader: { session: readerSession, depth: readerStack.length } });
+        window.history.pushState(state, '', window.location.href);
+      }
+    }
+    if (!dialog.open) dialog.showModal();
+    var version = ++readerRequest;
     previewTitle.textContent = record.name;
     previewMeta.textContent = '讀取中…';
-    preview.textContent = '';
+    preview.replaceChildren();
+    preview.scrollTop = 0;
     try {
+      if (!record.id) {
+        var wanted = recordLinkName(record.name);
+        var found = await call(api + '?action=search&query=' + encodeURIComponent(wanted.split('/').pop().slice(0, 120)));
+        record = findLinkedRecord(found.results || [], record.name);
+        if (!record) throw new Error('找不到連結的工程紀錄，或有多篇同名紀錄。');
+      }
+      if (version !== readerRequest || !dialog.open) return;
       var result = await call(api + '?action=read&id=' + encodeURIComponent(record.id));
-      if (!dialog.open || previewTitle.textContent !== record.name) return;
+      if (version !== readerRequest || !dialog.open) return;
       previewTitle.textContent = result.record.name;
       if (recordWindow) document.title = result.record.name.replace(/\.md$/i, '') + '｜工程紀錄';
       previewMeta.textContent = result.record.relativePath + ' · 更新 ' + date(result.record.modifiedTime);
       renderMarkdown(result.record.content, record.id, preview);
-    } catch (error) { previewMeta.textContent = ''; preview.textContent = error.message; }
+    } catch (error) {
+      if (version !== readerRequest || !dialog.open) return;
+      previewMeta.textContent = ''; preview.textContent = error.message;
+    }
   }
+  function restoreReaderView(frame) {
+    readerRequest++;
+    if (!frame) { dialog.close(); document.title = readerTitle; return; }
+    previewTitle.textContent = frame.title;
+    previewMeta.textContent = frame.meta;
+    preview.replaceChildren.apply(preview, frame.nodes);
+    preview.scrollTop = frame.scrollTop;
+    document.title = frame.documentTitle;
+  }
+  function closeRecordReader() {
+    if (isMobileReader() || readerStack.length) {
+      if (readerStack.length) {
+        var marker = window.history && window.history.state && window.history.state.engineeringRecordReader;
+        if (marker && marker.session === readerSession) window.history.back();
+        else restoreReaderView(readerStack.pop());
+      } else if (recordWindow) {
+        var home = new URL(window.location.href);
+        home.searchParams.delete('recordId'); home.searchParams.delete('recordName'); home.hash = '';
+        window.location.replace(home.href);
+      } else { readerRequest++; dialog.close(); }
+      return;
+    }
+    if (recordWindow) window.close();
+    else { readerRequest++; dialog.close(); }
+  }
+  if (window.addEventListener) window.addEventListener('popstate', function (event) {
+    if (!readerStack.length) return;
+    var marker = event.state && event.state.engineeringRecordReader;
+    var depth = marker && marker.session === readerSession ? marker.depth : 0;
+    while (readerStack.length > depth) restoreReaderView(readerStack.pop());
+  });
   async function refresh(force) {
     reload.disabled = true;
     if (force) setStatus('正在比對 Google Drive，更新工程紀錄…', 'loading');
@@ -179,10 +233,11 @@
   folders.onclick = showExcludeSettings;
   resultsTab.onclick = function () { view('results'); };
   summaryTab.onclick = function () { view('summary'); };
-  byId('DialogClose').onclick = function () { if (recordWindow) window.close(); else dialog.close(); };
+  byId('DialogClose').onclick = closeRecordReader;
 
   function updateSummaryButtons() {
     gemini.disabled = regenerate.disabled = summarizing || !rows.length;
+    regenerate.hidden = !summaryHasContent;
   }
   function cancelSummarySignIn() {
     signInPending = false;
@@ -256,7 +311,7 @@
       setSummaryStatus('Gemini 摘要完成，共整理 ' + ids.length + ' 篇。', 'success');
     } catch (error) {
       if (summaries.length) renderSummary(summaries.join('\n\n---\n\n') + '\n\n> 部分摘要尚未完成：' + error.message);
-      else summary.textContent = error.message;
+      else { summary.textContent = error.message; summaryStart.hidden = summaryHasContent; }
       setSummaryStatus('摘要尚未完成：' + error.message, 'error');
     }
     finally { summarizing = false; updateSummaryButtons(); }
@@ -394,6 +449,9 @@
     try { name = decodeURIComponent(name); } catch (_) {}
     return name.replace(/\\/g, '/').split('#')[0].replace(/\.md$/i, '').toLowerCase();
   }
+  function isMobileReader() {
+    return window.matchMedia ? window.matchMedia('(max-width: 900px) and (pointer: coarse)').matches : !!window.innerWidth && window.innerWidth <= 720;
+  }
   function findLinkedRecord(records, reference) {
     var wanted = recordLinkName(reference);
     var exact = records.find(function (record) { return recordLinkName(record.relativePath) === wanted; });
@@ -406,7 +464,7 @@
     var link = document.createElement('a');
     link.className = 'engineering-markdown-link engineering-markdown-record-link';
     link.textContent = label;
-    link.title = '在新視窗開啟工程紀錄：' + reference;
+    link.title = (isMobileReader() ? '開啟工程紀錄：' : '在新視窗開啟工程紀錄：') + reference;
     var destination = new URL('engineering-query.html', window.location.href);
     var record = findLinkedRecord(rows.concat(summarySources), reference);
     destination.searchParams.set(record ? 'recordId' : 'recordName', record ? record.id : reference);
@@ -414,6 +472,11 @@
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.onclick = function (event) {
+      if (isMobileReader()) {
+        event.preventDefault();
+        openRecord(findLinkedRecord(rows.concat(summarySources), reference) || { name: reference });
+        return;
+      }
       var display = window.screen || {};
       var availableWidth = display.availWidth || window.innerWidth || 752;
       var availableHeight = display.availHeight || window.innerHeight || 574;
@@ -441,7 +504,7 @@
         record = findLinkedRecord(result.results || [], name);
       }
       if (!record) throw new Error('找不到連結的工程紀錄，或有多篇同名紀錄：' + name);
-      await openRecord(record);
+      await openRecord(record, true);
     } catch (error) { previewMeta.textContent = ''; preview.textContent = error.message; }
   }
 
@@ -483,6 +546,8 @@
     return { body: body.join('\n'), sources: sources.join('\n') };
   }
   function renderSummary(value) {
+    summaryHasContent = !!String(value || '').trim();
+    updateSummaryButtons();
     var citations = { entries: [] };
     var sections = summarySections(value);
     renderMarkdown(sections.body, '', summary, citations);
@@ -521,13 +586,33 @@
     link.setAttribute('aria-label', '註腳 ' + (index + 1));
     sup.appendChild(link); parent.appendChild(sup);
   }
+  function closingDelimiter(value, opening, close) {
+    var depth = 1, ticks = 0, open = value[opening];
+    for (var i = opening + 1; i < value.length; i++) {
+      if (value[i] === '\\') { i++; continue; }
+      if (value[i] === '`') {
+        var run = /^`+/.exec(value.slice(i))[0];
+        ticks = ticks === run.length ? 0 : (ticks || run.length);
+        i += run.length - 1; continue;
+      }
+      if (ticks) continue;
+      if (value[i] === open) depth++;
+      else if (value[i] === close && --depth === 0) return i + 1;
+    }
+    return -1;
+  }
   function appendInline(parent, value, recordId, citations, markdown) {
-    var tokens = /(\\[\\`*_{}\[\]()#+\-.!~=>]|!?\[\[[^\]]+\]\]|!\[[^\]]*\]\([^)]*\)|\[[^\]]+\]\([^)]*\)|\[來源[：:][^\]]+\]|\^\[[^\]]+\]|\[\^[^\]]+\]|\*\*\*[\s\S]+?\*\*\*|___[\s\S]+?___|\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~|==[\s\S]+?==|\*[^*\n]+\*|(?<!\w)_[^_\n]+_(?!\w)|`[^`]+`|https?:\/\/[^\s<>]+|(?:^|\s)#[^\s#]+)/g;
+    var tokens = /(\\[\\`*_{}\[\]()#+\-.!~=>]|!?\[\[[^\]]+\]\]|!?\[[^\]]*\]\(|\[來源[：:][^\]]+\]|\^\[|\[\^[^\]]+\]|\*\*\*[\s\S]+?\*\*\*|___[\s\S]+?___|\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~|==[\s\S]+?==|\*[^*\n]+\*|(?<!\w)_[^_\n]+_(?!\w)|`[^`]+`|https?:\/\/[^\s<>]+|(?:^|\s)#[^\s#]+)/g;
     var offset = 0;
     var match;
     while ((match = tokens.exec(value))) {
       parent.appendChild(document.createTextNode(value.slice(offset, match.index)));
       var token = match[0];
+      if (token === '^[' || /^!?\[[^\]]*\]\($/.test(token)) {
+        var closing = closingDelimiter(value, match.index + token.length - 1, token === '^[' ? ']' : ')');
+        if (closing !== -1) { token = value.slice(match.index, closing); tokens.lastIndex = closing; }
+        else { parent.appendChild(document.createTextNode(token)); offset = tokens.lastIndex; continue; }
+      }
       var element;
       if (token[0] === '\\') {
         parent.appendChild(document.createTextNode(token.slice(1)));
@@ -551,7 +636,7 @@
         offset = match.index + token.length;
         continue;
       } else if (/^!?\[[^\]]*\]\(/.test(token)) {
-        var link = /^!?\[([^\]]*)\]\(([^)]*)\)$/.exec(token);
+        var link = /^!?\[([^\]]*)\]\(([\s\S]*)\)$/.exec(token);
         if (token[0] === '!') {
           appendImage(parent, link[1], link[2], recordId);
           offset = match.index + token.length;
@@ -829,8 +914,8 @@
   });
   excludeSave.onclick = saveExcludeSettings;
   byId('SettingsCancel').onclick = function () { saveAfterLogin = false; excludeDialog.close(); };
-  dialog.addEventListener('click', function (event) { if (!recordWindow && event.target === dialog) dialog.close(); });
-  dialog.addEventListener('cancel', function (event) { if (recordWindow) { event.preventDefault(); window.close(); } });
+  dialog.addEventListener('click', function (event) { if (!recordWindow && event.target === dialog) closeRecordReader(); });
+  dialog.addEventListener('cancel', function (event) { event.preventDefault(); closeRecordReader(); });
   gemini.onclick = summarize;
   regenerate.onclick = summarize;
   if (recordWindow) loadLinkedRecord();
