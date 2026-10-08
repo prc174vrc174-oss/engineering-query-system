@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v198/);
+  assert.match(serviceWorker, /engineering-query-pwa-v199/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -550,6 +550,7 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   assert.equal(elements.get('d1RecordsSettingsDialog').open, true);
   assert.equal(elements.get('d1RecordsSettingsInput').value, '工程');
   assert.equal(elements.get('d1RecordsSettingsSuggestions').children.length, 1);
+  assert.ok(requests.every((r) => r.url.startsWith('https://engineering-records-api.janyu056.workers.dev/')));
   assert.ok(requests.some((r) => r.action === 'read' && r.url.includes('/api/engineering-records-d1')));
   assert.ok(requests.some((r) => r.action === 'engineeringRecords.folders' && r.url.includes('/api/engineering-records-drive')));
 });

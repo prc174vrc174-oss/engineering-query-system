@@ -1,0 +1,12 @@
+{
+  "name": "engineering-records-api",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-08",
+  "account_id": "e7afb53fac3928d5e1bb02c4474792aa",
+  "workers_dev": true,
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "engineering-records-github",
+    "database_id": "a8ff1ec0-5ac7-415d-b9e8-53a925182d9a"
+  }]
+}

@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var remote = /\.github\.io$/i.test(location.hostname) ? 'https://engineering-query.prc174.chatgpt.site' : '';
+  var remote = /\.github\.io$/i.test(location.hostname) ? 'https://engineering-records-api.janyu056.workers.dev' : '';
   var api = remote + '/api/engineering-records-d1';
   var driveApi = remote + '/api/engineering-records-drive';
   var clientId = '406267166897-8geeu3tpc425nc9n7gmimmmflbckp0ta.apps.googleusercontent.com';
@@ -108,8 +108,16 @@
     reload.disabled = true;
     if (force) setStatus('正在比對 Google Drive，更新 D1…', 'loading');
     try {
-      var result = await call(api, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'refresh', force: force }) });
+      var result;
+      // Continue resumable Cloudflare sync batches until all full texts are present.
+      do {
+        result = await call(api, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'refresh', force: force }) });
+        if (result.syncing && !result.busy) {
+          setStatus('正在更新 D1，剩餘 ' + result.remaining + ' 篇…', 'loading');
+          await new Promise(function (resolve) { setTimeout(resolve, 1000); });
+        }
+      } while (result.syncing && !result.busy);
       includedFolders = normalizeFolders(result.includedFolders);
       folders.textContent = '搜尋資料夾（' + (result.includedFolders.length || '全部') + '）';
       if (result.busy) setStatus('另一台電腦正在同步；稍後再按重新載入。');

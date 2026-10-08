@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v198-d1-only';
+const CACHE_NAME = 'engineering-query-pwa-v199-cloudflare-d1';
 const APP_SHELL = [
   './',
   './engineering-query.html',
