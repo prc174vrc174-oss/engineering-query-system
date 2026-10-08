@@ -6,7 +6,7 @@
   var clientId = '406267166897-8geeu3tpc425nc9n7gmimmmflbckp0ta.apps.googleusercontent.com';
   var byId = function (id) { return document.getElementById('d1Records' + id); };
   var query = byId('Query'), reload = byId('Reload'), gemini = byId('Gemini');
-  var regenerate = byId('Regenerate'), summaryStart = byId('SummaryStart');
+  var regenerate = byId('Regenerate'), summaryStart = byId('SummaryStart'), summaryClear = byId('SummaryClear');
   var signInDialog = byId('SignInDialog'), signInStatus = byId('SignInStatus'), summarizing = false, summaryHasContent = false;
   var folders = byId('Folders'), status = byId('Status'), list = byId('List');
   var resultsTab = byId('ResultsTab'), summaryTab = byId('SummaryTab');
@@ -238,6 +238,20 @@
   function updateSummaryButtons() {
     gemini.disabled = regenerate.disabled = summarizing || !rows.length;
     regenerate.hidden = !summaryHasContent;
+    summaryClear.hidden = !summaryHasContent;
+    summaryClear.disabled = summarizing;
+  }
+  function clearSummary() {
+    if (summarizing) return;
+    signInPending = false;
+    if (signInDialog.open) signInDialog.close();
+    summary.replaceChildren();
+    summarySources = [];
+    summaryHasContent = false;
+    summary.hidden = true;
+    summaryStart.hidden = false;
+    setSummaryStatus('');
+    updateSummaryButtons();
   }
   function cancelSummarySignIn() {
     signInPending = false;
@@ -954,5 +968,6 @@
   dialog.addEventListener('cancel', function (event) { event.preventDefault(); closeRecordReader(); });
   gemini.onclick = summarize;
   regenerate.onclick = summarize;
+  summaryClear.onclick = clearSummary;
   if (recordWindow) loadLinkedRecord();
 })();

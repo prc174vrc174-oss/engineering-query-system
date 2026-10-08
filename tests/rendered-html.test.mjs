@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v219/);
+  assert.match(serviceWorker, /engineering-query-pwa-v220/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -762,7 +762,7 @@ test("Summary sign-in opens a dialog, cancellation stops automatic generation, a
   let callback, resolveRequest, calls = 0;
   const button = () => ({ replaceChildren() {} });
   const context = {
-    gemini: {}, regenerate: {}, rows: [{ id: 'note1' }], summarizing: false,
+    gemini: {}, regenerate: {}, summaryClear: {}, rows: [{ id: 'note1' }], summarizing: false,
     signInPending: false, saveAfterLogin: false, summaryHasContent: false, token: '', summarySources: [], summaryStart: { hidden: false },
     summary: { textContent: '保留原摘要', hidden: false }, signInStatus: {}, settingsSignIn: button(), googleButton: button(),
     signInDialog: { open: false, showModal() { this.open = true; }, close() { this.open = false; }, addEventListener() {} },
@@ -899,7 +899,7 @@ test("Standalone mobile reader returns to the system and regeneration appears on
   runInNewContext(source.slice(source.indexOf('  function closeRecordReader()'), source.indexOf('  if (window.addEventListener)')), context);
   context.closeRecordReader();
   assert.deepEqual(returned, ['https://example.com/engineering-query.html']);
-  const controls = { gemini: {}, regenerate: {}, rows: [{}], summarizing: false, summaryHasContent: false };
+  const controls = { gemini: {}, regenerate: {}, summaryClear: {}, rows: [{}], summarizing: false, summaryHasContent: false };
   runInNewContext(source.slice(source.indexOf('  function updateSummaryButtons()'), source.indexOf('  function cancelSummarySignIn()')), controls);
   controls.updateSummaryButtons(); assert.equal(controls.regenerate.hidden, true);
   controls.summaryHasContent = true;
