@@ -3485,6 +3485,41 @@ h3 {
         .engineering-markdown-table th { background:#f3f4fa; color:#344054; font-weight:750; }
         .engineering-markdown-table tbody tr:nth-child(even) { background:#fafbfe; }
         .engineering-records-dialog .engineering-markdown-table table { font-size:inherit; }
+        .engineering-records-dialog .engineering-records-preview h1 { margin:0 0 20px; font-size:1.75rem; line-height:1.4; }
+        .engineering-records-dialog .engineering-records-preview h2 { font-size:1.5rem; }
+        .engineering-records-dialog .engineering-records-preview h3 { font-size:1.25rem; }
+        .engineering-records-dialog .engineering-records-preview h4 { font-size:1.1rem; }
+        .engineering-records-dialog .engineering-records-preview h5,
+        .engineering-records-dialog .engineering-records-preview h6 { margin:18px 0 8px; font-size:1rem; line-height:1.5; }
+        .engineering-records-dialog .engineering-records-preview ul { list-style-type:disc; }
+        .engineering-records-dialog .engineering-records-preview li::marker { color:#858585; }
+        .engineering-records-dialog .engineering-markdown-tag { font-size:0.85em; line-height:1.5; padding:0 8px; border:1px solid #d4e9df; }
+        .engineering-records-dialog .engineering-markdown-tag-group-1 { background:#f3edfc; border-color:#e6daf6; color:#996ac7; }
+        .engineering-records-dialog .engineering-markdown-tag-group-2 { background:#fff2e6; border-color:#f4dfc8; color:#ac772c; }
+        .engineering-records-dialog .engineering-markdown-tag-group-3 { background:#eaf5ee; border-color:#d4e9df; color:#479779; }
+        .engineering-records-dialog .engineering-markdown-tag-group-4 { background:#f9edf3; border-color:#f0dce5; color:#bd6d8e; }
+        .engineering-records-dialog .engineering-markdown-tag-group-5 { background:#eaf3fb; border-color:#d5e6f5; color:#538fb9; }
+        .engineering-records-dialog .engineering-markdown-tag-group-6 { background:#fff0ed; border-color:#f4dfd9; color:#bd7c69; }
+        .engineering-records-dialog .engineering-markdown-tag-group-7 { background:#edf3f8; border-color:#d9e4ed; color:#678da8; }
+        .engineering-records-preview del { text-decoration-thickness:1.5px; color:#75818a; }
+        .engineering-records-preview mark { padding:1px 3px; border-radius:3px; background:#fff0a8; color:inherit; }
+        .engineering-records-preview .engineering-markdown-task { position:relative; list-style:none; }
+        .engineering-records-preview .engineering-markdown-task input { position:absolute; left:-20px; top:0.5em; width:14px; height:14px; margin:0; accent-color:#678da8; }
+        .engineering-records-preview .engineering-markdown-task.is-complete { color:#7c8791; text-decoration:line-through; }
+        .engineering-markdown-footnote-ref { font-size:0.75em; vertical-align:super; line-height:0; }
+        .engineering-markdown-footnote-ref a { margin:0 3px; }
+        .engineering-markdown-footnotes { margin-top:28px; padding-top:18px; border-top:1px solid #dce3eb; font-size:0.875em; }
+        .engineering-markdown-footnotes li { scroll-margin-top:18px; }
+        .engineering-records-dialog .engineering-markdown-footnotes,
+        .engineering-records-dialog .engineering-records-preview hr { border:0; background:linear-gradient(90deg,#ed6f6f,#dfbd59,#7ab982,#60acc2,#9879c1) top / 100% 1px no-repeat; }
+        .engineering-records-dialog .engineering-records-preview hr { height:1px; margin:24px 0; }
+        .engineering-markdown-callout { margin:16px 0; padding:12px 16px; border-left:3px solid #6b9ecb; border-radius:6px; background:#edf4fb; }
+        .engineering-markdown-callout-title { margin-bottom:8px; color:#32658e; font-weight:700; }
+        details.engineering-markdown-callout > summary { cursor:pointer; }
+        .engineering-markdown-callout[data-callout="warning"] { border-color:#d0a13d; background:#fff7e6; }
+        .engineering-markdown-callout[data-callout="danger"] { border-color:#ce7474; background:#fff0ef; }
+        .engineering-markdown-callout[data-callout="success"], .engineering-markdown-callout[data-callout="tip"] { border-color:#68a58d; background:#edf7f1; }
+        .engineering-markdown-callout > div:last-child > :last-child { margin-bottom:0; }
         .engineering-record-window body { background:#fff; }
         .engineering-record-window .app-header-tabs, .engineering-record-window .sys-panel { display:none !important; }
         .engineering-record-window #engineering-records-d1-panel { display:block !important; }
@@ -6800,7 +6835,7 @@ init();
     </script>
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
-    <script src="engineering-records-d1.js?v=211"></script>
+    <script src="engineering-records-d1.js?v=212"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

@@ -480,15 +480,41 @@
     section.appendChild(sourcesList);
     summary.appendChild(section);
   }
-  function appendInline(parent, value, recordId, citations) {
-    var tokens = /(!?\[\[[^\]]+\]\]|!\[[^\]]*\]\([^)]*\)|\[[^\]]+\]\([^)]*\)|\[來源[：:][^\]]+\]|\*\*[^*]+\*\*|`[^`]+`|https?:\/\/[^\s<>]+|(?:^|\s)#[^\s#]+)/g;
+  function appendFootnote(parent, token, markdown) {
+    var inline = token[0] === '^';
+    var key = inline ? 'inline:' + token.slice(2, -1) : token.slice(2, -1);
+    var content = inline ? token.slice(2, -1) : markdown.definitions[key];
+    if (content === undefined) { parent.appendChild(document.createTextNode(token)); return; }
+    var index = markdown.notes.findIndex(function (note) { return note.key === key; });
+    if (index === -1) { index = markdown.notes.length; markdown.notes.push({ key: key, content: content, references: 0 }); }
+    var note = markdown.notes[index];
+    note.references++;
+    var sup = document.createElement('sup');
+    sup.className = 'engineering-markdown-footnote-ref';
+    var link = document.createElement('a');
+    link.id = markdown.prefix + '-ref-' + (index + 1) + '-' + note.references;
+    link.href = '#' + markdown.prefix + '-' + (index + 1);
+    link.textContent = '[' + (index + 1) + ']';
+    link.setAttribute('aria-label', '註腳 ' + (index + 1));
+    sup.appendChild(link); parent.appendChild(sup);
+  }
+  function appendInline(parent, value, recordId, citations, markdown) {
+    var tokens = /(\\[\\`*_{}\[\]()#+\-.!~=>]|!?\[\[[^\]]+\]\]|!\[[^\]]*\]\([^)]*\)|\[[^\]]+\]\([^)]*\)|\[來源[：:][^\]]+\]|\^\[[^\]]+\]|\[\^[^\]]+\]|\*\*\*[\s\S]+?\*\*\*|___[\s\S]+?___|\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~|==[\s\S]+?==|\*[^*\n]+\*|(?<!\w)_[^_\n]+_(?!\w)|`[^`]+`|https?:\/\/[^\s<>]+|(?:^|\s)#[^\s#]+)/g;
     var offset = 0;
     var match;
     while ((match = tokens.exec(value))) {
       parent.appendChild(document.createTextNode(value.slice(offset, match.index)));
       var token = match[0];
       var element;
-      if (token.indexOf('[[') !== -1) {
+      if (token[0] === '\\') {
+        parent.appendChild(document.createTextNode(token.slice(1)));
+        offset = match.index + token.length;
+        continue;
+      } else if (/^(\^\[|\[\^)/.test(token) && markdown) {
+        appendFootnote(parent, token, markdown);
+        offset = match.index + token.length;
+        continue;
+      } else if (token.indexOf('[[') !== -1) {
         element = document.createElement('span');
         element.className = 'engineering-markdown-link';
         var target = token.slice(token.indexOf('[[') + 2, -2);
@@ -543,9 +569,20 @@
         else appendRecordLink(parent, token, reference);
         offset = match.index + token.length;
         continue;
-      } else if (token.slice(0, 2) === '**') {
+      } else if (/^(\*\*\*|___)/.test(token)) {
         element = document.createElement('strong');
-        appendInline(element, token.slice(2, -2), recordId, citations);
+        var emphasis = document.createElement('em');
+        appendInline(emphasis, token.slice(3, -3), recordId, citations, markdown);
+        element.appendChild(emphasis);
+      } else if (/^(\*\*|__)/.test(token)) {
+        element = document.createElement('strong');
+        appendInline(element, token.slice(2, -2), recordId, citations, markdown);
+      } else if (/^(~~|==)/.test(token)) {
+        element = document.createElement(token[0] === '~' ? 'del' : 'mark');
+        appendInline(element, token.slice(2, -2), recordId, citations, markdown);
+      } else if (token[0] === '*' || token[0] === '_') {
+        element = document.createElement('em');
+        appendInline(element, token.slice(1, -1), recordId, citations, markdown);
       } else if (token[0] === '`') {
         element = document.createElement('code');
         element.textContent = token.slice(1, -1);
@@ -554,6 +591,8 @@
         element = document.createElement('span');
         element.className = 'engineering-markdown-tag';
         element.textContent = token.trim();
+        var group = /^#([1-7])-/.exec(element.textContent);
+        if (group) element.className += ' engineering-markdown-tag-group-' + group[1];
       }
       parent.appendChild(element);
       offset = match.index + token.length;
@@ -566,23 +605,69 @@
       return cell.trim().replace(/\\\|/g, '|');
     });
   }
+  function markdownSource(value) {
+    var inComment = false, fence = null;
+    return String(value || '').replace(/\r\n?/g, '\n').split('\n').map(function (line) {
+      var match = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
+      if (fence) {
+        if (match && match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) fence = null;
+        return line;
+      }
+      if (match && !inComment) { fence = match[1]; return line; }
+      var output = '', ticks = 0;
+      for (var i = 0; i < line.length; i++) {
+        if (!inComment && line[i] === '\\') { output += line.slice(i, i + 2); i++; continue; }
+        if (!inComment && line[i] === '`') {
+          var run = /^`+/.exec(line.slice(i))[0];
+          ticks = ticks === run.length ? 0 : (ticks || run.length);
+          output += run; i += run.length - 1; continue;
+        }
+        if (!ticks && line.slice(i, i + 2) === '%%') { inComment = !inComment; i++; continue; }
+        if (!inComment) output += line[i];
+      }
+      return output;
+    }).join('\n');
+  }
 
   function renderMarkdown(value, recordId, target, citations) {
     target = target || preview;
     target.replaceChildren();
-    var lines = String(value || '').replace(/\r\n?/g, '\n').split('\n');
+    var lines = markdownSource(value).split('\n');
+    var markdown = { notes: [], definitions: Object.create(null), prefix: 'engineering-footnote-' + (target.id || recordId || 'content') };
+    var definitionFence = null;
+    for (var d = 0; d < lines.length; d++) {
+      var definitionFenceMatch = /^\s*(`{3,}|~{3,})(.*)$/.exec(lines[d]);
+      if (definitionFenceMatch) {
+        if (!definitionFence) definitionFence = definitionFenceMatch[1];
+        else if (definitionFenceMatch[1][0] === definitionFence[0] && definitionFenceMatch[1].length >= definitionFence.length && !definitionFenceMatch[2].trim()) definitionFence = null;
+        continue;
+      }
+      if (definitionFence) continue;
+      var definition = /^\[\^([^\]]+)\]:\s*(.*)$/.exec(lines[d]);
+      if (definition) {
+        var definitionText = [definition[2]];
+        lines[d] = '';
+        while (d + 1 < lines.length && /^ {2,}\S/.test(lines[d + 1])) { d++; definitionText.push(lines[d].trim()); lines[d] = ''; }
+        markdown.definitions[definition[1]] = definitionText.join('\n');
+      }
+    }
     var fragment = document.createDocumentFragment();
     var listStack = [];
     var paragraph = null;
     var code = null;
+    var codeFence = null;
     var quote = null;
     var start = lines[0] === '---' ? Math.max(0, lines.indexOf('---', 1) + 1) : 0;
     for (var i = start; i < lines.length; i++) {
       var line = lines[i];
+      if (!code) line = line.replace(/\s*\^[A-Za-z0-9-]+\s*$/, '');
       var trimmed = line.trim();
-      if (/^```/.test(trimmed)) {
-        if (code) { code = null; } else {
+      var fence = /^(`{3,}|~{3,})(.*)$/.exec(trimmed);
+      if (fence && (!code || (fence[1][0] === codeFence[0] && fence[1].length >= codeFence.length && !fence[2].trim()))) {
+        if (code) { code = null; codeFence = null; } else {
+          codeFence = fence[1];
           code = document.createElement('code');
+          if (/^[\w+-]+$/.test(fence[2].trim())) code.className = 'language-' + fence[2].trim();
           var block = document.createElement('pre');
           block.appendChild(code);
           fragment.appendChild(block);
@@ -592,6 +677,27 @@
       }
       if (code) { code.textContent += (code.textContent ? '\n' : '') + line; continue; }
       if (!trimmed) { paragraph = null; listStack = []; quote = null; continue; }
+      var callout = /^>\s*\[!([A-Za-z-]+)\]([+-])?\s*(.*)$/.exec(trimmed);
+      if (callout) {
+        var calloutType = callout[1].toLowerCase();
+        var calloutBox = document.createElement(callout[2] ? 'details' : 'section');
+        calloutBox.className = 'engineering-markdown-callout';
+        calloutBox.setAttribute('data-callout', calloutType);
+        if (callout[2] === '+') calloutBox.open = true;
+        var calloutTitle = document.createElement(callout[2] ? 'summary' : 'div');
+        calloutTitle.className = 'engineering-markdown-callout-title';
+        var calloutLabels = { note: '筆記', info: '資訊', tip: '提示', warning: '注意', danger: '警告', success: '完成', question: '問題', example: '範例', quote: '引用' };
+        appendInline(calloutTitle, callout[3] || calloutLabels[calloutType] || calloutType, recordId, citations, markdown);
+        calloutBox.appendChild(calloutTitle);
+        var calloutLines = [];
+        while (i + 1 < lines.length && /^\s*>/.test(lines[i + 1])) { i++; calloutLines.push(lines[i].replace(/^\s*>\s?/, '')); }
+        var calloutBody = document.createElement('div');
+        calloutBody.id = markdown.prefix + '-callout-' + i;
+        renderMarkdown(calloutLines.join('\n'), recordId, calloutBody, citations);
+        calloutBox.appendChild(calloutBody); fragment.appendChild(calloutBox);
+        paragraph = null; listStack = []; quote = null;
+        continue;
+      }
       if (trimmed.indexOf('|') !== -1 && i + 1 < lines.length &&
         tableCells(lines[i + 1]).every(function (cell) { return /^:?-{3,}:?$/.test(cell); })) {
         var headers = tableCells(line);
@@ -604,7 +710,7 @@
           var headRow = document.createElement('tr');
           headers.forEach(function (cell) {
             var th = document.createElement('th'); th.setAttribute('scope', 'col');
-            appendInline(th, cell, recordId, citations); headRow.appendChild(th);
+            appendInline(th, cell, recordId, citations, markdown); headRow.appendChild(th);
           });
           head.appendChild(headRow); table.appendChild(head);
           var body = document.createElement('tbody');
@@ -614,7 +720,7 @@
             var row = document.createElement('tr');
             headers.forEach(function (_, column) {
               var td = document.createElement('td');
-              appendInline(td, cells[column] || '', recordId, citations); row.appendChild(td);
+              appendInline(td, cells[column] || '', recordId, citations, markdown); row.appendChild(td);
             });
             body.appendChild(row); i++;
           }
@@ -624,11 +730,14 @@
         }
       }
       var heading = /^(#{1,6})\s+(.+)$/.exec(trimmed);
-      var bullet = /^(\s*)([-*+] |\d+\. )(.+)$/.exec(line.replace(/\t/g, '    '));
+      var bullet = /^(\s*)([-*+] |\d+[.)] )(.+)$/.exec(line.replace(/\t/g, '    '));
       var element;
-      if (heading) {
-        element = document.createElement('h' + Math.min(heading[1].length + 1, 6));
-        appendInline(element, heading[2], recordId, citations);
+      if (/^(?:\*\s*){3,}$|^(?:-\s*){3,}$|^(?:_\s*){3,}$/.test(trimmed)) {
+        fragment.appendChild(document.createElement('hr'));
+        paragraph = null; listStack = []; quote = null;
+      } else if (heading) {
+        element = document.createElement('h' + heading[1].length);
+        appendInline(element, heading[2], recordId, citations, markdown);
         fragment.appendChild(element);
         paragraph = null; listStack = []; quote = null;
       } else if (bullet) {
@@ -643,28 +752,52 @@
           listStack.push({ indent: indent, type: type, list: newList, lastItem: null });
         }
         element = document.createElement('li');
-        var content = bullet[3].replace(/^\[[ xX]\]\s*/, '');
-        appendInline(element, content, recordId, citations);
+        var content = bullet[3];
+        var task = /^\[([^\]])\]\s+(.*)$/.exec(content);
+        if (task) {
+          element.className = 'engineering-markdown-task' + (task[1] === ' ' ? '' : ' is-complete');
+          var checkbox = document.createElement('input');
+          checkbox.type = 'checkbox'; checkbox.checked = task[1] !== ' '; checkbox.disabled = true;
+          checkbox.setAttribute('aria-label', checkbox.checked ? '已完成' : '未完成');
+          element.appendChild(checkbox); content = task[2];
+        }
+        appendInline(element, content, recordId, citations, markdown);
         listStack[listStack.length - 1].list.appendChild(element);
         listStack[listStack.length - 1].lastItem = element;
         paragraph = null; quote = null;
       } else if (/^>\s?/.test(trimmed)) {
         if (!quote) { quote = document.createElement('blockquote'); fragment.appendChild(quote); }
         element = document.createElement('p');
-        appendInline(element, trimmed.replace(/^>\s?/, ''), recordId, citations);
+        appendInline(element, trimmed.replace(/^>\s?/, ''), recordId, citations, markdown);
         quote.appendChild(element);
         paragraph = null; listStack = [];
-      } else if (/^([-*_])\1{2,}$/.test(trimmed)) {
-        fragment.appendChild(document.createElement('hr'));
-        paragraph = null; listStack = []; quote = null;
       } else {
         if (!paragraph) { paragraph = document.createElement('p'); fragment.appendChild(paragraph); }
         else paragraph.appendChild(document.createElement('br'));
-        appendInline(paragraph, trimmed, recordId, citations);
+        appendInline(paragraph, trimmed, recordId, citations, markdown);
         listStack = []; quote = null;
       }
     }
     target.appendChild(fragment);
+    if (markdown.notes.length) {
+      var footnotes = document.createElement('section');
+      footnotes.className = 'engineering-markdown-footnotes';
+      footnotes.setAttribute('aria-label', '註腳');
+      var footnotesList = document.createElement('ol');
+      markdown.notes.forEach(function (note, index) {
+        var item = document.createElement('li');
+        item.id = markdown.prefix + '-' + (index + 1);
+        appendInline(item, note.content, recordId, citations);
+        for (var ref = 1; ref <= note.references; ref++) {
+          var back = document.createElement('a');
+          back.href = '#' + markdown.prefix + '-ref-' + (index + 1) + '-' + ref;
+          back.textContent = ' ↩'; back.setAttribute('aria-label', '返回註腳 ' + (index + 1) + ' 的引用');
+          item.appendChild(back);
+        }
+        footnotesList.appendChild(item);
+      });
+      footnotes.appendChild(footnotesList); target.appendChild(footnotes);
+    }
   }
 
   excludeInput.addEventListener('input', function () {

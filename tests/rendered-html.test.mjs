@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v211/);
+  assert.match(serviceWorker, /engineering-query-pwa-v212/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -576,7 +576,7 @@ test("Gemini Markdown renders structure and keeps unsafe content inert", async (
   const nodes = [];
   function walk(node) { nodes.push(node); node.children.forEach(walk); }
   walk(target);
-  assert.equal(nodes.filter(n => n.tag === 'h4').length, 1);
+  assert.equal(nodes.filter(n => n.tag === 'h3').length, 1);
   assert.equal(nodes.filter(n => n.tag === 'strong').length, 2);
   assert.equal(nodes.filter(n => n.tag === 'ul').length, 2);
   assert.equal(nodes.filter(n => n.tag === 'table').length, 1);
@@ -603,6 +603,44 @@ test("Gemini Markdown renders structure and keeps unsafe content inert", async (
   assert.ok(noteLinks.every(n => n.href.includes('recordId=note123456789')));
 });
 
+
+test("Obsidian reading syntax renders engineering notes and preserves safe navigation", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  class Node {
+    constructor(tag, text = '') { this.tag = tag; this.textContent = text; this.children = []; }
+    appendChild(node) { this.children.push(node); }
+    replaceChildren(...nodes) { this.children = nodes; }
+    setAttribute(key, value) { this[key] = value; }
+  }
+  const preview = new Node('div'); preview.id = 'note-preview';
+  const document = { createElement: tag => new Node(tag), createTextNode: text => new Node('#text', text), createDocumentFragment: () => new Node('#fragment') };
+  const value = '# 規則\n#3-材料/AL/鋁擠 #5-圖形/壓J\n- ~~板金都要壓J~~ 已改為板金不壓J\n  - **注意** *斜體* ==重點==\n  - 說明 ^[114.04.09 說的]\n- [x] 已確認\n- [ ] 待確認\n- 名稱 #7-人/怡婷 ^74736b\n\n來源註腳[^rule] 再次[^rule] 不明[^constructor]\n\n%%不顯示的註解%%\n`%%保留程式文字%%`\n\\*literal\\*\n\n> [!warning]- 注意事項\n> - 請先確認 **板厚**\n\n- - -\n\n~~~js\n%%程式碼中的註解符號保留%%\n~~literal~~\n~~~\n\n[^rule]: **規則來源**\n  補充說明\n';
+  const context = { document, preview, value, URL, rows: [], summarySources: [], window: { location: { href: 'https://example.com/' } } };
+  const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf("  excludeInput.addEventListener"));
+  runInNewContext(code + '\nrenderMarkdown(value, "record123", preview);', context);
+  const nodes = [];
+  function walk(node) { nodes.push(node); node.children.forEach(walk); }
+  walk(preview);
+  assert.equal(nodes.filter(node => node.tag === 'h1').length, 1);
+  assert.equal(nodes.find(node => node.tag === 'del').children[0].textContent, '板金都要壓J');
+  assert.equal(nodes.filter(node => node.tag === 'em').length, 1);
+  assert.equal(nodes.filter(node => node.tag === 'mark').length, 1);
+  assert.deepEqual(nodes.filter(node => node.tag === 'input').map(node => node.checked), [true, false]);
+  assert.ok(nodes.filter(node => node.tag === 'input').every(node => node.disabled));
+  assert.ok(nodes.some(node => node.className?.includes('engineering-markdown-tag-group-3')));
+  assert.ok(!nodes.some(node => node.textContent.includes('74736b') || node.textContent.includes('不顯示的註解')));
+  assert.ok(nodes.some(node => node.textContent === '%%保留程式文字%%'));
+  assert.ok(nodes.some(node => node.textContent.includes('程式碼中的註解符號保留')));
+  const refs = nodes.filter(node => node.className === 'engineering-markdown-footnote-ref').map(node => node.children[0]);
+  assert.deepEqual(refs.map(node => node.textContent), ['[1]', '[2]', '[2]']);
+  assert.ok(refs.every(node => nodes.some(target => '#' + target.id === node.href)));
+  const footer = nodes.find(node => node.className === 'engineering-markdown-footnotes');
+  assert.equal(footer.children[0].children.length, 2);
+  assert.ok(nodes.some(node => node.textContent.includes('114.04.09 說的')));
+  assert.ok(nodes.some(node => node.textContent.includes('[^constructor]')));
+  assert.ok(nodes.some(node => node.tag === 'details' && node['data-callout'] === 'warning' && !node.open));
+  assert.equal(nodes.filter(node => node.tag === 'hr').length, 1);
+});
 
 test("Summary citations reuse numbers and open the corresponding source record", async () => {
   const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
