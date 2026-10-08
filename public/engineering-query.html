@@ -3064,7 +3064,7 @@ h3 {
             max-width: var(--notion-page-width);
             min-width: 0;
             margin: 0 auto;
-            padding: 18px 24px 40px;
+            padding: 8px 24px 40px;
             font-family: 'Outfit', 'Inter', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
         }
         .symbols-header { margin-bottom: 16px; }
@@ -3313,7 +3313,7 @@ h3 {
             #die-setup-panel .die-setup-shell {
                 padding: 8px 6px 24px;
             }
-            .symbols-shell { padding: 14px 10px 28px; }
+            .symbols-shell { padding: 8px 10px 28px; }
             .symbols-title { font-size: 24px; }
             .symbols-sections { grid-template-columns: 1fr; }
             .symbol-section.symbol-section-wide { grid-column: auto; }
@@ -3463,6 +3463,9 @@ h3 {
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-markdown-image { display:block; margin:10px 0 16px; }
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-markdown-image img { display:block; max-width:100%; max-height:560px; height:auto; border:1px solid #d8e0eb; border-radius:5px; object-fit:contain; }
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-markdown-image figcaption { color:#667085; font-size:12px; }
+        .engineering-markdown-math { font-size:1em; white-space:nowrap; }
+        .engineering-markdown-math math { font-size:1em; }
+        .engineering-markdown-math.is-display { display:block; max-width:100%; margin:14px 0; padding:8px 0; overflow-x:auto; overflow-y:hidden; text-align:center; }
         .engineering-records-summary-card .engineering-records-preview { min-height:220px; padding:22px 26px 30px; color:#253044; font-size:15px; line-height:1.85; white-space:normal; }
         .engineering-records-summary-card .engineering-records-preview-head { background:#f8f7fe; border-bottom-color:#e9e5f6; }
         .engineering-records-summary-card .engineering-records-preview-head h3 { color:#5b46a3; }
@@ -3541,7 +3544,7 @@ h3 {
             :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview { padding:18px 16px 28px; }
             .engineering-records-dialog .engineering-records-preview-head { padding:18px; }
             .engineering-records-dialog .engineering-records-preview { padding:22px 18px 32px; }
-            .engineering-records-shell { padding: 14px 12px 30px; }
+            .engineering-records-shell { padding: 8px 12px 30px; }
             .engineering-records-title { font-size: 24px; }
             .engineering-records-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 6px; }
             .engineering-records-controls .engineering-records-query { grid-column:1 / -1; width:100%; box-sizing:border-box; }
@@ -4337,10 +4340,6 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
     <!-- 6. 字元符號 -->
     <div id="symbols-panel" class="sys-panel" style="display:none">
         <main class="symbols-shell">
-            <header class="symbols-header">
-                <h2 class="symbols-title"><span aria-hidden="true">✦</span> 字元符號</h2>
-                <p class="symbols-subtitle">點選任一文字或符號即可複製。</p>
-            </header>
             <div class="symbols-sections">
                 <section class="symbol-section symbol-section-wide">
                     <div class="common-words-heading">
@@ -6847,7 +6846,8 @@ init();
     </script>
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
-    <script src="engineering-records-d1.js?v=216"></script>
+    <script src="vendor/katex/katex-0.19.0.min.js"></script>
+    <script src="engineering-records-d1.js?v=218"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

@@ -606,8 +606,19 @@
     }
     return -1;
   }
+  function appendMath(parent, expression, display) {
+    var element = document.createElement(display ? 'div' : 'span');
+    element.className = 'engineering-markdown-math' + (display ? ' is-display' : '');
+    if (window.katex) {
+      try {
+        window.katex.render(expression, element, { displayMode: display, output: 'mathml',
+          throwOnError: false, strict: 'ignore', trust: false, maxSize: 10, maxExpand: 1000, errorColor: '#253044' });
+      } catch { element.textContent = expression; }
+    } else element.textContent = expression;
+    parent.appendChild(element);
+  }
   function appendInline(parent, value, recordId, citations, markdown) {
-    var tokens = /(\\[\\`*_{}\[\]()#+\-.!~=>]|!?\[\[[^\]]+\]\]|!?\[[^\]]*\]\(|\[來源[：:][^\]]+\]|\^\[|\[\^[^\]]+\]|\*\*\*[\s\S]+?\*\*\*|___[\s\S]+?___|\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~|==[\s\S]+?==|\*[^*\n]+\*|(?<!\w)_[^_\n]+_(?!\w)|`[^`]+`|https?:\/\/[^\s<>]+|(?:^|\s)#[^\s#]+)/g;
+    var tokens = /(\$\$[^$]+?\$\$|\$(?:\\.|[^$\\\n])+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\\[\\`*_{}\[\]()#+\-.!~=>$]|!?\[\[[^\]]+\]\]|!?\[[^\]]*\]\(|\[來源[：:][^\]]+\]|\^\[|\[\^[^\]]+\]|\*\*\*[\s\S]+?\*\*\*|___[\s\S]+?___|\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~|==[\s\S]+?==|\*[^*\n]+\*|(?<!\w)_[^_\n]+_(?!\w)|`[^`]+`|https?:\/\/[^\s<>]+|(?:^|\s)#[^\s#]+)/g;
     var offset = 0;
     var match;
     while ((match = tokens.exec(value))) {
@@ -619,7 +630,13 @@
         else { parent.appendChild(document.createTextNode(token)); offset = tokens.lastIndex; continue; }
       }
       var element;
-      if (token[0] === '\\') {
+      if (token[0] === '$' || (token.length > 4 && /^\\[([]/.test(token))) {
+        var display = token.slice(0, 2) === '$$' || token.slice(0, 2) === '\\[';
+        var delimiterSize = token[0] === '$' && !display ? 1 : 2;
+        appendMath(parent, token.slice(delimiterSize, -delimiterSize), display);
+        offset = match.index + token.length;
+        continue;
+      } else if (token[0] === '\\') {
         parent.appendChild(document.createTextNode(token.slice(1)));
         offset = match.index + token.length;
         continue;
@@ -789,6 +806,20 @@
         continue;
       }
       if (code) { code.textContent += (code.textContent ? '\n' : '') + line; continue; }
+      var mathStart = /^(\$\$|\\\[)/.exec(trimmed);
+      if (mathStart) {
+        var mathEnd = mathStart[1] === '$$' ? '$$' : '\\]';
+        var mathLines = [trimmed.slice(2)], mathLast = i;
+        while (!mathLines[mathLines.length - 1].trimEnd().endsWith(mathEnd) && mathLast + 1 < lines.length) {
+          mathLast++; mathLines.push(lines[mathLast]);
+        }
+        if (mathLines[mathLines.length - 1].trimEnd().endsWith(mathEnd)) {
+          mathLines[mathLines.length - 1] = mathLines[mathLines.length - 1].trimEnd().slice(0, -2);
+          appendMath(fragment, mathLines.join('\n').trim(), true);
+          i = mathLast; paragraph = null; listStack = []; quote = null;
+          continue;
+        }
+      }
       if (!trimmed) { paragraph = null; listStack = []; quote = null; continue; }
       var callout = /^>\s*\[!([A-Za-z-]+)\]([+-])?\s*(.*)$/.exec(trimmed);
       if (callout) {

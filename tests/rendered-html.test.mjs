@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v216/);
+  assert.match(serviceWorker, /engineering-query-pwa-v218/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -460,7 +460,7 @@ test("special symbols tab copies the Notion symbol collection", async () => {
   );
 
   assert.match(source, /data-sys="symbols">字元符號<\/button>/);
-  assert.match(source, /class="symbols-title"[^>]*>[\s\S]*?字元符號<\/h2>/);
+  assert.doesNotMatch(source, /<header class="symbols-header">/);
   assert.doesNotMatch(source, />特殊符號<\/button>/);
   assert.match(source, /id="symbols-panel"/);
   assert.match(source, /\.symbols-shell \{[\s\S]*?width: 100%;[\s\S]*?max-width: var\(--notion-page-width\);[\s\S]*?min-width: 0/);
@@ -944,4 +944,73 @@ test("Sites Gemini API forwards 40 records to Apps Script without losing IDs", a
     assert.equal(calls.length, 1);
     assert.deepEqual(calls[0].ids, ids);
   } finally { globalThis.fetch = original; }
+});
+
+test("Engineering Markdown renders Gemini formulas with local KaTeX and keeps code and links intact", async () => {
+  const source = await readFile(new URL('../public/engineering-records-d1.js', import.meta.url), 'utf8');
+  const library = await readFile(new URL('../public/vendor/katex/katex-0.19.0.min.js', import.meta.url), 'utf8');
+  class Node {
+    constructor(tag, text = '') { this.tag = tag; this.children = []; this.style = {}; this._text = text; }
+    appendChild(node) { this.children.push(node); return node; }
+    replaceChildren(...nodes) { this.children = nodes; this._text = ''; }
+    setAttribute(key, value) { this[key] = value; }
+    set textContent(text) { this._text = text; this.children = []; }
+    get textContent() { return this._text + this.children.map(n => n.textContent).join(''); }
+  }
+  const document = { compatMode: 'CSS1Compat', createElement: tag => new Node(tag),
+    createElementNS: (namespace, tag) => new Node(tag), createTextNode: text => new Node('#text', text),
+    createDocumentFragment: () => new Node('#fragment') };
+  const target = new Node('div');
+  const context = { document, target, console, URL, rows: [], summarySources: [], window: { location: { href: 'https://example.com/' } } };
+  runInNewContext(library, context);
+  context.window.katex = context.katex;
+  context.value = String.raw`- 鋁釘開孔 $\varnothing$4.35；**公差 $\pm0.05$**。
+- 素材尺寸 $ +0.1/-0.05$，厚度 \(T^2\)，尺寸 \[\frac{1}{2}\]。
+
+$$
+BD = 2T - M \\
+L = \frac{a+b}{2}
+$$
+
+\[
+x_{1} = \sqrt{4}
+\]
+
+來源[^rule] [官方](https://example.com/manual)
+
+[^rule]: 公差 $\pm0.05$
+
+\`$\pm0.05$\` 費用 \$100，未閉合 $x；未閉合 \(x
+
+~~~tex
+$\frac{1}{2}$
+~~~
+
+$\href{javascript:alert(1)}{unsafe}$
+$\unsupportedCommand{1}$`;
+  // String.raw preserves backticks' escaping as well; remove only these fixture escapes.
+  context.value = context.value.replace(/\\`/g, '`');
+  const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf('  excludeInput.addEventListener'));
+  runInNewContext(code + '\nrenderMarkdown(value, "", target);', context);
+  const nodes = [];
+  const walk = node => { nodes.push(node); node.children.forEach(walk); }; walk(target);
+  const math = nodes.filter(n => n.tag === 'math');
+  assert.equal(math.length, 10);
+  assert.ok(nodes.some(n => n.tag === 'mi' && n.textContent === '∅'));
+  assert.ok(nodes.some(n => n.tag === 'mo' && n.textContent === '±'));
+  assert.equal(nodes.filter(n => n.tag === 'mfrac').length, 2);
+  assert.ok(nodes.some(n => n.tag === 'msup'));
+  assert.ok(nodes.some(n => n.tag === 'msub'));
+  assert.ok(nodes.some(n => n.tag === 'msqrt'));
+  assert.equal(nodes.filter(n => n.className === 'engineering-markdown-math is-display').length, 3);
+  assert.ok(nodes.some(n => n.tag === 'code' && n.textContent === String.raw`$\pm0.05$`));
+  assert.ok(nodes.some(n => n.tag === 'code' && n.textContent === String.raw`$\frac{1}{2}$`));
+  assert.ok(nodes.some(n => n.tag === '#text' && n.textContent.includes('100')));
+  assert.ok(nodes.some(n => n.tag === '#text' && n.textContent.includes('$x')));
+  assert.ok(nodes.some(n => n.tag === 'a' && n.href === 'https://example.com/manual'));
+  assert.ok(!nodes.some(n => /^(script|iframe|img)$/.test(n.tag) || /^javascript:/.test(n.href || '')));
+  const html = await readFile(new URL('../public/engineering-query.html', import.meta.url), 'utf8');
+  assert.ok(html.indexOf('src="vendor/katex/katex-0.19.0.min.js"') < html.indexOf('src="engineering-records-d1.js?'));
+  const sw = await readFile(new URL('../public/service-worker.js', import.meta.url), 'utf8');
+  assert.ok(sw.includes('./vendor/katex/katex-0.19.0.min.js'));
 });

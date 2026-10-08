@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v216-cloudflare-summary-40-records';
+const CACHE_NAME = 'engineering-query-pwa-v218-cloudflare-math-aligned-spacing';
 const APP_SHELL = [
   './',
   './engineering-query.html',
@@ -8,7 +8,8 @@ const APP_SHELL = [
   './nail-excel-upload.js',
   './nail-data.js',
   './common-words.js',
-  './engineering-records-d1.js?v=216',
+  './engineering-records-d1.js?v=218',
+  './vendor/katex/katex-0.19.0.min.js',
   './favicon.svg',
   './app-icon-192.png',
   './app-icon-512.png'
