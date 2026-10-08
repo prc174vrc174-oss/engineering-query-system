@@ -3386,6 +3386,7 @@ h3 {
             font-weight: 750;
             cursor: pointer;
         }
+        .engineering-button-compact { display:none; }
         .engineering-records-btn.is-primary { border-color: #2563eb; background: #2563eb; color: #fff; }
         .engineering-records-btn.is-ai { border-color: #6d5bd0; background: #6d5bd0; color: #fff; }
         .engineering-records-btn:disabled { opacity: .5; cursor: wait; }
@@ -3479,7 +3480,11 @@ h3 {
             :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview { padding:18px 16px 28px; }
             .engineering-records-shell { padding: 14px 12px 30px; }
             .engineering-records-title { font-size: 24px; }
-            .engineering-records-controls .engineering-records-query { flex-basis:100%; width:100%; }
+            .engineering-records-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px 6px; }
+            .engineering-records-controls .engineering-records-query { grid-column:1 / -1; width:100%; box-sizing:border-box; }
+            .engineering-records-controls .engineering-records-btn { min-width:0; padding:0 2px; font-size:14px; white-space:nowrap; }
+            .engineering-records-controls .engineering-button-full { display:none; }
+            .engineering-records-controls .engineering-button-compact { display:inline; }
             .engineering-records-list { max-height: 420px; }
 
         }
@@ -4326,9 +4331,9 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             <section class="engineering-records-toolbar" aria-label="工程紀錄搜尋">
                 <div class="engineering-records-controls">
                     <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" aria-label="搜尋工程紀錄" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
-                    <button id="d1RecordsReload" class="engineering-records-btn" type="button">🔄 重新載入</button>
-                    <button id="d1RecordsGemini" class="engineering-records-btn is-ai" type="button" disabled>Gemini 摘要</button>
-                    <button id="d1RecordsFolders" class="engineering-records-btn" type="button">搜尋資料夾</button>
+                    <button id="d1RecordsReload" class="engineering-records-btn" type="button"><span class="engineering-button-full">🔄 重新載入</span><span class="engineering-button-compact">重新載入</span></button>
+                    <button id="d1RecordsGemini" class="engineering-records-btn is-ai" type="button" disabled><span class="engineering-button-full">Gemini 摘要</span><span class="engineering-button-compact">Gemini摘要</span></button>
+                    <button id="d1RecordsFolders" class="engineering-records-btn" type="button"><span class="engineering-button-full">搜尋資料夾</span><span class="engineering-button-compact">資料夾</span></button>
                 </div>
                 <div id="d1RecordsGoogleButton" class="engineering-records-google"></div>
             </section>

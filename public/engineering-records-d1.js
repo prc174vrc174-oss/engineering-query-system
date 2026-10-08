@@ -20,6 +20,15 @@
   var viewStatuses = { results: { message: '', state: '' }, summary: { message: '', state: '' } };
   if (!query) return;
 
+  function updateFolderLabel(count) {
+    var full = document.createElement('span');
+    full.className = 'engineering-button-full';
+    full.textContent = '搜尋資料夾（' + (count || '全部') + '）';
+    var compact = document.createElement('span');
+    compact.className = 'engineering-button-compact';
+    compact.textContent = '資料夾' + (count ? '(' + count + ')' : '');
+    folders.replaceChildren(full, compact);
+  }
   function paintStatus() {
     var current = viewStatuses[activeView];
     status.textContent = current.message;
@@ -130,7 +139,7 @@
         }
       } while (result.syncing && !result.busy);
       includedFolders = normalizeFolders(result.includedFolders);
-      folders.textContent = '搜尋資料夾（' + (result.includedFolders.length || '全部') + '）';
+      updateFolderLabel(result.includedFolders.length);
       if (result.busy) setStatus('另一台電腦正在同步；稍後再按重新載入。');
       else if (result.skipped) setStatus('工程紀錄已是最近同步的版本，共 ' + result.total + ' 篇。', 'success');
       else setStatus('工程紀錄已同步，共 ' + result.total + ' 篇；更新 ' + result.changed + ' 篇，移除 ' + (result.removed || 0) + ' 篇。', 'success');
@@ -146,7 +155,7 @@
     try {
       var result = await call(api + '?action=status');
       includedFolders = normalizeFolders(result.includedFolders);
-      folders.textContent = '搜尋資料夾（' + (result.includedFolders.length || '全部') + '）';
+      updateFolderLabel(result.includedFolders.length);
       setStatus('已載入 ' + result.total + ' 篇；輸入關鍵字即可搜尋。', 'success');
       if (query.value.trim()) search();
       refresh(false);
@@ -314,7 +323,7 @@
     try {
       var response = await request({ action: 'engineeringRecords.settings.save', includedFolders: next, idToken: token });
       includedFolders = normalizeFolders(response.includedFolders);
-      folders.textContent = '搜尋資料夾（' + (includedFolders.length || '全部') + '）';
+      updateFolderLabel(includedFolders.length);
       excludeDialog.close();
       await refresh(true);
     } catch (error) {
