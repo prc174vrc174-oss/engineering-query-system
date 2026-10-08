@@ -14,7 +14,7 @@ const continued = `var result;
         result = await call(api, { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'refresh', force: force }) });
         if (result.syncing && !result.busy) {
-          setStatus('正在更新 D1，剩餘 ' + result.remaining + ' 篇…', 'loading');
+          setStatus('正在更新工程紀錄，剩餘 ' + result.remaining + ' 篇…', 'loading');
           await new Promise(function (resolve) { setTimeout(resolve, 1000); });
         }
       } while (result.syncing && !result.busy);`;
@@ -23,4 +23,4 @@ source = source.replace(previous,continued);
 await writeFile(path,source);
 const servicePath = new URL('public/service-worker.js',root);
 const service = await readFile(servicePath,'utf8');
-await writeFile(servicePath,service.replace(/const CACHE_NAME = '[^']+';/,"const CACHE_NAME = 'engineering-query-pwa-v199-cloudflare-d1';"));
+await writeFile(servicePath,service.replace(/const CACHE_NAME = '[^']+';/,"const CACHE_NAME = 'engineering-query-pwa-v200-cloudflare-navigation';"));

@@ -939,6 +939,31 @@ h3 {
                 white-space: nowrap;
             }
         }
+        .other-pages-menu {
+            position: fixed;
+            z-index: 1100;
+            display: grid;
+            min-width: 150px;
+            padding: 5px;
+            border: 1px solid #d8e0eb;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, .15);
+        }
+        .other-pages-menu[hidden] { display: none; }
+        .other-pages-menu .other-pages-item {
+            width: 100%;
+            border: 0;
+            padding: 10px 14px;
+            font-size: 14px;
+            text-align: left;
+            background: #ffffff;
+            color: #334155;
+            box-shadow: none;
+        }
+        .other-pages-menu .other-pages-item:hover { background: #eff6ff; }
+        .other-pages-menu .other-pages-item.active { background: #2563eb; color: #ffffff; }
+        #otherPagesButton:focus-visible, .other-pages-item:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
         .sys-panel {
             display: none;
             animation: fadeIn 200ms ease-out;
@@ -3324,9 +3349,8 @@ h3 {
             padding: 18px 24px 40px;
             font-family: 'Outfit', 'Inter', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
         }
-        .engineering-records-header { margin-bottom: 16px; }
+        .engineering-records-header { display: block; min-height: 0; margin-bottom: 12px; }
         .engineering-records-title { margin: 0; color: #111827; font-size: 28px; font-weight: 850; }
-        .engineering-records-subtitle { margin: 6px 0 0; color: #667085; font-size: 14px; }
         .engineering-records-toolbar {
             display: grid;
             grid-template-columns: minmax(0, 1fr);
@@ -3449,15 +3473,18 @@ h3 {
     <header class="app-header-tabs">
         <div class="header-tabs-container">
             <h1 class="header-tabs-title">🔧 查詢系統</h1>
-            <nav class="tabs-nav">
+            <nav class="tabs-nav" aria-label="查詢頁面">
                 <button class="tab-btn active" data-sys="bend">係數查詢</button>
                 <button class="tab-btn" data-sys="nail">釘子查詢</button>
-                <button class="tab-btn" data-sys="nail-gallery">釘子圖</button>
-                <button class="tab-btn" data-sys="fold-tool">座標圖</button>
-                <button class="tab-btn" data-sys="die-setup">配模計算</button>
+                <button class="tab-btn" data-sys="engineering-records-d1">工程紀錄</button>
                 <button class="tab-btn" data-sys="symbols">字元符號</button>
-                <button class="tab-btn" data-sys="engineering-records-d1">工程紀錄 D1</button>
+                <button class="tab-btn" data-sys="die-setup">配模計算</button>
+                <button id="otherPagesButton" class="tab-btn" type="button" aria-expanded="false" aria-controls="otherPagesMenu">其他頁面</button>
             </nav>
+        </div>
+        <div id="otherPagesMenu" class="other-pages-menu" aria-label="其他頁面" hidden>
+            <button class="tab-btn other-pages-item" data-sys="nail-gallery" type="button">釘子圖</button>
+            <button class="tab-btn other-pages-item" data-sys="fold-tool" type="button">座標圖</button>
         </div>
 <span class="site-version" aria-label="網站版次 Version 195 測試">Version 195 測試</span>
     </header>
@@ -4278,12 +4305,11 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
     <div id="engineering-records-d1-panel" class="sys-panel" style="display:none">
         <main class="engineering-records-shell">
             <header class="engineering-records-header">
-                <h2 class="engineering-records-title">工程紀錄 D1</h2>
-                <p class="engineering-records-subtitle">各台電腦共用資料庫；輸入關鍵字即搜尋檔名與全文。</p>
+                <h2 class="engineering-records-title">工程紀錄</h2>
             </header>
-            <section class="engineering-records-toolbar" aria-label="D1 工程紀錄搜尋">
+            <section class="engineering-records-toolbar" aria-label="工程紀錄搜尋">
                 <div class="engineering-records-controls">
-                    <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" aria-label="搜尋 D1 工程紀錄" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
+                    <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" aria-label="搜尋工程紀錄" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
                     <button id="d1RecordsReload" class="engineering-records-btn" type="button">🔄 重新載入</button>
                     <button id="d1RecordsGemini" class="engineering-records-btn is-ai" type="button" disabled>Gemini 摘要</button>
                     <button id="d1RecordsFolders" class="engineering-records-btn" type="button">搜尋資料夾</button>
@@ -4305,10 +4331,10 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <div id="d1RecordsSettingsGoogleButton" class="engineering-records-google"></div>
                 <div class="engineering-records-settings-actions">
                     <button id="d1RecordsSettingsCancel" class="engineering-records-btn" type="button">取消</button>
-                    <button id="d1RecordsSettingsSave" class="engineering-records-btn is-primary" type="button">儲存並同步 D1</button>
+                    <button id="d1RecordsSettingsSave" class="engineering-records-btn is-primary" type="button">儲存並同步</button>
                 </div>
             </dialog>
-            <div class="engineering-records-tabs" role="tablist" aria-label="D1 工程紀錄檢視">
+            <div class="engineering-records-tabs" role="tablist" aria-label="工程紀錄檢視">
                 <button id="d1RecordsResultsTab" class="engineering-records-tab" type="button" role="tab" aria-selected="true">搜尋結果</button>
                 <button id="d1RecordsSummaryTab" class="engineering-records-tab" type="button" role="tab" aria-selected="false">Gemini 摘要</button>
             </div>
@@ -6504,9 +6530,57 @@ init();
                 }
             } catch(e) {}
 
-            var tabs = document.querySelectorAll('.tab-btn');
+            var tabs = document.querySelectorAll('.tab-btn[data-sys]');
+            var otherPagesButton = document.getElementById('otherPagesButton');
+            var otherPagesMenu = document.getElementById('otherPagesMenu');
+            function closeOtherPages(returnFocus) {
+                otherPagesMenu.hidden = true;
+                otherPagesButton.setAttribute('aria-expanded', 'false');
+                if (returnFocus) otherPagesButton.focus();
+            }
+            function positionOtherPages() {
+                var rect = otherPagesButton.getBoundingClientRect();
+                var left = Math.min(Math.max(8, rect.left), window.innerWidth - otherPagesMenu.offsetWidth - 8);
+                otherPagesMenu.style.left = left + 'px';
+                otherPagesMenu.style.top = (rect.bottom + 6) + 'px';
+            }
+            function openOtherPages(focusFirst) {
+                otherPagesMenu.hidden = false;
+                otherPagesButton.setAttribute('aria-expanded', 'true');
+                positionOtherPages();
+                if (focusFirst) otherPagesMenu.querySelector('button').focus();
+            }
+            otherPagesButton.addEventListener('click', function() {
+                if (otherPagesMenu.hidden) openOtherPages(false);
+                else closeOtherPages(false);
+            });
+            otherPagesButton.addEventListener('keydown', function(event) {
+                if (event.key === 'ArrowDown') { event.preventDefault(); openOtherPages(true); }
+            });
+            otherPagesMenu.addEventListener('keydown', function(event) {
+                var buttons = otherPagesMenu.querySelectorAll('button');
+                var index = Array.prototype.indexOf.call(buttons, document.activeElement);
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    buttons[(index + (event.key === 'ArrowDown' ? 1 : buttons.length - 1)) % buttons.length].focus();
+                }
+            });
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && !otherPagesMenu.hidden) {
+                    event.preventDefault(); closeOtherPages(true);
+                }
+            });
+            document.addEventListener('click', function(event) {
+                if (!otherPagesMenu.hidden && !otherPagesMenu.contains(event.target) && !otherPagesButton.contains(event.target)) closeOtherPages(false);
+            });
+            document.addEventListener('focusin', function(event) {
+                if (!otherPagesMenu.hidden && !otherPagesMenu.contains(event.target) && event.target !== otherPagesButton) closeOtherPages(false);
+            });
+            window.addEventListener('resize', function() { if (!otherPagesMenu.hidden) positionOtherPages(); });
+            document.querySelector('.tabs-nav').addEventListener('scroll', function() { closeOtherPages(false); });
             function revealActiveTab(button) {
                 if (window.innerWidth > 640 || !button) return;
+                if (button.closest('.other-pages-menu')) button = otherPagesButton;
                 var nav = button.closest('.tabs-nav');
                 if (!nav) return;
                 var navRect = nav.getBoundingClientRect();
@@ -6617,6 +6691,8 @@ init();
                     btn.classList.add('active');
                     
                     var target = btn.dataset.sys;
+                    otherPagesButton.classList.toggle('active', target === 'nail-gallery' || target === 'fold-tool');
+                    closeOtherPages(target === 'nail-gallery' || target === 'fold-tool');
                     if (target === 'nail' && window.activateNailSystem) window.activateNailSystem();
                     if (target === 'engineering-records-d1' && window.activateEngineeringRecordsD1) window.activateEngineeringRecordsD1();
                     try { localStorage.setItem('engineeringActiveTab', target); } catch (e) {}
@@ -6667,20 +6743,8 @@ init();
                 if (elapsed > 1000 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
 
                 var activeTab = document.querySelector('.tab-btn.active');
-                var current = activeTab ? activeTab.dataset.sys : 'bend';
-                var target = null;
-                if (dx < 0 && current === 'bend') target = document.querySelector('.tab-btn[data-sys="nail"]');
-                else if (dx < 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
-                else if (dx < 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
-                else if (dx < 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="die-setup"]');
-                else if (dx < 0 && current === 'die-setup') target = document.querySelector('.tab-btn[data-sys="symbols"]');
-                else if (dx < 0 && current === 'symbols') target = document.querySelector('.tab-btn[data-sys="engineering-records-d1"]');
-                else if (dx > 0 && current === 'engineering-records-d1') target = document.querySelector('.tab-btn[data-sys="symbols"]');
-                else if (dx > 0 && current === 'symbols') target = document.querySelector('.tab-btn[data-sys="die-setup"]');
-                else if (dx > 0 && current === 'die-setup') target = document.querySelector('.tab-btn[data-sys="fold-tool"]');
-                else if (dx > 0 && current === 'fold-tool') target = document.querySelector('.tab-btn[data-sys="nail-gallery"]');
-                else if (dx > 0 && current === 'nail-gallery') target = document.querySelector('.tab-btn[data-sys="nail"]');
-                else if (dx > 0 && current === 'nail') target = document.querySelector('.tab-btn[data-sys="bend"]');
+                var currentIndex = Array.prototype.indexOf.call(tabs, activeTab);
+                var target = tabs[currentIndex + (dx < 0 ? 1 : -1)] || null;
                 if (!target) return;
 
                 target.click();
@@ -6704,5 +6768,5 @@ init();
             });
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a47115ac9bbfcce4',t:'MTc5MTQxOTkyNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

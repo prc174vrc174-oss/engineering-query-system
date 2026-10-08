@@ -76,10 +76,10 @@
       rows = [];
       list.innerHTML = '<div class="engineering-records-empty">輸入關鍵字即可搜尋。</div>';
       gemini.disabled = true;
-      setStatus('已連接 D1；輸入關鍵字即可搜尋。', 'success');
+      setStatus('輸入關鍵字即可搜尋。', 'success');
       return;
     }
-    setStatus('正在搜尋 D1…', 'loading');
+    setStatus('正在搜尋工程紀錄…', 'loading');
     try {
       var result = await call(api + '?action=search&query=' + encodeURIComponent(value));
       if (version !== resultVersion) return;
@@ -106,7 +106,7 @@
   }
   async function refresh(force) {
     reload.disabled = true;
-    if (force) setStatus('正在比對 Google Drive，更新 D1…', 'loading');
+    if (force) setStatus('正在比對 Google Drive，更新工程紀錄…', 'loading');
     try {
       var result;
       // Continue resumable Cloudflare sync batches until all full texts are present.
@@ -114,32 +114,32 @@
         result = await call(api, { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'refresh', force: force }) });
         if (result.syncing && !result.busy) {
-          setStatus('正在更新 D1，剩餘 ' + result.remaining + ' 篇…', 'loading');
+          setStatus('正在更新工程紀錄，剩餘 ' + result.remaining + ' 篇…', 'loading');
           await new Promise(function (resolve) { setTimeout(resolve, 1000); });
         }
       } while (result.syncing && !result.busy);
       includedFolders = normalizeFolders(result.includedFolders);
       folders.textContent = '搜尋資料夾（' + (result.includedFolders.length || '全部') + '）';
       if (result.busy) setStatus('另一台電腦正在同步；稍後再按重新載入。');
-      else if (result.skipped) setStatus('D1 已是最近同步的版本，共 ' + result.total + ' 篇。', 'success');
-      else setStatus('D1 已同步，共 ' + result.total + ' 篇；更新 ' + result.changed + ' 篇，移除 ' + (result.removed || 0) + ' 篇。', 'success');
+      else if (result.skipped) setStatus('工程紀錄已是最近同步的版本，共 ' + result.total + ' 篇。', 'success');
+      else setStatus('工程紀錄已同步，共 ' + result.total + ' 篇；更新 ' + result.changed + ' 篇，移除 ' + (result.removed || 0) + ' 篇。', 'success');
       if (query.value.trim()) search();
-    } catch (error) { setStatus('D1 仍可搜尋；Drive 同步失敗：' + error.message, 'error'); }
+    } catch (error) { setStatus('工程紀錄仍可搜尋；Drive 同步失敗：' + error.message, 'error'); }
     finally { reload.disabled = false; }
   }
   window.activateEngineeringRecordsD1 = async function () {
     if (started) return;
     started = true;
     reload.disabled = true;
-    setStatus('正在連接 D1 並準備工程紀錄…', 'loading');
+    setStatus('正在準備工程紀錄…', 'loading');
     try {
       var result = await call(api + '?action=status');
       includedFolders = normalizeFolders(result.includedFolders);
       folders.textContent = '搜尋資料夾（' + (result.includedFolders.length || '全部') + '）';
-      setStatus('D1 已載入 ' + result.total + ' 篇；輸入關鍵字即可搜尋。', 'success');
+      setStatus('已載入 ' + result.total + ' 篇；輸入關鍵字即可搜尋。', 'success');
       if (query.value.trim()) search();
       refresh(false);
-    } catch (error) { reload.disabled = false; setStatus('D1 載入失敗：' + error.message, 'error'); }
+    } catch (error) { reload.disabled = false; setStatus('工程紀錄載入失敗：' + error.message, 'error'); }
   };
   query.addEventListener('input', function () {
     clearTimeout(timer);

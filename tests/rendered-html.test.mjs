@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v199/);
+  assert.match(serviceWorker, /engineering-query-pwa-v200/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -378,8 +378,8 @@ test("folding-tool tab embeds both supplied interactive coordinate pages", async
 
   assert.match(source, /class="tab-btn active" data-sys="bend">係數查詢<\/button>/);
   assert.match(source, /class="tab-btn" data-sys="nail">釘子查詢<\/button>/);
-  assert.match(source, /class="tab-btn" data-sys="nail-gallery">釘子圖<\/button>/);
-  assert.match(source, /class="tab-btn" data-sys="fold-tool">座標圖<\/button>/);
+  assert.match(source, /class="tab-btn other-pages-item" data-sys="nail-gallery"[^>]*>釘子圖<\/button>/);
+  assert.match(source, /class="tab-btn other-pages-item" data-sys="fold-tool"[^>]*>座標圖<\/button>/);
   assert.match(source, /class="tab-btn" data-sys="die-setup">配模計算<\/button>/);
   assert.match(source, /id="fold-tool-panel"/);
   assert.match(source, /src="\.\/fold-tool-pointed\.html"/);
@@ -398,7 +398,6 @@ test("folding-tool tab embeds both supplied interactive coordinate pages", async
   assert.match(source, /\$\('radiusResetR0Btn'\)\?\.addEventListener\('click',[\s\S]*?\$\('radius'\)\.value='';[\s\S]*?hideRadiusMenu\(\);calcAll\(\)/);
   assert.match(source, /\$\('angleReset90Btn'\)\?\.addEventListener\('click',[\s\S]*?\$\('angle'\)\.value='90';calcAll\(\)/);
   assert.match(source, /'fold-tool': document\.getElementById\('fold-tool-panel'\)/);
-  assert.match(source, /current === 'nail-gallery'[\s\S]*?data-sys="fold-tool"/);
   assert.match(pointed, /<title>尖刀 座標互動定位<\/title>/);
   assert.match(pointed, /id="leftW"/);
   assert.match(pointed, /id="rightW"/);
@@ -428,8 +427,6 @@ test("die setup calculator is integrated directly into the main page", async () 
   assert.doesNotMatch(source, /<iframe[^>]+die-setup-calculator/);
   assert.doesNotMatch(source, /src="\.\/die-setup-calculator\.html"/);
   assert.match(source, /'die-setup': document\.getElementById\('die-setup-panel'\)/);
-  assert.match(source, /current === 'fold-tool'[\s\S]*?data-sys="die-setup"/);
-  assert.match(source, /current === 'die-setup'[\s\S]*?data-sys="fold-tool"/);
   assert.match(source, /id="btn-downward"/);
   assert.match(source, /id="btn-upward"/);
   assert.match(source, /function recalculateAll\(trigger\)/);
@@ -485,15 +482,13 @@ test("special symbols tab copies the Notion symbol collection", async () => {
   assert.match(source, /button\.dataset\.symbolValue = value/);
   assert.match(source, /className = 'solid-number-visual'/);
   assert.match(source, /copySymbol\(button\.dataset\.symbolValue \|\| button\.textContent, button\)/);
-  assert.match(source, /current === 'die-setup'[\s\S]*?data-sys="symbols"/);
-  assert.match(source, /current === 'symbols'[\s\S]*?data-sys="die-setup"/);
 });
 
 test("D1 is the only engineering records surface", async () => {
   const html = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
   const client = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
   const route = await readFile(new URL("../app/api/engineering-records-drive/route.ts", import.meta.url), "utf8");
-  assert.match(html, /data-sys="engineering-records-d1">工程紀錄 D1<\/button>/);
+  assert.match(html, /data-sys="engineering-records-d1">工程紀錄<\/button>/);
   assert.doesNotMatch(html, /id="engineering-records-panel"|data-sys="engineering-records"|src="engineering-records\.js"|engineeringRecordsExclude/);
   assert.match(html, /id="d1RecordsSettingsDialog"/);
   assert.match(client, /api\/engineering-records-d1/);
