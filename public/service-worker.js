@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v206-cloudflare-record-window-lookup';
+const CACHE_NAME = 'engineering-query-pwa-v207-cloudflare-note-layout';
 const APP_SHELL = [
   './',
   './engineering-query.html',

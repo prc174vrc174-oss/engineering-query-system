@@ -3436,6 +3436,12 @@ h3 {
         .engineering-records-dialog::backdrop { background:rgba(15,23,42,.4); }
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview-head { flex-shrink:0; }
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview { flex:1; min-height:0; max-height:none; padding:22px 30px 36px; white-space:normal; }
+        .engineering-records-dialog .engineering-records-preview-head,
+        .engineering-records-dialog .engineering-records-preview { width:100%; max-width:960px; box-sizing:border-box; margin-inline:auto; }
+        .engineering-records-dialog .engineering-records-preview-head { padding:20px 40px; }
+        .engineering-records-dialog .engineering-records-preview-head h3 { font-size:1.25rem; line-height:1.5; }
+        .engineering-records-dialog .engineering-records-preview-head p { font-size:0.875rem; line-height:1.6; }
+        .engineering-records-dialog .engineering-records-preview { padding:28px 40px 40px; font-size:1rem; line-height:1.85; }
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview h2,
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview h3,
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview h4 { margin:20px 0 10px; color:#172033; line-height:1.4; }
@@ -3474,6 +3480,7 @@ h3 {
         .engineering-markdown-table th, .engineering-markdown-table td { padding:10px 12px; border:1px solid #dfe5ee; text-align:left; vertical-align:top; }
         .engineering-markdown-table th { background:#f3f4fa; color:#344054; font-weight:750; }
         .engineering-markdown-table tbody tr:nth-child(even) { background:#fafbfe; }
+        .engineering-records-dialog .engineering-markdown-table table { font-size:inherit; }
         .engineering-record-window body { background:#fff; }
         .engineering-record-window .app-header-tabs, .engineering-record-window .sys-panel { display:none !important; }
         .engineering-record-window #engineering-records-d1-panel { display:block !important; }
@@ -3484,6 +3491,8 @@ h3 {
         @media (max-width: 760px) {
             .engineering-records-dialog { width:calc(100vw - 20px); height:calc(100dvh - 20px); max-height:calc(100dvh - 20px); }
             :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview { padding:18px 16px 28px; }
+            .engineering-records-dialog .engineering-records-preview-head { padding:18px; }
+            .engineering-records-dialog .engineering-records-preview { padding:22px 18px 32px; }
             .engineering-records-shell { padding: 14px 12px 30px; }
             .engineering-records-title { font-size: 24px; }
             .engineering-records-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px 6px; }
