@@ -3389,7 +3389,7 @@ h3 {
         .engineering-records-btn.is-primary { border-color: #2563eb; background: #2563eb; color: #fff; }
         .engineering-records-btn.is-ai { border-color: #6d5bd0; background: #6d5bd0; color: #fff; }
         .engineering-records-btn:disabled { opacity: .5; cursor: wait; }
-        .engineering-records-status { grid-column: 1 / -1; min-height: 20px; color: #64748b; font-size: 13px; line-height: 1.5; }
+        .engineering-records-status { flex: 1 1 240px; min-width: 0; min-height: 20px; color: #64748b; font-size: 13px; line-height: 1.5; }
         .engineering-records-status:empty { display: none; }
         .engineering-records-status.is-loading { color: #1d4ed8; }
         .engineering-records-status.is-success { color: #047857; }
@@ -3410,7 +3410,8 @@ h3 {
         .engineering-records-manual textarea { margin-top:8px; min-height:95px; }
         .engineering-records-settings-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
         .engineering-records-settings-error { min-height:18px; margin-top:6px; color:#b42318; font-size:13px; }
-        .engineering-records-tabs { display:flex; gap:8px; margin:16px 0 12px; border-bottom:1px solid #d8e0eb; }
+        .engineering-records-viewbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin:16px 0 12px; border-bottom:1px solid #d8e0eb; }
+        .engineering-records-tabs { display:flex; flex:none; gap:8px; }
         .engineering-records-tab { padding:10px 16px; border:0; border-bottom:3px solid transparent; background:transparent; color:#64748b; font:inherit; font-size:14px; cursor:pointer; }
         .engineering-records-tab[aria-selected="true"] { border-color:#2563eb; color:#1d4ed8; font-weight:750; }
         .engineering-records-tab:focus-visible, .engineering-record-open:focus-visible { outline:2px solid #2563eb; outline-offset:-2px; }
@@ -4315,7 +4316,6 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                     <button id="d1RecordsFolders" class="engineering-records-btn" type="button">搜尋資料夾</button>
                 </div>
                 <div id="d1RecordsGoogleButton" class="engineering-records-google"></div>
-                <div id="d1RecordsStatus" class="engineering-records-status" role="status" aria-live="polite"></div>
             </section>
             <dialog id="d1RecordsSettingsDialog" class="engineering-records-settings" aria-labelledby="d1RecordsSettingsTitle">
                 <h3 id="d1RecordsSettingsTitle">選擇搜尋資料夾</h3>
@@ -4334,9 +4334,12 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                     <button id="d1RecordsSettingsSave" class="engineering-records-btn is-primary" type="button">儲存並同步</button>
                 </div>
             </dialog>
-            <div class="engineering-records-tabs" role="tablist" aria-label="工程紀錄檢視">
-                <button id="d1RecordsResultsTab" class="engineering-records-tab" type="button" role="tab" aria-selected="true">搜尋結果</button>
-                <button id="d1RecordsSummaryTab" class="engineering-records-tab" type="button" role="tab" aria-selected="false">Gemini 摘要</button>
+            <div class="engineering-records-viewbar">
+                <div class="engineering-records-tabs" role="tablist" aria-label="工程紀錄檢視">
+                    <button id="d1RecordsResultsTab" class="engineering-records-tab" type="button" role="tab" aria-selected="true">搜尋結果</button>
+                    <button id="d1RecordsSummaryTab" class="engineering-records-tab" type="button" role="tab" aria-selected="false">Gemini 摘要</button>
+                </div>
+                <div id="d1RecordsStatus" class="engineering-records-status" role="status" aria-live="polite"></div>
             </div>
             <section id="d1RecordsResultsView" class="engineering-records-view engineering-records-results" role="tabpanel">
                 <div id="d1RecordsList" class="engineering-records-list"><div class="engineering-records-empty">輸入關鍵字即可搜尋。</div></div>
