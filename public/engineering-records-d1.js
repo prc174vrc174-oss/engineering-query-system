@@ -391,10 +391,14 @@
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.onclick = function (event) {
-      var bounds = dialog.getBoundingClientRect();
-      var width = Math.round(bounds.width || Math.min(1080, window.innerWidth - 48));
-      var height = Math.round(bounds.height || Math.min(780, window.innerHeight - 48));
-      var popup = window.open(link.href, '_blank', 'popup,width=' + width + ',height=' + height + ',resizable=yes,scrollbars=yes');
+      var display = window.screen || {};
+      var availableWidth = display.availWidth || window.innerWidth || 752;
+      var availableHeight = display.availHeight || window.innerHeight || 574;
+      var width = Math.round(Math.min(720, Math.max(1, availableWidth - 32)));
+      var height = Math.round(Math.min(510, Math.max(1, availableHeight - 64)));
+      var left = (Number.isFinite(display.availLeft) ? display.availLeft : 0) + Math.round((availableWidth - width) / 2);
+      var top = (Number.isFinite(display.availTop) ? display.availTop : 0) + Math.round((availableHeight - height) / 2);
+      var popup = window.open(link.href, '_blank', 'popup,width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=yes');
       if (popup) { popup.opener = null; event.preventDefault(); }
     };
     parent.appendChild(link);

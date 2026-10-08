@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v209/);
+  assert.match(serviceWorker, /engineering-query-pwa-v210/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -571,8 +571,8 @@ test("Gemini Markdown renders structure and keeps unsafe content inert", async (
   const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf("  excludeInput.addEventListener"));
   const value = '[來源：note.md]\n[[note|相關紀錄]]\n[紀錄](note.md)\n[官方](https://example.com/manual)\nhttps://example.com/help。\n\n### 工程重點\n**需確認**\n- 第一項\n  - 子項\n\n| 規格 | 備註 |\n| --- | --- |\n| M3 | **注意** |\n\n<script>alert(1)</script>\n[連結](javascript:alert)\n\n```js\n<script>raw</script>\n```';
   const popupSizes = [];
-  const bounds = { width: 900, height: 700 };
-  runInNewContext(code + '\nrenderMarkdown(value, "", target);', { dialog: { getBoundingClientRect: () => bounds }, document, target, value, URL, rows: [{ id: 'note123456789', name: 'note.md' }], summarySources: [], openRecord: async () => {}, window: { location: { href: 'https://example.com/' }, open: (url, target, features) => { popupSizes.push(features); return { opener: {} }; } } });
+  const display = { availWidth: 1920, availHeight: 1080, availLeft: 0, availTop: 0 };
+  runInNewContext(code + '\nrenderMarkdown(value, "", target);', { document, target, value, URL, rows: [{ id: 'note123456789', name: 'note.md' }], summarySources: [], openRecord: async () => {}, window: { screen: display, location: { href: 'https://example.com/' }, open: (url, target, features) => { popupSizes.push(features); return { opener: {} }; } } });
   const nodes = [];
   function walk(node) { nodes.push(node); node.children.forEach(walk); }
   walk(target);
@@ -593,10 +593,13 @@ test("Gemini Markdown renders structure and keeps unsafe content inert", async (
   let prevented = false;
   noteLinks[0].onclick({ preventDefault() { prevented = true; } });
   assert.ok(prevented);
-  assert.match(popupSizes[0], /width=900,height=700,/);
-  bounds.width = 370; bounds.height = 720;
+  assert.match(popupSizes[0], /width=720,height=510,left=600,top=285,/);
+  display.availLeft = -1920;
   noteLinks[0].onclick({ preventDefault() {} });
-  assert.match(popupSizes[1], /width=370,height=720,/);
+  assert.match(popupSizes[1], /width=720,height=510,left=-1320,top=285,/);
+  display.availLeft = 0; display.availWidth = 390; display.availHeight = 780;
+  noteLinks[0].onclick({ preventDefault() {} });
+  assert.match(popupSizes[2], /width=358,height=510,left=16,top=135,/);
   assert.ok(noteLinks.every(n => n.href.includes('recordId=note123456789')));
 });
 
@@ -633,7 +636,7 @@ test("Summary citations reuse numbers and open the corresponding source record",
   assert.equal(footer.children[1].children.length, 2);
   citations[2].onclick({ preventDefault() {} });
   assert.ok(opened[0].url.includes('recordId=second456'));
-  assert.match(opened[0].features, /width=900,height=700/);
+  assert.match(opened[0].features, /width=720,height=510,left=16,top=32/);
 });
 
 test("Gemini summarizes all 23 selected records in bounded batches", async () => {
