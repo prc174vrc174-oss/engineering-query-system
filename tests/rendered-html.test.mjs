@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v221/);
+  assert.match(serviceWorker, /engineering-query-pwa-v222/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -671,15 +671,27 @@ test("Summary citations reuse numbers and open the corresponding source record",
   assert.ok(citations[0].href.includes('recordId=first123'));
   assert.ok(citations[2].href.includes('recordId=second456'));
   const footer = summary.children.at(-1);
-  assert.equal(footer.children[0].textContent, '主要來源頁面');
-  assert.equal(footer.children[1].children.length, 3);
+  assert.equal(footer.children[0].textContent, '來源頁面');
+  assert.equal(footer.children[1].textContent, '送入摘要的紀錄：3 篇。');
+  assert.equal(footer.children[2].textContent, '已引用（2 篇）');
+  assert.equal(footer.children[3].children.length, 2);
+  assert.equal(footer.children[4].textContent, '未引用（1 篇）');
   assert.ok(!nodes.some(node => node.textContent.includes('來源檔案清單')));
   assert.ok(nodes.some(node => node.textContent === '第二批摘要'));
-  assert.ok(footer.children[1].children[2].children[0].href.includes('recordId=third789'));
+  assert.ok(footer.children[6].children[0].children[0].href.includes('recordId=third789'));
   assert.equal(context.summarySections('```\n### 來源檔案\n```').body, '```\n### 來源檔案\n```');
   citations[2].onclick({ preventDefault() {} });
   assert.ok(opened[0].url.includes('recordId=second456'));
   assert.match(opened[0].features, /width=720,height=510,left=16,top=32/);
+  context.renderSummary('沒有引用標記的摘要。');
+  assert.equal(summary.children.at(-1).children[2].textContent, '已引用（0 篇）');
+  assert.equal(summary.children.at(-1).children[4].textContent, '未引用（3 篇）');
+  assert.equal(summary.children.at(-1).children[6].children.length, 3);
+  context.summarySources.push(context.summarySources[0]);
+  context.renderSummary('[來源：壓注意.md] [來源：烤漆.md] [來源：只列來源.md]');
+  assert.equal(summary.children.at(-1).children[1].textContent, '送入摘要的紀錄：3 篇。');
+  assert.equal(summary.children.at(-1).children[4].textContent, '未引用（0 篇）');
+  assert.equal(summary.children.at(-1).children.length, 5);
 });
 
 test("Gemini summarizes up to 40 records in one request and splits only above 40", async () => {

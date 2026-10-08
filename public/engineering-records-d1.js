@@ -573,13 +573,27 @@
     var citations = { entries: [] };
     var sections = summarySections(value);
     renderMarkdown(sections.body, '', summary, citations);
-    // Keep references from Gemini's source list in the single source footer.
-    if (sections.sources) renderMarkdown(sections.sources, '', document.createElement('div'), citations);
-    if (!citations.entries.length) return;
+    // Only references in the summary body count as cited.
+    var citedKeys = new Set(citations.entries.map(function (entry) { return entry.key; }));
+    var submittedKeys = new Set();
+    var submitted = summarySources.filter(function (source) {
+      var key = source.id || recordLinkName(source.relativePath || source.name);
+      if (submittedKeys.has(key)) return false;
+      submittedKeys.add(key);
+      return true;
+    });
+    var uncited = submitted.filter(function (source) {
+      return !citedKeys.has(source.id || recordLinkName(source.relativePath || source.name));
+    });
+    if (!citations.entries.length && !submitted.length) return;
     var section = document.createElement('section');
     section.className = 'engineering-summary-sources';
     var heading = document.createElement('h3');
-    heading.textContent = '主要來源頁面';
+    heading.textContent = '來源頁面';
+    var total = document.createElement('p');
+    total.textContent = '送入摘要的紀錄：' + submitted.length + ' 篇。';
+    var citedHeading = document.createElement('h4');
+    citedHeading.textContent = '已引用（' + citations.entries.length + ' 篇）';
     var sourcesList = document.createElement('ol');
     citations.entries.forEach(function (entry) {
       var item = document.createElement('li');
@@ -587,7 +601,24 @@
       sourcesList.appendChild(item);
     });
     section.appendChild(heading);
+    section.appendChild(total);
+    section.appendChild(citedHeading);
     section.appendChild(sourcesList);
+    var uncitedHeading = document.createElement('h4');
+    uncitedHeading.textContent = '未引用（' + uncited.length + ' 篇）';
+    section.appendChild(uncitedHeading);
+    if (uncited.length) {
+      var description = document.createElement('p');
+      description.textContent = '以下紀錄已送入摘要，但內文未標註引用。';
+      var uncitedList = document.createElement('ul');
+      uncited.forEach(function (source) {
+        var item = document.createElement('li');
+        appendRecordLink(item, source.name.replace(/\.md$/i, ''), source.relativePath || source.name);
+        uncitedList.appendChild(item);
+      });
+      section.appendChild(description);
+      section.appendChild(uncitedList);
+    }
     summary.appendChild(section);
   }
   function appendFootnote(parent, token, markdown) {
