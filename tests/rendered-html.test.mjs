@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v214/);
+  assert.match(serviceWorker, /engineering-query-pwa-v215/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -662,7 +662,7 @@ test("Summary citations reuse numbers and open the corresponding source record",
     window: { location: { href: 'https://example.com/engineering-query.html' }, open: (url, target, features) => { opened.push({ url, features }); return {}; } },
   };
   const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf("  excludeInput.addEventListener"));
-  runInNewContext(code + '\nrenderSummary("**規則** [來源：壓注意.md]\\n- 重複 [來源：壓注意.md]\\n- 另一篇 [來源：烤漆.md]\\n- 合併 [來源：壓注意.md、烤漆.md]\\n\\n### 📁 來源檔案\\n1. `只列來源.md` [來源：只列來源.md]\\n\\n---\\n\\n## 第二批摘要\\n其他重點 [來源：烤漆.md]");', context);
+  runInNewContext(code + '\nrenderSummary("**規則** [來源：壓注意.md]\\n- 重複 [來源：壓注意.md]\\n- 另一篇 [來源：烤漆.md]\\n- 合併 [來源：壓注意.md、烤漆.md]\\n\\n### 三、來源檔案清單\\n1. `只列來源.md` [來源：只列來源.md]\\n\\n---\\n\\n## 第二批摘要\\n其他重點 [來源：烤漆.md]");', context);
   const nodes = [];
   function walk(node) { nodes.push(node); node.children.forEach(walk); }
   walk(summary);
@@ -673,7 +673,7 @@ test("Summary citations reuse numbers and open the corresponding source record",
   const footer = summary.children.at(-1);
   assert.equal(footer.children[0].textContent, '主要來源頁面');
   assert.equal(footer.children[1].children.length, 3);
-  assert.ok(!nodes.some(node => node.textContent.includes('📁 來源檔案')));
+  assert.ok(!nodes.some(node => node.textContent.includes('來源檔案清單')));
   assert.ok(nodes.some(node => node.textContent === '第二批摘要'));
   assert.ok(footer.children[1].children[2].children[0].href.includes('recordId=third789'));
   assert.equal(context.summarySections('```\n### 來源檔案\n```').body, '```\n### 來源檔案\n```');
@@ -903,4 +903,23 @@ test("Standalone mobile reader returns to the system and regeneration appears on
   controls.updateSummaryButtons(); assert.equal(controls.regenerate.hidden, false);
   controls.summarizing = true;
   controls.updateSummaryButtons(); assert.equal(controls.regenerate.disabled, true);
+});
+
+test("Summary source-list title variants are omitted without hiding later batches or fenced examples", async () => {
+  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  const context = {};
+  runInNewContext(source.slice(source.indexOf('  function summarySections('), source.indexOf('  function renderSummary(')), context);
+  for (const title of ['三、來源檔案清單', '三、 來源檔案清單', '3. 來源文件列表', '３）來源頁面一覽', '📁 來源檔案', '**三、來源檔案清單：**']) {
+    const markdown = '## 工程紀錄摘要（第 21–40 篇）\n重點 [來源：A.md]\n\n### ' + title + '\n- [來源：B.md]\n\n---\n\n## 工程紀錄摘要（第 41–43 篇）\n後續重點 [來源：C.md]';
+    const result = context.summarySections(markdown);
+    assert.ok(!result.body.includes(title), title);
+    assert.ok(result.body.includes('後續重點 [來源：C.md]'));
+    assert.ok(result.sources.includes('[來源：B.md]'));
+  }
+  for (const fence of ['```', '~~~~']) {
+    const value = fence + '\n### 三、來源檔案清單\n' + fence + '\n正常內容';
+    assert.equal(context.summarySections(value).body, value);
+  }
+  const body = '### 三、來源檔案清單注意事項\n這是一般工程內容。';
+  assert.equal(context.summarySections(body).body, body);
 });

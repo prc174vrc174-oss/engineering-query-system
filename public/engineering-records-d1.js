@@ -530,18 +530,23 @@
     });
   }
   function summarySections(value) {
-    var body = [], sources = [], sourceLevel = 0, inCode = false;
+    var body = [], sources = [], sourceLevel = 0, fence = null;
     String(value || '').replace(/\r/g, '').split('\n').forEach(function (line) {
       var trimmed = line.trim();
+      var fenceMatch = /^(`{3,}|~{3,})(.*)$/.exec(trimmed);
+      var fenced = !!fence || !!fenceMatch;
       var heading = /^(#{1,6})\s+(.+)$/.exec(trimmed);
-      var title = (heading ? heading[2] : trimmed).replace(/\*\*|__/g, '').replace(/^[^\u3400-\u9fffA-Za-z0-9]+/u, '').replace(/[：:]\s*$/, '').trim();
-      if (!inCode && /^(?:[一二三四五六七八九十\d]+[、.．]\s*)?來源(?:檔案|文件)$/.test(title)) {
+      var title = (heading ? heading[2] : trimmed).replace(/\*\*|__/g, '').replace(/^[^\u3400-\u9fffA-Za-z0-9]+/u, '').replace(/[：:]\s*$/, '').replace(/\s+/g, '');
+      if (!fenced && /^(?:[一二三四五六七八九十\d０-９]+[、.．)）])?來源(?:檔案|文件|頁面)(?:清單|列表|一覽)?$/.test(title)) {
         sourceLevel = heading ? heading[1].length : 6;
-      } else if (!inCode && sourceLevel && ((heading && heading[1].length <= sourceLevel) || /^---+$/.test(trimmed))) {
+      } else if (!fenced && sourceLevel && ((heading && heading[1].length <= sourceLevel) || /^---+$/.test(trimmed))) {
         sourceLevel = 0;
       }
       (sourceLevel ? sources : body).push(line);
-      if (/^```/.test(trimmed)) inCode = !inCode;
+      if (fenceMatch) {
+        if (!fence) fence = fenceMatch[1];
+        else if (fenceMatch[1][0] === fence[0] && fenceMatch[1].length >= fence.length && !fenceMatch[2].trim()) fence = null;
+      }
     });
     return { body: body.join('\n'), sources: sources.join('\n') };
   }
