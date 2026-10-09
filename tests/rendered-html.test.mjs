@@ -380,7 +380,7 @@ test("folding-tool tab embeds both supplied interactive coordinate pages", async
   assert.match(source, /class="tab-btn" data-sys="nail">釘子查詢<\/button>/);
   assert.match(source, /class="tab-btn other-pages-item" data-sys="nail-gallery"[^>]*>釘子圖<\/button>/);
   assert.match(source, /class="tab-btn other-pages-item" data-sys="fold-tool"[^>]*>座標圖<\/button>/);
-  assert.match(source, /class="tab-btn" data-sys="die-setup">配模計算<\/button>/);
+  assert.match(source, /class="tab-btn other-pages-item" data-sys="die-setup"[^>]*>配模計算<\/button>/);
   assert.match(source, /id="fold-tool-panel"/);
   assert.match(source, /src="\.\/fold-tool-pointed\.html"/);
   assert.match(source, /src="\.\/fold-tool-117\.html"/);

@@ -3578,13 +3578,13 @@ h3 {
                 <button class="tab-btn" data-sys="nail">釘子查詢</button>
                 <button class="tab-btn" data-sys="engineering-records-d1">工程紀錄</button>
                 <button class="tab-btn" data-sys="symbols">字元符號</button>
-                <button class="tab-btn" data-sys="die-setup">配模計算</button>
                 <button id="otherPagesButton" class="tab-btn" type="button" aria-expanded="false" aria-controls="otherPagesMenu">其他頁面</button>
             </nav>
         </div>
         <div id="otherPagesMenu" class="other-pages-menu" aria-label="其他頁面" hidden>
             <button class="tab-btn other-pages-item" data-sys="nail-gallery" type="button">釘子圖</button>
             <button class="tab-btn other-pages-item" data-sys="fold-tool" type="button">座標圖</button>
+            <button class="tab-btn other-pages-item" data-sys="die-setup" type="button">配模計算</button>
         </div>
 <span class="site-version" aria-label="網站版次 Version 195 測試">Version 195 測試</span>
     </header>
@@ -6796,8 +6796,9 @@ init();
                     btn.classList.add('active');
                     
                     var target = btn.dataset.sys;
-                    otherPagesButton.classList.toggle('active', target === 'nail-gallery' || target === 'fold-tool');
-                    closeOtherPages(target === 'nail-gallery' || target === 'fold-tool');
+                    var isOtherPage = !!btn.closest('.other-pages-menu');
+                    otherPagesButton.classList.toggle('active', isOtherPage);
+                    closeOtherPages(isOtherPage);
                     if (target === 'nail' && window.activateNailSystem) window.activateNailSystem();
                     if (target === 'engineering-records-d1' && window.activateEngineeringRecordsD1) window.activateEngineeringRecordsD1();
                     try { localStorage.setItem('engineeringActiveTab', target); } catch (e) {}
@@ -6847,7 +6848,7 @@ init();
 
                 if (elapsed > 1000 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
 
-                var activeTab = document.querySelector('.tab-btn.active');
+                var activeTab = document.querySelector('.tab-btn[data-sys].active');
                 var currentIndex = Array.prototype.indexOf.call(tabs, activeTab);
                 var target = tabs[currentIndex + (dx < 0 ? 1 : -1)] || null;
                 if (!target) return;
