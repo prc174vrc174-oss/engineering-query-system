@@ -63,6 +63,10 @@ export async function POST(request: Request) {
     if (typeof payload.idToken !== "string" || !payload.idToken) {
       return json(request, { ok: false, error: "使用 AI 摘要前請先登入 Google 帳號。" }, 401);
     }
+    if (typeof payload.query !== "string" || !payload.query.trim()) {
+      return json(request, { ok: false, error: "請先輸入搜尋關鍵字，再產生摘要。" }, 400);
+    }
+    payload.query = payload.query.trim();
     if (!Array.isArray(payload.ids) || !payload.ids.length) {
       return json(request, { ok: false, error: "目前沒有可摘要的搜尋結果。" }, 400);
     }

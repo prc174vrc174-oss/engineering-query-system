@@ -113,6 +113,8 @@ async function proxy(payload) {
   if (payload.action==='engineeringRecords.settings.save' && (!Array.isArray(payload.includedFolders) || payload.includedFolders.length>30 || payload.includedFolders.some(f=>typeof f!=='string' || f.length>120))) return [{ok:false,error:'搜尋資料夾設定不正確。'},400];
   if (payload.action==='engineeringRecords.image' && (typeof payload.id!=='string' || !ID.test(payload.id) || typeof payload.name!=='string')) return [{ok:false,error:'圖片參照不正確。'},400];
   if (payload.action==='engineeringRecords.summarize') {
+    if (typeof payload.query!=='string' || !payload.query.trim()) return [{ok:false,error:'請先輸入搜尋關鍵字，再產生摘要。'},400];
+    payload.query=payload.query.trim();
     if (!Array.isArray(payload.ids) || !payload.ids.length || payload.ids.some(id=>typeof id!=='string' || !ID.test(id))) return [{ok:false,error:'目前沒有可摘要的搜尋結果。'},400];
     payload.ids=payload.ids.slice(0,40);
   }

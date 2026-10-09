@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v231/);
+  assert.match(serviceWorker, /engineering-query-pwa-v232/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -900,7 +900,8 @@ test("Record windows load linked IDs and filename references directly", async ()
 test("Summary sign-in opens a dialog, cancellation stops automatic generation, and refresh shares the busy state", async () => {
   const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
   const code = source.slice(source.indexOf('  function updateSummaryButtons()'), source.indexOf('  function normalizeFolders('));
-  let callback, resolveRequest, calls = 0;
+  let callback, resolveRequest, calls = 0, focused = 0;
+  const statuses = [];
   const button = () => ({ replaceChildren() {} });
   const context = {
     gemini: {}, regenerate: {}, summaryClear: {}, rows: [{ id: 'note1' }], summarizing: false,
@@ -908,14 +909,24 @@ test("Summary sign-in opens a dialog, cancellation stops automatic generation, a
     signInPending: false, saveAfterLogin: false, summaryHasContent: false, token: '', summarySources: [], summaryStart: { hidden: false },
     summary: { textContent: '保留原摘要', hidden: false }, signInStatus: {}, settingsSignIn: button(), googleButton: button(),
     signInDialog: { open: false, showModal() { this.open = true; }, close() { this.open = false; }, addEventListener() {} },
-    byId: () => ({}), query: { value: '10017' }, clientId: 'test', driveApi: '/test',
-    list: { querySelectorAll: () => [{ value: 'note1' }] }, view() {}, setSummaryStatus() {},
+    byId: () => ({}), query: { value: '10017', focus() { focused++; } }, clientId: 'test', driveApi: '/test',
+    list: { querySelectorAll: () => [{ value: 'note1' }] }, view() {}, setSummaryStatus(message, state) { statuses.push({message,state}); },
     atob: value => Buffer.from(value, 'base64').toString(),
     call: () => { calls++; return new Promise(resolve => { resolveRequest = resolve; }); }, renderSummary() {},
     google: { accounts: { id: { initialize: options => { callback = options.callback; }, renderButton() {} } } },
   };
   context.window = { google: context.google };
   runInNewContext(code, context);
+  for (const value of ['', '   ']) {
+    context.query.value = value;
+    await context.summarize();
+    assert.equal(context.signInDialog.open, false);
+    assert.equal(calls, 0);
+    assert.equal(context.summary.textContent, '保留原摘要');
+    assert.deepEqual(statuses.at(-1), {message:'請先輸入搜尋關鍵字，再產生摘要。',state:'error'});
+  }
+  assert.equal(focused, 2);
+  context.query.value = '10017';
   await context.summarize();
   assert.equal(context.signInDialog.open, true);
   assert.equal(context.summary.textContent, '保留原摘要');
@@ -1079,13 +1090,22 @@ test("Sites Gemini API forwards 40 records to Apps Script without losing IDs", a
     return Response.json({ ok: true, summary: '摘要', sources: ids.map(id => ({ id })) });
   };
   try {
+    for (const query of [undefined, '', '   ', 123]) {
+      const invalid = await POST(new Request('https://example.com/api/engineering-records-drive', {
+        method: 'POST', body: JSON.stringify({action:'engineeringRecords.summarize',query,ids,idToken:'test-token'})
+      }));
+      assert.equal(invalid.status, 400);
+      assert.equal((await invalid.json()).error, '請先輸入搜尋關鍵字，再產生摘要。');
+    }
+    assert.equal(calls.length, 0);
     const response = await POST(new Request('https://example.com/api/engineering-records-drive', {
-      method: 'POST', body: JSON.stringify({ action: 'engineeringRecords.summarize', ids, idToken: 'test-token' }),
+      method: 'POST', body: JSON.stringify({ action: 'engineeringRecords.summarize', query: ' 10017 ', ids, idToken: 'test-token' }),
     }));
     assert.equal(response.status, 200);
     assert.equal((await response.json()).sources.length, 40);
     assert.equal(calls.length, 1);
     assert.deepEqual(calls[0].ids, ids);
+    assert.equal(calls[0].query, '10017');
   } finally { globalThis.fetch = original; }
 });
 

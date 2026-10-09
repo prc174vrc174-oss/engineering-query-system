@@ -442,6 +442,13 @@
   }
   async function summarize() {
     if (summarizing) return;
+    var summaryQuery = query.value.trim();
+    if (!summaryQuery) {
+      view('summary');
+      setSummaryStatus('請先輸入搜尋關鍵字，再產生摘要。', 'error');
+      query.focus();
+      return;
+    }
     var ids = rows.filter(function (record) { return !uncheckedRecordIds.has(record.id); }).map(function (record) { return record.id; });
     if (!ids.length) { view('summary'); setSummaryStatus('請至少勾選一筆工程紀錄。', 'error'); return; }
     view('summary');
@@ -459,7 +466,7 @@
     summary.hidden = false;
     summary.textContent = 'Gemini 正在產生摘要…';
     setSummaryStatus('Gemini 正在整理 ' + ids.length + ' 篇…', 'loading');
-    var summaries = [], summaryQuery = query.value.trim();
+    var summaries = [];
     summarySources = [];
     try {
       for (var start = 0; start < ids.length; start += 40) {

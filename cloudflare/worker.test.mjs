@@ -69,11 +69,18 @@ test('Gemini proxy forwards all 40 selected IDs in one request',async()=>{
   const original=globalThis.fetch,calls=[];
   globalThis.fetch=async(url,options)=>{calls.push(JSON.parse(options.body));return Response.json({ok:true,summary:'摘要',sources:ids.map(id=>({id}))});};
   try {
-    const response=await worker.fetch(new Request('https://api/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.summarize',ids,idToken:'test-token'})}),{DB:database()});
+    for (const query of [undefined,'','   ',123]) {
+      const invalid=await worker.fetch(new Request('https://api/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.summarize',query,ids,idToken:'test-token'})}),{DB:database()});
+      assert.equal(invalid.status,400);
+      assert.equal((await invalid.json()).error,'請先輸入搜尋關鍵字，再產生摘要。');
+    }
+    assert.equal(calls.length,0);
+    const response=await worker.fetch(new Request('https://api/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.summarize',query:' 10017 ',ids,idToken:'test-token'})}),{DB:database()});
     assert.equal(response.status,200);
     assert.equal((await response.json()).sources.length,40);
     assert.equal(calls.length,1);
     assert.deepEqual(calls[0].ids,ids);
+    assert.equal(calls[0].query,'10017');
   } finally {globalThis.fetch=original;}
 });
 
