@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v225/);
+  assert.match(serviceWorker, /engineering-query-pwa-v226/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -514,10 +514,13 @@ test("D1 client searches, renders full text and opens its own folder settings", 
     addEventListener(name, callback) { this.listeners[name] = callback; }
     showModal() { this.open = true; }
     close() { this.open = false; }
+    focus() { this.listeners.focus?.(); }
+    contains(node) { return this === node || this.children.some(child => child.contains(node)); }
     querySelectorAll() { return []; }
   }
   const elements = new Map([...html.matchAll(/id="(d1Records[^"]+)"/g)].map((m) => [m[1], new Element()]));
   const requests = [];
+  const savedHistory = new Map();
   const note = { id: 'record123456789', name: '10239.md', relativePath: '工程/10239.md', content: '# 德承\n- 沙拉孔', modifiedTime: '2026-10-07' };
   const resultNames = [
     '99999 客戶筆記.md', '2024-07-22 (週一) 1 工程筆記.md',
@@ -527,11 +530,13 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   const window = {};
   const document = {
     getElementById: (id) => { assert.ok(elements.has(id), `Missing ${id}`); return elements.get(id); },
+    addEventListener() {},
     createElement: (tag) => new Element(tag), createDocumentFragment: () => new Element(),
     createTextNode: (text) => Object.assign(new Element(), { textContent: text }),
   };
   runInNewContext(source, {
     window, document, location: { hostname: 'prc174vrc174-oss.github.io' },
+    localStorage: { getItem: key => savedHistory.get(key) || null, setItem: (key, value) => savedHistory.set(key, value), removeItem: key => savedHistory.delete(key) },
     URL, Intl, Date, setTimeout, clearTimeout,
     fetch: async (url, options) => {
       const action = options?.body ? JSON.parse(options.body).action : new URL(url).searchParams.get('action');
@@ -566,6 +571,27 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   assert.equal(elements.get('d1RecordsSettingsSuggestions').children.length, 1);
   assert.ok(requests.some((r) => r.action === 'read' && r.url.includes('/api/engineering-records-d1')));
   assert.ok(requests.some((r) => r.action === 'engineeringRecords.folders' && r.url.includes('/api/engineering-records-drive')));
+  for (const value of ['10017', '10002', '10017']) {
+    query.value = value;
+    query.listeners.keydown({ key: 'Enter', preventDefault() {} });
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.deepEqual(JSON.parse(savedHistory.get('engineeringRecordsSearchHistoryV1')), ['10017', '10002']);
+  query.listeners.focus();
+  const history = elements.get('d1RecordsHistory');
+  assert.equal(history.hidden, false);
+  assert.equal(history.children.length, 3);
+  assert.deepEqual(history.children.slice(1).map(button => button.children[1].textContent), ['10017', '10002']);
+  history.children[2].onclick();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(query.value, '10002');
+  assert.equal(history.hidden, true);
+  assert.deepEqual(JSON.parse(savedHistory.get('engineeringRecordsSearchHistoryV1')), ['10002', '10017']);
+  query.listeners.focus();
+  history.children[0].children[1].onclick();
+  assert.equal(savedHistory.has('engineeringRecordsSearchHistoryV1'), false);
+  assert.equal(history.hidden, true);
+  assert.equal(query.value, '10002');
 });
 
 
@@ -883,6 +909,7 @@ test("Mobile note links stay in the app and closing or browser back restores the
   };
   const document = {
     title: '查詢系統', getElementById: id => elements.get(id),
+    addEventListener() {},
     createElement: tag => new Element(tag), createDocumentFragment: () => new Element('#fragment'), createTextNode: text => new Element('#text', text),
   };
   runInNewContext(source, { window, document, location: { hostname: 'example.com' }, URL, Intl, Date, setTimeout, clearTimeout,

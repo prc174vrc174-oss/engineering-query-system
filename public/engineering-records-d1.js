@@ -6,6 +6,7 @@
   var clientId = '406267166897-8geeu3tpc425nc9n7gmimmmflbckp0ta.apps.googleusercontent.com';
   var byId = function (id) { return document.getElementById('d1Records' + id); };
   var query = byId('Query'), reload = byId('Reload'), gemini = byId('Gemini');
+  var recordHistory = byId('History'), recordHistoryKey = 'engineeringRecordsSearchHistoryV1';
   var regenerate = byId('Regenerate'), summaryStart = byId('SummaryStart'), summaryClear = byId('SummaryClear');
   var signInDialog = byId('SignInDialog'), signInStatus = byId('SignInStatus'), summarizing = false, summaryHasContent = false;
   var folders = byId('Folders'), status = byId('Status'), list = byId('List');
@@ -25,6 +26,58 @@
   var activeView = 'results';
   var viewStatuses = { results: { message: '', state: '' }, summary: { message: '', state: '' } };
   if (!query) return;
+
+  function getRecordSearchHistory() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(recordHistoryKey) || '[]');
+      return Array.isArray(saved) ? saved.filter(function (item) { return typeof item === 'string' && item.trim(); }).slice(0, 2) : [];
+    } catch (_) { return []; }
+  }
+  function closeRecordSearchHistory() {
+    recordHistory.hidden = true;
+    query.setAttribute('aria-expanded', 'false');
+  }
+  function renderRecordSearchHistory(openPanel) {
+    recordHistory.replaceChildren();
+    var items = getRecordSearchHistory();
+    if (!items.length) { closeRecordSearchHistory(); return; }
+    var head = document.createElement('div');
+    head.className = 'search-history-head';
+    var title = document.createElement('span');
+    title.textContent = '最近搜尋';
+    var clear = document.createElement('button');
+    clear.type = 'button'; clear.className = 'search-history-clear'; clear.textContent = '清除紀錄';
+    clear.onclick = function () {
+      try { localStorage.removeItem(recordHistoryKey); } catch (_) {}
+      renderRecordSearchHistory(false);
+      query.focus(); closeRecordSearchHistory();
+    };
+    head.append(title, clear); recordHistory.appendChild(head);
+    items.forEach(function (item) {
+      var button = document.createElement('button');
+      button.type = 'button'; button.className = 'search-history-item';
+      var icon = document.createElement('span');
+      icon.className = 'search-history-icon'; icon.textContent = '↺';
+      var label = document.createElement('span'); label.textContent = item;
+      button.append(icon, label);
+      button.onclick = function () {
+        clearTimeout(timer); query.value = item;
+        rememberRecordSearch(item); search();
+        query.focus(); closeRecordSearchHistory();
+      };
+      recordHistory.appendChild(button);
+    });
+    recordHistory.hidden = !openPanel;
+    query.setAttribute('aria-expanded', String(!!openPanel));
+  }
+  function rememberRecordSearch(value) {
+    var term = String(value || '').trim();
+    if (!term) return;
+    var items = getRecordSearchHistory().filter(function (item) { return item.toLocaleLowerCase() !== term.toLocaleLowerCase(); });
+    items.unshift(term);
+    try { localStorage.setItem(recordHistoryKey, JSON.stringify(items.slice(0, 2))); } catch (_) {}
+    renderRecordSearchHistory(false);
+  }
 
   function updateFolderLabel(count) {
     var full = document.createElement('span');
@@ -276,12 +329,27 @@
     } catch (error) { reload.disabled = false; setStatus('工程紀錄載入失敗：' + error.message, 'error'); }
   };
   query.addEventListener('input', function () {
+    closeRecordSearchHistory();
     clearTimeout(timer);
     if (!query.value.trim()) search();
     else timer = setTimeout(search, 180);
   });
   query.addEventListener('keydown', function (event) {
-    if (event.key === 'Enter') { event.preventDefault(); clearTimeout(timer); search(); }
+    if (event.key === 'Enter') {
+      event.preventDefault(); clearTimeout(timer);
+      rememberRecordSearch(query.value); closeRecordSearchHistory(); search();
+    }
+    if (event.key === 'Escape') closeRecordSearchHistory();
+  });
+  query.addEventListener('focus', function () { renderRecordSearchHistory(true); });
+  query.addEventListener('click', function () { renderRecordSearchHistory(true); });
+  query.addEventListener('blur', function (event) {
+    if (recordHistory.contains(event.relatedTarget)) return;
+    rememberRecordSearch(query.value);
+    closeRecordSearchHistory();
+  });
+  document.addEventListener('click', function (event) {
+    if (!event.target.closest('#d1RecordsSearchBox')) closeRecordSearchHistory();
   });
   reload.onclick = function () { refresh(true); };
   folders.onclick = showExcludeSettings;
