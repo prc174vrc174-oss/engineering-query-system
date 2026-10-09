@@ -75,7 +75,27 @@
     return recordDateKey(b.name) - recordDateKey(a.name) ||
       b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' });
   }
-  function render() {
+  function highlightedRecordName(name, searchValue) {
+    var label = document.createElement('span');
+    var terms = searchValue.split(/[\s，。；、？！?：:（）()／/]+/).map(function (term) { return term.trim(); })
+      .filter(function (term) { return term && (term.length >= 2 || /^\d+$/.test(term)); }).slice(0, 6);
+    if (!terms.length && searchValue.trim()) terms.push(searchValue.trim());
+    terms.sort(function (a, b) { return b.length - a.length; });
+    if (!terms.length) { label.textContent = name; return label; }
+    var escaped = terms.map(function (term) { return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
+    var parts = name.split(new RegExp('(' + escaped.join('|') + ')', 'gi'));
+    parts.forEach(function (part, index) {
+      if (!part) return;
+      if (index % 2 === 1) {
+        var mark = document.createElement('mark');
+        mark.className = 'search-highlight';
+        mark.textContent = part;
+        label.appendChild(mark);
+      } else label.appendChild(document.createTextNode(part));
+    });
+    return label;
+  }
+  function render(searchValue) {
     list.replaceChildren();
     updateSummaryButtons();
     if (!rows.length) {
@@ -98,7 +118,7 @@
       var button = document.createElement('button');
       button.type = 'button';
       button.className = 'engineering-record-open';
-      button.textContent = record.name.replace(/\.md$/i, '');
+      button.appendChild(highlightedRecordName(record.name.replace(/\.md$/i, ''), searchValue));
       button.onclick = function () { openRecord(record); };
       item.append(checkbox, button);
       items.appendChild(item);
@@ -121,7 +141,7 @@
       if (version !== resultVersion) return;
       rows = result.results || [];
       rows.sort(compareRecords);
-      render();
+      render(value);
       setStatus('找到 ' + rows.length + ' 筆工程紀錄。', 'success');
     } catch (error) {
       if (version !== resultVersion) return;

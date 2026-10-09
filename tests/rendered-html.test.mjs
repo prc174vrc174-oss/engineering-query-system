@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v223/);
+  assert.match(serviceWorker, /engineering-query-pwa-v224/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -504,7 +504,9 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
   class Element {
-    constructor() { this.children = []; this.value = ''; this.textContent = ''; this.listeners = {}; }
+    constructor(tag = 'div') { this.tag = tag; this.children = []; this.value = ''; this.textContent = ''; this.listeners = {}; }
+    get textContent() { return this.children.length ? this.children.map(node => node.textContent).join('') : this.text || ''; }
+    set textContent(value) { this.text = value; this.children = []; }
     replaceChildren(...nodes) { this.children = nodes; }
     append(...nodes) { this.children.push(...nodes); }
     appendChild(node) { this.children.push(node); }
@@ -525,7 +527,7 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   const window = {};
   const document = {
     getElementById: (id) => { assert.ok(elements.has(id), `Missing ${id}`); return elements.get(id); },
-    createElement: () => new Element(), createDocumentFragment: () => new Element(),
+    createElement: (tag) => new Element(tag), createDocumentFragment: () => new Element(),
     createTextNode: (text) => Object.assign(new Element(), { textContent: text }),
   };
   runInNewContext(source, {
@@ -545,6 +547,9 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   const renderedItems = elements.get('d1RecordsList').children[0].children;
   assert.equal(renderedItems.length, 23);
   assert.ok(renderedItems.every(item => item.children[0].checked));
+  const highlighted = renderedItems[6].children[1].children[0].children.find(node => node.tag === 'mark');
+  assert.equal(highlighted.textContent, '10239');
+  assert.equal(highlighted.className, 'search-highlight');
   assert.deepEqual(Array.from(renderedItems.slice(0, 6), item => item.children[1].textContent), [
     '2026-01-08 (週四) 10 新筆記', '2026-01-08 (週四) 2 新筆記',
     '2024-07-22 (週一) 1 工程筆記', '1999-01-01 舊筆記',
