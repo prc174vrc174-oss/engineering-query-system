@@ -757,6 +757,16 @@
     link.href = '#' + markdown.prefix + '-' + (index + 1);
     link.textContent = '[' + (index + 1) + ']';
     link.setAttribute('aria-label', '註腳 ' + (index + 1));
+    link.onclick = function (event) {
+      if (!note.element) return;
+      event.preventDefault();
+      note.element.scrollIntoView({ block: 'start', behavior: 'auto' });
+      clearTimeout(note.highlightTimer);
+      note.element.classList.add('engineering-footnote-highlight');
+      note.highlightTimer = setTimeout(function () {
+        note.element.classList.remove('engineering-footnote-highlight');
+      }, 1000);
+    };
     sup.appendChild(link); parent.appendChild(sup);
   }
   function closingDelimiter(value, opening, close) {
@@ -1099,6 +1109,7 @@
       markdown.notes.forEach(function (note, index) {
         var item = document.createElement('li');
         item.id = markdown.prefix + '-' + (index + 1);
+        note.element = item;
         appendInline(item, note.content, recordId, citations);
         for (var ref = 1; ref <= note.references; ref++) {
           var back = document.createElement('a');

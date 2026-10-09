@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v226/);
+  assert.match(serviceWorker, /engineering-query-pwa-v227/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -648,15 +648,24 @@ test("Gemini Markdown renders structure and keeps unsafe content inert", async (
 test("Obsidian reading syntax renders engineering notes and preserves safe navigation", async () => {
   const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
   class Node {
-    constructor(tag, text = '') { this.tag = tag; this.textContent = text; this.children = []; }
+    constructor(tag, text = '') {
+      this.tag = tag; this.textContent = text; this.children = [];
+      this.classes = new Set();
+      this.classList = { add: value => this.classes.add(value), remove: value => this.classes.delete(value) };
+    }
     appendChild(node) { this.children.push(node); }
     replaceChildren(...nodes) { this.children = nodes; }
     setAttribute(key, value) { this[key] = value; }
+    scrollIntoView(options) { this.scrolled = options; }
   }
   const preview = new Node('div'); preview.id = 'note-preview';
   const document = { createElement: tag => new Node(tag), createTextNode: text => new Node('#text', text), createDocumentFragment: () => new Node('#fragment') };
   const value = '# 規則\n#3-材料/AL/鋁擠 #5-圖形/壓J\n- ~~板金都要壓J~~ 已改為板金不壓J\n  - **注意** *斜體* ==重點==\n  - 說明 ^[114.04.09 說的]\n- [x] 已確認\n- [ ] 待確認\n- 名稱 #7-人/怡婷 ^74736b\n\n來源註腳[^rule] 再次[^rule] 不明[^constructor]\n\n%%不顯示的註解%%\n`%%保留程式文字%%`\n\\*literal\\*\n\n> [!warning]- 注意事項\n> - 請先確認 **板厚**\n\n- - -\n\n~~~js\n%%程式碼中的註解符號保留%%\n~~literal~~\n~~~\n\n[^rule]: **規則來源**\n  補充說明\n';
-  const context = { document, preview, value, URL, rows: [], summarySources: [], window: { location: { href: 'https://example.com/' } } };
+  const timers = new Map(); let timerId = 0;
+  const context = { document, preview, value, URL, rows: [], summarySources: [], window: { location: { href: 'https://example.com/' } },
+    setTimeout: (callback, delay) => { assert.equal(delay, 1000); timers.set(++timerId, callback); return timerId; },
+    clearTimeout: id => timers.delete(id),
+  };
   const code = source.slice(source.indexOf('  function recordLinkName('), source.indexOf("  excludeInput.addEventListener"));
   runInNewContext(code + '\nrenderMarkdown(value, "record123", preview);', context);
   const nodes = [];
@@ -677,6 +686,19 @@ test("Obsidian reading syntax renders engineering notes and preserves safe navig
   assert.ok(refs.every(node => nodes.some(target => '#' + target.id === node.href)));
   const footer = nodes.find(node => node.className === 'engineering-markdown-footnotes');
   assert.equal(footer.children[0].children.length, 2);
+  const destination = footer.children[0].children[1];
+  let prevented = false;
+  refs[1].onclick({ preventDefault() { prevented = true; } });
+  assert.ok(prevented);
+  assert.equal(destination.scrolled.block, 'start');
+  assert.ok(destination.classes.has('engineering-footnote-highlight'));
+  assert.ok(!footer.children[0].children[0].classes.has('engineering-footnote-highlight'));
+  const firstTimer = timerId;
+  refs[2].onclick({ preventDefault() {} });
+  assert.ok(!timers.has(firstTimer));
+  assert.equal(timers.size, 1);
+  timers.get(timerId)();
+  assert.ok(!destination.classes.has('engineering-footnote-highlight'));
   assert.ok(nodes.some(node => node.textContent.includes('114.04.09 說的')));
   assert.ok(nodes.some(node => node.textContent.includes('[^constructor]')));
   assert.ok(nodes.some(node => node.tag === 'details' && node['data-callout'] === 'warning' && !node.open));
