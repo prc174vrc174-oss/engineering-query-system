@@ -945,10 +945,12 @@ test("Summary sign-in opens a dialog, cancellation stops automatic generation, a
   assert.equal(context.regenerate.disabled, true);
   await context.summarize();
   assert.equal(calls, 1);
-  resolveRequest({ summary: '摘要', sources: [] });
+  resolveRequest({ summary: '摘要', sources: [], citationCoverage:{missingIds:['note1']} });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(context.gemini.disabled, false);
   assert.equal(context.regenerate.disabled, false);
+  assert.equal(statuses.at(-1).state,'error');
+  assert.match(statuses.at(-1).message,/仍有 1 篇未完成引用/);
 });
 
 test("Inline and named footnotes keep nested note links and balanced URL parentheses clickable", async () => {
@@ -1087,7 +1089,7 @@ test("Sites Gemini API forwards 40 records to Apps Script without losing IDs", a
   const original = globalThis.fetch, calls = [];
   globalThis.fetch = async (_, options) => {
     calls.push(JSON.parse(options.body));
-    return Response.json({ ok: true, summary: '摘要', sources: ids.map(id => ({ id })) });
+    return Response.json({ ok: true, summary: '摘要 '+ids.map(id=>'[來源：'+id+'.md]').join(''), sources: ids.map(id => ({ id, name:id+'.md' })) });
   };
   try {
     for (const query of [undefined, '', '   ', 123]) {
@@ -1105,7 +1107,7 @@ test("Sites Gemini API forwards 40 records to Apps Script without losing IDs", a
     assert.equal((await response.json()).sources.length, 40);
     assert.equal(calls.length, 1);
     assert.deepEqual(calls[0].ids, ids);
-    assert.equal(calls[0].query, '10017');
+    assert.match(calls[0].query, /10017[\s\S]*每篇提供的工程紀錄/);
   } finally { globalThis.fetch = original; }
 });
 

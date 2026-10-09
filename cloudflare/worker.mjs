@@ -1,4 +1,5 @@
 import { backlinkNeedles, referencingNotes } from "./engineering-record-links.mjs";
+import { completeEngineeringSummary } from "./engineering-summary-coverage.mjs";
 // GitHub Pages engineering records API, independently bound to janyu056's D1.
 export const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2WWjD9NKQKYNYLnVtU0E7xLKe69ELXw1FeIeEMUaFGY0zintiPAhwsnCC_figFrEScQ/exec';
 const ORIGIN = 'https://prc174vrc174-oss.github.io';
@@ -132,7 +133,9 @@ async function proxy(payload) {
     if (!Array.isArray(payload.ids) || !payload.ids.length || payload.ids.some(id=>typeof id!=='string' || !ID.test(id))) return [{ok:false,error:'目前沒有可摘要的搜尋結果。'},400];
     payload.ids=payload.ids.slice(0,40);
   }
-  return [await drive(payload.action,Object.fromEntries(Object.entries(payload).filter(([key])=>key!=='action'))),200];
+  const forward=p=>drive(p.action,Object.fromEntries(Object.entries(p).filter(([key])=>key!=='action')));
+  const result=payload.action==='engineeringRecords.summarize' ? await completeEngineeringSummary(payload,forward) : await forward(payload);
+  return [result,200];
 }
 export default {
   async fetch(request,env) {

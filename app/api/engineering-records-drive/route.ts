@@ -1,3 +1,5 @@
+import { completeEngineeringSummary } from "../../../cloudflare/engineering-summary-coverage.mjs";
+
 const WEB_APP_URL =
   "https://script.google.com/macros/s/AKfycbw2WWjD9NKQKYNYLnVtU0E7xLKe69ELXw1FeIeEMUaFGY0zintiPAhwsnCC_figFrEScQ/exec";
 
@@ -73,34 +75,39 @@ export async function POST(request: Request) {
     payload.ids = payload.ids.slice(0, 40);
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), action === "engineeringRecords.summarize" ? 120_000 : 60_000);
-  try {
-    const upstream = await fetch(WEB_APP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: JSON.stringify(payload),
-      cache: "no-store",
-      redirect: "follow",
-      signal: controller.signal,
-    });
-    const text = (await upstream.text()).trim();
-    let result: Record<string, unknown>;
+  async function forward(body: Record<string, unknown>) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), action === "engineeringRecords.summarize" ? 120_000 : 60_000);
     try {
-      result = JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      throw new Error("雲端程式回應格式不正確。");
-    }
-    if (!upstream.ok || !result.ok) {
-      return json(request, result.ok ? result : { ok: false, error: result.error || "工程紀錄查詢失敗。" }, 502);
-    }
+      const upstream = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        body: JSON.stringify(body),
+        cache: "no-store",
+        redirect: "follow",
+        signal: controller.signal,
+      });
+      const text = (await upstream.text()).trim();
+      let result: Record<string, unknown>;
+      try {
+        result = JSON.parse(text) as Record<string, unknown>;
+      } catch {
+        throw new Error("雲端程式回應格式不正確。");
+      }
+      if (!upstream.ok || !result.ok) {
+        throw new Error(String(result.error || "工程紀錄查詢失敗。"));
+      }
+      return result;
+    } finally { clearTimeout(timeout); }
+  }
+  try {
+    const result = action === "engineeringRecords.summarize"
+      ? await completeEngineeringSummary(payload, forward) : await forward(payload);
     return json(request, result);
   } catch (error) {
     const message = error instanceof Error && error.name === "AbortError"
       ? "查詢逾時，請縮小關鍵字範圍後重試。"
       : error instanceof Error ? error.message : "工程紀錄查詢失敗。";
     return json(request, { ok: false, error: message }, 502);
-  } finally {
-    clearTimeout(timeout);
   }
 }

@@ -563,7 +563,7 @@
     summary.hidden = false;
     summary.textContent = 'Gemini 正在產生摘要…';
     setSummaryStatus('Gemini 正在整理 ' + ids.length + ' 篇…', 'loading');
-    var summaries = [];
+    var summaries = [], missingCitationIds = new Set();
     summarySources = [];
     try {
       for (var start = 0; start < ids.length; start += 40) {
@@ -572,11 +572,13 @@
         var result = await call(driveApi, { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'engineeringRecords.summarize', query: summaryQuery, ids: batch, idToken: token }) });
         summarySources = summarySources.concat(result.sources || []);
+        if (result.citationCoverage) (result.citationCoverage.missingIds || []).forEach(function (id) { missingCitationIds.add(id); });
         var heading = ids.length > 40 ? '## 工程紀錄摘要（第 ' + (start + 1) + '–' + (start + batch.length) + ' 篇）\n\n' : '';
         summaries.push(heading + (result.summary || ''));
         renderSummary(summaries.join('\n\n---\n\n'));
       }
-      setSummaryStatus('Gemini 摘要完成，共整理 ' + ids.length + ' 篇。', 'success');
+      if (missingCitationIds.size) setSummaryStatus('摘要已產生；補充後仍有 ' + missingCitationIds.size + ' 篇未完成引用或讀取，請查看來源頁面或重新摘要。', 'error');
+      else setSummaryStatus('Gemini 摘要完成，共整理 ' + ids.length + ' 篇。', 'success');
     } catch (error) {
       if (summaries.length) renderSummary(summaries.join('\n\n---\n\n') + '\n\n> 部分摘要尚未完成：' + error.message);
       else { summary.textContent = error.message; summaryStart.hidden = summaryHasContent; }
