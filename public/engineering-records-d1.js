@@ -10,6 +10,7 @@
   var regenerate = byId('Regenerate'), summaryStart = byId('SummaryStart'), summaryClear = byId('SummaryClear');
   var signInDialog = byId('SignInDialog'), signInStatus = byId('SignInStatus'), summarizing = false, summaryHasContent = false;
   var folders = byId('Folders'), status = byId('Status'), list = byId('List');
+  var more = byId('More'), loadMore = byId('LoadMore'), visibleCount = 20, uncheckedRecordIds = new Set();
   var resultsTab = byId('ResultsTab'), summaryTab = byId('SummaryTab');
   var resultsView = byId('ResultsView'), summaryView = byId('SummaryView'), summary = byId('Summary');
   var dialog = byId('Dialog'), preview = byId('Preview'), previewTitle = byId('PreviewTitle');
@@ -172,21 +173,26 @@
     list.replaceChildren();
     updateSummaryButtons();
     if (!rows.length) {
+      more.hidden = true;
       var empty = document.createElement('div');
       empty.className = 'engineering-records-empty';
-      empty.textContent = '沒有找到符合的工程紀錄。';
+      empty.textContent = searchValue ? '沒有找到符合的工程紀錄。' : '目前沒有工程紀錄。';
       list.appendChild(empty);
       return;
     }
     var items = document.createElement('ul');
     items.className = 'engineering-records-items';
-    rows.forEach(function (record) {
+    (searchValue ? rows : rows.slice(0, visibleCount)).forEach(function (record) {
       var item = document.createElement('li');
       item.className = 'engineering-record-item';
       var checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
-      checkbox.checked = true;
+      checkbox.checked = !uncheckedRecordIds.has(record.id);
       checkbox.value = record.id;
+      checkbox.onchange = function () {
+        if (checkbox.checked) uncheckedRecordIds.delete(record.id);
+        else uncheckedRecordIds.add(record.id);
+      };
       checkbox.setAttribute('aria-label', '選取 ' + record.name + ' 供 Gemini 摘要');
       var button = document.createElement('button');
       button.type = 'button';
@@ -197,27 +203,23 @@
       items.appendChild(item);
     });
     list.appendChild(items);
+    more.hidden = !!searchValue || visibleCount >= rows.length;
+    loadMore.setAttribute('aria-label', '再顯示 ' + Math.min(20, Math.max(0, rows.length - visibleCount)) + ' 筆工程紀錄');
   }
   async function search() {
     var value = query.value.trim(), version = ++resultVersion;
     view('results');
-    if (!value) {
-      rows = [];
-      readerSearch = '';
-      list.innerHTML = '<div class="engineering-records-empty">輸入關鍵字即可搜尋。</div>';
-      updateSummaryButtons();
-      setStatus('輸入關鍵字即可搜尋。', 'success');
-      return;
-    }
-    setStatus('正在搜尋工程紀錄…', 'loading');
+    setStatus(value ? '正在搜尋工程紀錄…' : '正在載入工程紀錄…', 'loading');
     try {
       var result = await call(api + '?action=search&query=' + encodeURIComponent(value));
       if (version !== resultVersion) return;
       rows = result.results || [];
+      visibleCount = 20;
+      uncheckedRecordIds.clear();
       readerSearch = value;
       rows.sort(compareRecords);
       render(value);
-      setStatus('找到 ' + rows.length + ' 筆工程紀錄。', 'success');
+      setStatus((value ? '找到 ' : '共 ') + rows.length + ' 筆工程紀錄。', 'success');
     } catch (error) {
       if (version !== resultVersion) return;
       setStatus('搜尋失敗：' + error.message, 'error');
@@ -310,7 +312,7 @@
       if (result.busy) setStatus('另一台電腦正在同步；稍後再按重新載入。');
       else if (result.skipped) setStatus('工程紀錄已是最近同步的版本，共 ' + result.total + ' 篇。', 'success');
       else setStatus('工程紀錄已同步，共 ' + result.total + ' 篇；更新 ' + result.changed + ' 篇，移除 ' + (result.removed || 0) + ' 篇。', 'success');
-      if (query.value.trim()) search();
+      search();
     } catch (error) { setStatus('工程紀錄仍可搜尋；Drive 同步失敗：' + error.message, 'error'); }
     finally { reload.disabled = false; }
   }
@@ -324,7 +326,7 @@
       includedFolders = normalizeFolders(result.includedFolders);
       updateFolderLabel(result.includedFolders.length);
       setStatus('已載入 ' + result.total + ' 篇；輸入關鍵字即可搜尋。', 'success');
-      if (query.value.trim()) search();
+      await search();
       refresh(false);
     } catch (error) { reload.disabled = false; setStatus('工程紀錄載入失敗：' + error.message, 'error'); }
   };
@@ -352,6 +354,12 @@
     if (!event.target.closest('#d1RecordsSearchBox')) closeRecordSearchHistory();
   });
   reload.onclick = function () { refresh(true); };
+  loadMore.onclick = function () {
+    var scrollTop = list.scrollTop;
+    visibleCount += 20;
+    render(readerSearch);
+    list.scrollTop = scrollTop;
+  };
   folders.onclick = showExcludeSettings;
   resultsTab.onclick = function () { view('results'); };
   summaryTab.onclick = function () { view('summary'); };
@@ -414,7 +422,7 @@
   }
   async function summarize() {
     if (summarizing) return;
-    var ids = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(function (box) { return box.value; });
+    var ids = rows.filter(function (record) { return !uncheckedRecordIds.has(record.id); }).map(function (record) { return record.id; });
     if (!ids.length) { view('summary'); setSummaryStatus('請至少勾選一筆工程紀錄。', 'error'); return; }
     view('summary');
     if (!credentialValid()) {

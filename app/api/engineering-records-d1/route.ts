@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     if (params.get("action") === "status") return reply(request, { ok: true, ...(await engineeringStatus()) });
     if (params.get("action") === "search") {
       const query = (params.get("query") || "").trim();
-      if (!query || query.length > 120) return reply(request, { ok: false, error: "請輸入 1～120 個字元。" }, 400);
+      if (query.length > 120) return reply(request, { ok: false, error: "搜尋關鍵字最多 120 個字元。" }, 400);
       return reply(request, { ok: true, results: await searchEngineeringD1(query) });
     }
     if (params.get("action") === "read") {

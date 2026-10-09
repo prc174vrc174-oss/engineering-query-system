@@ -57,7 +57,8 @@ test('CORS, invalid IDs, unsupported routes, and Google authentication',async()=
   const options=await request('/api/engineering-records-d1',{method:'OPTIONS',headers:{Origin:'https://prc174vrc174-oss.github.io'}});assert.equal(options.status,204);assert.equal(options.headers.get('Access-Control-Allow-Origin'),'https://prc174vrc174-oss.github.io');
   assert.equal((await request('/api/engineering-records-d1?action=status',{headers:{Origin:'https://untrusted.example'}})).status,403);
   assert.equal((await request('/api/engineering-records-d1?action=read&id=bad')).status,400);
-  assert.equal((await request('/api/engineering-records-d1?action=search&query=')).status,400);
+  assert.equal((await request('/api/engineering-records-d1?action=search&query=')).status,200);
+  assert.equal((await request('/api/engineering-records-d1?action=search&query='+ 'x'.repeat(121))).status,400);
   assert.equal((await request('/unknown')).status,404);
   assert.equal((await request('/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.settings.save',includedFolders:[]})})).status,401);
   assert.equal((await request('/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.summarize',ids:['record_test_001']})})).status,401);
@@ -74,4 +75,15 @@ test('Gemini proxy forwards all 40 selected IDs in one request',async()=>{
     assert.equal(calls.length,1);
     assert.deepEqual(calls[0].ids,ids);
   } finally {globalThis.fetch=original;}
+});
+
+test('empty search returns all metadata without the keyword result limit', async () => {
+  const db=database(), notes=Array.from({length:501},(_,i)=>note('all_record_'+String(i).padStart(6,'0')));
+  await seed(db,notes);
+  const response=await worker.fetch(new Request('https://api/api/engineering-records-d1?action=search&query='),{DB:db});
+  assert.equal(response.status,200);
+  const result=await response.json();
+  assert.equal(result.results.length,501);
+  assert.ok(result.results.every(record=>record.id&&record.name&&record.relativePath&&record.modifiedTime&&!Object.hasOwn(record,'content')));
+  assert.equal((await search(db,'不存在')).length,0);
 });

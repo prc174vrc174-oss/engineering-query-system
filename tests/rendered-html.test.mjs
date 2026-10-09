@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v227/);
+  assert.match(serviceWorker, /engineering-query-pwa-v228/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -541,7 +541,8 @@ test("D1 client searches, renders full text and opens its own folder settings", 
     fetch: async (url, options) => {
       const action = options?.body ? JSON.parse(options.body).action : new URL(url).searchParams.get('action');
       requests.push({ url, action });
-      const value = action === 'search' ? { results: Array.from({ length: 23 }, (_, i) => ({ ...note, id: note.id + i, name: resultNames[i] || note.name })) } : action === 'read' ? { record: note } : action === 'engineeringRecords.folders' ? { folders: ['工程', '.hidden'] } : { total: 350, includedFolders: ['工程'], changed: 0 };
+      const count = action === 'search' && !new URL(url).searchParams.get('query') ? 51 : 23;
+      const value = action === 'search' ? { results: Array.from({ length: count }, (_, i) => ({ ...note, id: note.id + i, name: resultNames[i] || note.name })) } : action === 'read' ? { record: note } : action === 'engineeringRecords.folders' ? { folders: ['工程', '.hidden'] } : { total: 350, includedFolders: ['工程'], changed: 0 };
       return { ok: true, json: async () => ({ ok: true, ...value }) };
     },
   });
@@ -551,6 +552,7 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   await new Promise((resolve) => setImmediate(resolve));
   const renderedItems = elements.get('d1RecordsList').children[0].children;
   assert.equal(renderedItems.length, 23);
+  assert.equal(elements.get('d1RecordsMore').hidden, true);
   assert.ok(renderedItems.every(item => item.children[0].checked));
   const highlighted = renderedItems[6].children[1].children[0].children.find(node => node.tag === 'mark');
   assert.equal(highlighted.textContent, '10239');
@@ -592,6 +594,27 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   assert.equal(savedHistory.has('engineeringRecordsSearchHistoryV1'), false);
   assert.equal(history.hidden, true);
   assert.equal(query.value, '10002');
+  query.value = '';
+  query.listeners.input();
+  await new Promise(resolve => setImmediate(resolve));
+  const list = elements.get('d1RecordsList'), more = elements.get('d1RecordsMore');
+  assert.equal(elements.get('d1RecordsStatus').textContent, '共 51 筆工程紀錄。');
+  assert.equal(list.children[0].children.length, 20);
+  const firstCheckbox = list.children[0].children[0].children[0];
+  firstCheckbox.checked = false; firstCheckbox.onchange();
+  elements.get('d1RecordsLoadMore').onclick();
+  assert.equal(list.children[0].children.length, 40);
+  assert.equal(list.children[0].children[0].children[0].checked, false);
+  assert.ok(list.children[0].children.slice(20).every(item => item.children[0].checked));
+  assert.equal(more.hidden, false);
+  elements.get('d1RecordsLoadMore').onclick();
+  assert.equal(list.children[0].children.length, 51);
+  assert.equal(more.hidden, true);
+  query.value = '10239'; query.listeners.keydown({ key: 'Enter', preventDefault() {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(list.children[0].children.length, 23);
+  assert.ok(list.children[0].children.every(item => item.children[0].checked));
+  assert.equal(more.hidden, true);
 });
 
 
@@ -764,7 +787,7 @@ test("Gemini summarizes up to 40 records in one request and splits only above 40
   const calls = [], statuses = [], output = [];
   const code = source.slice(source.indexOf('  async function summarize()'), source.indexOf('  function normalizeFolders('));
   const context = {
-    list: { querySelectorAll: () => selected }, summary: {}, gemini: {}, rows: selected,
+    list: { querySelectorAll: () => selected.slice(0, 20) }, summary: {}, gemini: {}, rows: selected.map(record => ({ id: record.value })), uncheckedRecordIds: new Set(),
     summarizing: false, summaryStart: {}, updateSummaryButtons() {},
     query: { value: '10258' }, token: 'test-credential', driveApi: '/api/test', summarySources: [],
     view() {}, credentialValid: () => true,
@@ -840,6 +863,7 @@ test("Summary sign-in opens a dialog, cancellation stops automatic generation, a
   const button = () => ({ replaceChildren() {} });
   const context = {
     gemini: {}, regenerate: {}, summaryClear: {}, rows: [{ id: 'note1' }], summarizing: false,
+    uncheckedRecordIds: new Set(),
     signInPending: false, saveAfterLogin: false, summaryHasContent: false, token: '', summarySources: [], summaryStart: { hidden: false },
     summary: { textContent: '保留原摘要', hidden: false }, signInStatus: {}, settingsSignIn: button(), googleButton: button(),
     signInDialog: { open: false, showModal() { this.open = true; }, close() { this.open = false; }, addEventListener() {} },
@@ -1091,4 +1115,25 @@ $\unsupportedCommand{1}$`;
   assert.ok(html.indexOf('src="vendor/katex/katex-0.19.0.min.js"') < html.indexOf('src="engineering-records-d1.js?'));
   const sw = await readFile(new URL('../public/service-worker.js', import.meta.url), 'utf8');
   assert.ok(sw.includes('./vendor/katex/katex-0.19.0.min.js'));
+});
+
+test('Sites empty engineering search returns the full metadata list and keeps the query length limit', async () => {
+  const {env}=await import('cloudflare:workers');
+  const {transpileModule,ModuleKind}=await import('typescript');
+  const routeSource=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8'))
+    .replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href));
+  const compiled=transpileModule(routeSource,{compilerOptions:{module:ModuleKind.ESNext}}).outputText;
+  const {GET}=await import('data:text/javascript,'+encodeURIComponent(compiled));
+  const statements=[];
+  env.DB={prepare(sql){statements.push(sql);return {all:async()=>({results:[{id:'note123456789',name:'2026-10-09 筆記.md',relativePath:'工程/筆記.md',modifiedTime:'2026-10-09'}]})};}};
+  try {
+    const response=await GET(new Request('https://example.com/api/engineering-records-d1?action=search&query='));
+    assert.equal(response.status,200);
+    assert.equal((await response.json()).results.length,1);
+    assert.equal(statements.length,1);
+    assert.doesNotMatch(statements[0],/WHERE|LIMIT|\bcontent\b/);
+    const tooLong=await GET(new Request('https://example.com/api/engineering-records-d1?action=search&query='+ 'x'.repeat(121)));
+    assert.equal(tooLong.status,400);
+    assert.equal(statements.length,1);
+  } finally {delete env.DB;}
 });

@@ -35,6 +35,11 @@ export async function engineeringStatus() {
 }
 
 export async function searchEngineeringD1(query: string) {
+  if (!query.trim()) {
+    const rows = await database().prepare("SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime FROM engineering_notes")
+      .all<{ id: string; name: string; relativePath: string; modifiedTime: string }>();
+    return rows.results;
+  }
   const terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map((s) => s.trim().toLowerCase())
     .filter((s) => s && (s.length >= 2 || /^\d+$/.test(s))).slice(0, 6);
   if (!terms.length) terms.push(query.toLowerCase());

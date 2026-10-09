@@ -23,6 +23,10 @@ export async function status(db) {
     ...(job ? {syncing:true,remaining:job.pending.length} : {})};
 }
 export async function search(db, query) {
+  if (!query.trim()) {
+    const result = await db.prepare('SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime FROM engineering_notes').all();
+    return result.results;
+  }
   const terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map(s=>s.trim().toLowerCase())
     .filter(s=>s && (s.length>=2 || /^\d+$/.test(s))).slice(0,6);
   if (!terms.length) terms.push(query.toLowerCase());
@@ -122,7 +126,7 @@ export default {
         if (action==='status') return reply({ok:true,...await status(env.DB)});
         if (action==='search') {
           const query=(url.searchParams.get('query') || '').trim();
-          if (!query || query.length>120) return reply({ok:false,error:'請輸入 1～120 個字元。'},400);
+          if (query.length>120) return reply({ok:false,error:'搜尋關鍵字最多 120 個字元。'},400);
           return reply({ok:true,results:await search(env.DB,query)});
         }
         if (action==='read') {

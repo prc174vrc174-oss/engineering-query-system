@@ -3420,6 +3420,8 @@ h3 {
         .engineering-records-view[hidden] { display:none; }
         .engineering-records-results, .engineering-records-summary-card { min-width:0; border:1px solid #d8e0eb; border-radius:10px; background:#fff; overflow:hidden; }
         .engineering-records-list { max-height:650px; overflow:auto; }
+        .engineering-records-more { padding:10px; border-top:1px solid #e5eaf1; text-align:center; }
+        .engineering-records-more[hidden] { display:none; }
         .engineering-records-items { margin:0; padding:8px 10px; list-style:none; }
         .engineering-record-item { display:flex; align-items:center; gap:8px; padding:2px 4px; border-radius:4px; }
         .engineering-record-item:hover { background:#f8fafc; }
@@ -4436,7 +4438,8 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <div id="d1RecordsStatus" class="engineering-records-status" role="status" aria-live="polite"></div>
             </div>
             <section id="d1RecordsResultsView" class="engineering-records-view engineering-records-results" role="tabpanel">
-                <div id="d1RecordsList" class="engineering-records-list"><div class="engineering-records-empty">輸入關鍵字即可搜尋。</div></div>
+                <div id="d1RecordsList" class="engineering-records-list"><div class="engineering-records-empty">正在載入工程紀錄…</div></div>
+                <div id="d1RecordsMore" class="engineering-records-more" hidden><button id="d1RecordsLoadMore" class="engineering-records-btn" type="button">顯示更多</button></div>
             </section>
             <section id="d1RecordsSummaryView" class="engineering-records-view engineering-records-summary-card" role="tabpanel" hidden>
                 <div class="engineering-records-preview-head engineering-records-summary-head"><h3>Gemini 摘要</h3><button id="d1RecordsRegenerate" class="engineering-records-regenerate" type="button" aria-label="重新摘要" title="重新摘要" hidden disabled>↻</button><button id="d1RecordsSummaryClear" class="engineering-records-regenerate" type="button" aria-label="清除摘要內容" title="清除摘要內容" hidden>×</button></div>
@@ -6857,7 +6860,7 @@ init();
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
     <script src="vendor/katex/katex-0.19.0.min.js"></script>
-    <script src="engineering-records-d1.js?v=227"></script>
+    <script src="engineering-records-d1.js?v=228"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
