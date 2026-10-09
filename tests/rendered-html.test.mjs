@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v228/);
+  assert.match(serviceWorker, /engineering-query-pwa-v229/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -520,6 +520,7 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   }
   const elements = new Map([...html.matchAll(/id="(d1Records[^"]+)"/g)].map((m) => [m[1], new Element()]));
   const requests = [];
+  let failNextPage = false, pauseNextPage = false, releasePage;
   const savedHistory = new Map();
   const note = { id: 'record123456789', name: '10239.md', relativePath: '工程/10239.md', content: '# 德承\n- 沙拉孔', modifiedTime: '2026-10-07' };
   const resultNames = [
@@ -541,8 +542,14 @@ test("D1 client searches, renders full text and opens its own folder settings", 
     fetch: async (url, options) => {
       const action = options?.body ? JSON.parse(options.body).action : new URL(url).searchParams.get('action');
       requests.push({ url, action });
+      if (action === 'search' && new URL(url).searchParams.has('offset')) {
+        if (failNextPage) { failNextPage = false; throw new Error('網路中斷'); }
+        if (pauseNextPage) { pauseNextPage = false; await new Promise(resolve => { releasePage = resolve; }); }
+      }
       const count = action === 'search' && !new URL(url).searchParams.get('query') ? 51 : 23;
-      const value = action === 'search' ? { results: Array.from({ length: count }, (_, i) => ({ ...note, id: note.id + i, name: resultNames[i] || note.name })) } : action === 'read' ? { record: note } : action === 'engineeringRecords.folders' ? { folders: ['工程', '.hidden'] } : { total: 350, includedFolders: ['工程'], changed: 0 };
+      const offset = Number(action === 'search' && new URL(url).searchParams.get('offset') || 0);
+      const results = Array.from({ length: count }, (_, i) => ({ ...note, id: note.id + i, name: resultNames[i] || note.name }));
+      const value = action === 'search' ? (count === 51 ? {results: results.slice(offset, offset + 20), total: count, nextOffset: Math.min(offset + 20, count), hasMore: offset + 20 < count} : {results}) : action === 'read' ? { record: note } : action === 'engineeringRecords.folders' ? { folders: ['工程', '.hidden'] } : { total: 350, includedFolders: ['工程'], changed: 0 };
       return { ok: true, json: async () => ({ ok: true, ...value }) };
     },
   });
@@ -602,18 +609,40 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   assert.equal(list.children[0].children.length, 20);
   const firstCheckbox = list.children[0].children[0].children[0];
   firstCheckbox.checked = false; firstCheckbox.onchange();
-  elements.get('d1RecordsLoadMore').onclick();
+  failNextPage = true;
+  await elements.get('d1RecordsLoadMore').onclick();
+  assert.equal(list.children[0].children.length, 20);
+  assert.match(elements.get('d1RecordsStatus').textContent, /網路中斷/);
+  assert.equal(elements.get('d1RecordsLoadMore').disabled, false);
+  const beforeMore = requests.length;
+  const pendingMore = elements.get('d1RecordsLoadMore').onclick();
+  assert.equal(elements.get('d1RecordsLoadMore').disabled, true);
+  await elements.get('d1RecordsLoadMore').onclick();
+  await pendingMore;
+  assert.equal(requests.length, beforeMore + 1);
+  assert.ok(requests.at(-1).url.endsWith('&offset=20'));
   assert.equal(list.children[0].children.length, 40);
   assert.equal(list.children[0].children[0].children[0].checked, false);
   assert.ok(list.children[0].children.slice(20).every(item => item.children[0].checked));
   assert.equal(more.hidden, false);
-  elements.get('d1RecordsLoadMore').onclick();
+  await elements.get('d1RecordsLoadMore').onclick();
+  assert.ok(requests.at(-1).url.endsWith('&offset=40'));
   assert.equal(list.children[0].children.length, 51);
   assert.equal(more.hidden, true);
   query.value = '10239'; query.listeners.keydown({ key: 'Enter', preventDefault() {} });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(list.children[0].children.length, 23);
   assert.ok(list.children[0].children.every(item => item.children[0].checked));
+  assert.equal(more.hidden, true);
+  query.value = ''; query.listeners.input();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(list.children[0].children.length, 20);
+  pauseNextPage = true;
+  const stalePage = elements.get('d1RecordsLoadMore').onclick();
+  query.value = '10239'; query.listeners.keydown({ key: 'Enter', preventDefault() {} });
+  await new Promise(resolve => setImmediate(resolve));
+  releasePage(); await stalePage;
+  assert.equal(list.children[0].children.length, 23);
   assert.equal(more.hidden, true);
 });
 
@@ -1117,7 +1146,7 @@ $\unsupportedCommand{1}$`;
   assert.ok(sw.includes('./vendor/katex/katex-0.19.0.min.js'));
 });
 
-test('Sites empty engineering search returns the full metadata list and keeps the query length limit', async () => {
+test('Sites empty engineering search loads only one SQL page and validates offsets', async () => {
   const {env}=await import('cloudflare:workers');
   const {transpileModule,ModuleKind}=await import('typescript');
   const routeSource=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8'))
@@ -1125,15 +1154,22 @@ test('Sites empty engineering search returns the full metadata list and keeps th
   const compiled=transpileModule(routeSource,{compilerOptions:{module:ModuleKind.ESNext}}).outputText;
   const {GET}=await import('data:text/javascript,'+encodeURIComponent(compiled));
   const statements=[];
-  env.DB={prepare(sql){statements.push(sql);return {all:async()=>({results:[{id:'note123456789',name:'2026-10-09 筆記.md',relativePath:'工程/筆記.md',modifiedTime:'2026-10-09'}]})};}};
+  env.DB={prepare(sql){const item={sql,values:[]};statements.push(item);return {
+    bind(...values){item.values=values;return this;},first:async()=>({total:51}),
+    all:async()=>({results:Array.from({length:20},(_,i)=>({id:'note123456789'+(i+(item.values[0]||0)),name:'2026-10-09 筆記.md',relativePath:'工程/筆記.md',modifiedTime:'2026-10-09'}))})
+  };}};
   try {
-    const response=await GET(new Request('https://example.com/api/engineering-records-d1?action=search&query='));
+    const response=await GET(new Request('https://example.com/api/engineering-records-d1?action=search&query=&offset=20'));
     assert.equal(response.status,200);
-    assert.equal((await response.json()).results.length,1);
-    assert.equal(statements.length,1);
-    assert.doesNotMatch(statements[0],/WHERE|LIMIT|\bcontent\b/);
-    const tooLong=await GET(new Request('https://example.com/api/engineering-records-d1?action=search&query='+ 'x'.repeat(121)));
-    assert.equal(tooLong.status,400);
-    assert.equal(statements.length,1);
+    const result=await response.json();
+    assert.equal(result.results.length,20);assert.equal(result.total,51);assert.equal(result.nextOffset,40);assert.equal(result.hasMore,true);
+    assert.match(statements[0].sql,/ORDER BY[\s\S]*LIMIT 20 OFFSET \?/);
+    assert.deepEqual(statements[0].values,[20]);assert.doesNotMatch(statements[0].sql,/\bcontent\b/);
+    assert.match(statements[1].sql,/COUNT\(\*\)/);
+    for (const suffix of ['query='+ 'x'.repeat(121),'query=&offset=-1','query=&offset=1.5','query=&offset=10000001']) {
+      const invalid=await GET(new Request('https://example.com/api/engineering-records-d1?action=search&'+suffix));
+      assert.equal(invalid.status,400);
+    }
+    assert.equal(statements.length,2);
   } finally {delete env.DB;}
 });

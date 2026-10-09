@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import worker,{refresh,search,status} from './worker.mjs';
+import worker,{refresh,search,status,list} from './worker.mjs';
 function database() {
   const sqlite=new DatabaseSync(':memory:');
   sqlite.exec(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));
@@ -77,13 +77,27 @@ test('Gemini proxy forwards all 40 selected IDs in one request',async()=>{
   } finally {globalThis.fetch=original;}
 });
 
-test('empty search returns all metadata without the keyword result limit', async () => {
-  const db=database(), notes=Array.from({length:501},(_,i)=>note('all_record_'+String(i).padStart(6,'0')));
+test('empty search loads 20 metadata rows per page with dates first, no gaps, and bounds', async () => {
+  const db=database(), notes=Array.from({length:51},(_,i)=>note('all_record_'+String(i).padStart(6,'0'),i<45?'2026-10-'+String(1+i%9).padStart(2,'0')+' '+i+'.md':'99999 '+i+'.md'));
   await seed(db,notes);
-  const response=await worker.fetch(new Request('https://api/api/engineering-records-d1?action=search&query='),{DB:db});
-  assert.equal(response.status,200);
-  const result=await response.json();
-  assert.equal(result.results.length,501);
-  assert.ok(result.results.every(record=>record.id&&record.name&&record.relativePath&&record.modifiedTime&&!Object.hasOwn(record,'content')));
+  const fetchPage=async(offset)=>worker.fetch(new Request('https://api/api/engineering-records-d1?action=search&query=&offset='+offset),{DB:db});
+  const pages=[];
+  for(const offset of [0,20,40]){
+    const response=await fetchPage(offset);assert.equal(response.status,200);pages.push(await response.json());
+  }
+  assert.deepEqual(pages.map(p=>p.results.length),[20,20,11]);
+  assert.deepEqual(pages.map(p=>p.nextOffset),[20,40,51]);
+  assert.deepEqual(pages.map(p=>p.hasMore),[true,true,false]);
+  assert.ok(pages.every(p=>p.total===51));
+  const records=pages.flatMap(p=>p.results);
+  assert.equal(new Set(records.map(r=>r.id)).size,51);
+  assert.ok(records.every(record=>record.id&&record.name&&record.relativePath&&record.modifiedTime&&!Object.hasOwn(record,'content')));
+  assert.ok(records.slice(0,45).every(r=>/^2026/.test(r.name)));
+  assert.ok(records.slice(45).every(r=>/^99999/.test(r.name)));
+  const dates=records.slice(0,45).map(r=>r.name.slice(0,10));
+  assert.deepEqual(dates,[...dates].sort().reverse());
+  assert.equal((await search(db,'雷射')).length,51);
   assert.equal((await search(db,'不存在')).length,0);
+  for(const offset of ['-1','1.5','no','10000001'])assert.equal((await fetchPage(offset)).status,400);
+  const empty=await list(database());assert.deepEqual(empty,{results:[],total:0,nextOffset:0,hasMore:false});
 });

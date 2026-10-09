@@ -10,7 +10,7 @@
   var regenerate = byId('Regenerate'), summaryStart = byId('SummaryStart'), summaryClear = byId('SummaryClear');
   var signInDialog = byId('SignInDialog'), signInStatus = byId('SignInStatus'), summarizing = false, summaryHasContent = false;
   var folders = byId('Folders'), status = byId('Status'), list = byId('List');
-  var more = byId('More'), loadMore = byId('LoadMore'), visibleCount = 20, uncheckedRecordIds = new Set();
+  var more = byId('More'), loadMore = byId('LoadMore'), nextOffset = 0, hasMore = false, loadingMore = false, uncheckedRecordIds = new Set();
   var resultsTab = byId('ResultsTab'), summaryTab = byId('SummaryTab');
   var resultsView = byId('ResultsView'), summaryView = byId('SummaryView'), summary = byId('Summary');
   var dialog = byId('Dialog'), preview = byId('Preview'), previewTitle = byId('PreviewTitle');
@@ -182,7 +182,7 @@
     }
     var items = document.createElement('ul');
     items.className = 'engineering-records-items';
-    (searchValue ? rows : rows.slice(0, visibleCount)).forEach(function (record) {
+    rows.forEach(function (record) {
       var item = document.createElement('li');
       item.className = 'engineering-record-item';
       var checkbox = document.createElement('input');
@@ -203,23 +203,27 @@
       items.appendChild(item);
     });
     list.appendChild(items);
-    more.hidden = !!searchValue || visibleCount >= rows.length;
-    loadMore.setAttribute('aria-label', '再顯示 ' + Math.min(20, Math.max(0, rows.length - visibleCount)) + ' 筆工程紀錄');
+    more.hidden = !!searchValue || !hasMore;
+    loadMore.setAttribute('aria-label', '再載入 20 筆工程紀錄');
   }
   async function search() {
     var value = query.value.trim(), version = ++resultVersion;
+    hasMore = false; loadingMore = false; more.hidden = true; loadMore.disabled = true;
+    loadMore.textContent = '顯示更多';
     view('results');
     setStatus(value ? '正在搜尋工程紀錄…' : '正在載入工程紀錄…', 'loading');
     try {
       var result = await call(api + '?action=search&query=' + encodeURIComponent(value));
       if (version !== resultVersion) return;
       rows = result.results || [];
-      visibleCount = 20;
+      nextOffset = result.nextOffset || rows.length;
+      hasMore = !value && result.hasMore === true;
+      loadMore.disabled = false;
       uncheckedRecordIds.clear();
       readerSearch = value;
-      rows.sort(compareRecords);
+      if (value) rows.sort(compareRecords);
       render(value);
-      setStatus((value ? '找到 ' : '共 ') + rows.length + ' 筆工程紀錄。', 'success');
+      setStatus((value ? '找到 ' : '共 ') + (value ? rows.length : result.total) + ' 筆工程紀錄。', 'success');
     } catch (error) {
       if (version !== resultVersion) return;
       setStatus('搜尋失敗：' + error.message, 'error');
@@ -354,11 +358,27 @@
     if (!event.target.closest('#d1RecordsSearchBox')) closeRecordSearchHistory();
   });
   reload.onclick = function () { refresh(true); };
-  loadMore.onclick = function () {
-    var scrollTop = list.scrollTop;
-    visibleCount += 20;
-    render(readerSearch);
-    list.scrollTop = scrollTop;
+  loadMore.onclick = async function () {
+    if (query.value.trim() || readerSearch || !hasMore || loadingMore) return;
+    var version = resultVersion, offset = nextOffset;
+    loadingMore = true; loadMore.disabled = true; loadMore.textContent = '載入中…';
+    try {
+      var result = await call(api + '?action=search&query=&offset=' + offset);
+      if (version !== resultVersion || query.value.trim()) return;
+      var known = new Set(rows.map(function (record) { return record.id; }));
+      rows = rows.concat((result.results || []).filter(function (record) { return !known.has(record.id); }));
+      nextOffset = result.nextOffset;
+      hasMore = result.hasMore === true;
+      var scrollTop = list.scrollTop;
+      render(''); list.scrollTop = scrollTop;
+      setStatus('共 ' + result.total + ' 筆工程紀錄。', 'success');
+    } catch (error) {
+      if (version === resultVersion && !query.value.trim()) setStatus('載入失敗：' + error.message + '，請再點顯示更多。', 'error');
+    } finally {
+      if (version === resultVersion) {
+        loadingMore = false; loadMore.disabled = false; loadMore.textContent = '顯示更多';
+      }
+    }
   };
   folders.onclick = showExcludeSettings;
   resultsTab.onclick = function () { view('results'); };

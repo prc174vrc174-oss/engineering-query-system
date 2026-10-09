@@ -1,4 +1,4 @@
-import { engineeringStatus, readEngineeringD1, refreshEngineeringD1, searchEngineeringD1 } from "../../../db/engineering-notes";
+import { listEngineeringD1, engineeringStatus, readEngineeringD1, refreshEngineeringD1, searchEngineeringD1 } from "../../../db/engineering-notes";
 
 const origins = new Set(["https://engineering-query.prc174.chatgpt.site", "https://prc174vrc174-oss.github.io"]);
 function headers(request: Request) {
@@ -22,6 +22,13 @@ export async function GET(request: Request) {
     if (params.get("action") === "search") {
       const query = (params.get("query") || "").trim();
       if (query.length > 120) return reply(request, { ok: false, error: "搜尋關鍵字最多 120 個字元。" }, 400);
+      if (!query) {
+        const rawOffset = params.get("offset") || "0";
+        const offset = Number(rawOffset);
+        if (!/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset > 10_000_000)
+          return reply(request, { ok: false, error: "載入位置不正確。" }, 400);
+        return reply(request, { ok: true, ...(await listEngineeringD1(offset)) });
+      }
       return reply(request, { ok: true, results: await searchEngineeringD1(query) });
     }
     if (params.get("action") === "read") {

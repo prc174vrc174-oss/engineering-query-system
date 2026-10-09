@@ -22,11 +22,22 @@ export async function status(db) {
   return {total:count.total, includedFolders:JSON.parse(values.folders?.value || '[]'),lastSync:values.last_sync?.updated_at || 0,
     ...(job ? {syncing:true,remaining:job.pending.length} : {})};
 }
+export async function list(db, offset = 0) {
+  const [rows, count] = await Promise.all([
+    db.prepare(`SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime
+      FROM engineering_notes
+      ORDER BY CASE WHEN name GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*'
+        AND substr(name, 11, 1) NOT GLOB '[0-9]' THEN substr(name, 1, 10) ELSE '' END DESC,
+        name COLLATE NOCASE DESC, id DESC LIMIT 20 OFFSET ?`).bind(offset)
+      .all(),
+    db.prepare("SELECT COUNT(*) AS total FROM engineering_notes").first(),
+  ]);
+  const total = count?.total || 0;
+  const nextOffset = offset + rows.results.length;
+  return { results: rows.results, total, nextOffset, hasMore: nextOffset < total };
+}
+
 export async function search(db, query) {
-  if (!query.trim()) {
-    const result = await db.prepare('SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime FROM engineering_notes').all();
-    return result.results;
-  }
   const terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map(s=>s.trim().toLowerCase())
     .filter(s=>s && (s.length>=2 || /^\d+$/.test(s))).slice(0,6);
   if (!terms.length) terms.push(query.toLowerCase());
@@ -127,6 +138,11 @@ export default {
         if (action==='search') {
           const query=(url.searchParams.get('query') || '').trim();
           if (query.length>120) return reply({ok:false,error:'搜尋關鍵字最多 120 個字元。'},400);
+          if (!query) {
+            const rawOffset=url.searchParams.get('offset') || '0', offset=Number(rawOffset);
+            if (!/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset>10000000) return reply({ok:false,error:'載入位置不正確。'},400);
+            return reply({ok:true,...await list(env.DB,offset)});
+          }
           return reply({ok:true,results:await search(env.DB,query)});
         }
         if (action==='read') {

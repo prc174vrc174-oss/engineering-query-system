@@ -34,12 +34,23 @@ export async function engineeringStatus() {
     lastSync: values.last_sync?.updated_at || 0 };
 }
 
+export async function listEngineeringD1(offset: number) {
+  const db = database();
+  const [rows, count] = await Promise.all([
+    db.prepare(`SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime
+      FROM engineering_notes
+      ORDER BY CASE WHEN name GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*'
+        AND substr(name, 11, 1) NOT GLOB '[0-9]' THEN substr(name, 1, 10) ELSE '' END DESC,
+        name COLLATE NOCASE DESC, id DESC LIMIT 20 OFFSET ?`).bind(offset)
+      .all<{ id: string; name: string; relativePath: string; modifiedTime: string }>(),
+    db.prepare("SELECT COUNT(*) AS total FROM engineering_notes").first<{ total: number }>(),
+  ]);
+  const total = count?.total || 0;
+  const nextOffset = offset + rows.results.length;
+  return { results: rows.results, total, nextOffset, hasMore: nextOffset < total };
+}
+
 export async function searchEngineeringD1(query: string) {
-  if (!query.trim()) {
-    const rows = await database().prepare("SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime FROM engineering_notes")
-      .all<{ id: string; name: string; relativePath: string; modifiedTime: string }>();
-    return rows.results;
-  }
   const terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map((s) => s.trim().toLowerCase())
     .filter((s) => s && (s.length >= 2 || /^\d+$/.test(s))).slice(0, 6);
   if (!terms.length) terms.push(query.toLowerCase());
