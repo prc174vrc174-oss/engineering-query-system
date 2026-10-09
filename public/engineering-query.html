@@ -3457,7 +3457,7 @@ h3 {
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview { flex:1; min-height:0; max-height:none; padding:22px 30px 36px; white-space:normal; }
         .engineering-records-dialog .engineering-records-preview-head,
         .engineering-records-dialog .engineering-records-preview { width:100%; max-width:840px; box-sizing:border-box; margin-inline:auto; }
-        .engineering-records-dialog .engineering-records-preview-head { padding:20px 40px; }
+        .engineering-records-dialog .engineering-records-preview-head { display:block; padding:20px 40px; }
         .engineering-records-dialog .engineering-records-preview-head h3 { font-size:1.25rem; line-height:1.5; }
         .engineering-records-dialog .engineering-records-preview-head p { font-size:0.875rem; line-height:1.6; }
         .engineering-records-dialog .engineering-records-preview { padding:28px 40px 40px; font-size:1rem; line-height:1.85; }
@@ -3581,14 +3581,12 @@ h3 {
         .engineering-record-window #d1RecordsDialog { width:100vw; height:100dvh; max-width:none; max-height:none; margin:0; border:0; border-radius:0; box-shadow:none; }
         .engineering-record-window #d1RecordsDialog::backdrop { background:#fff; }
         .engineering-records-dialog-close { flex-shrink:0; min-height:34px; padding:0 12px; }
-        .engineering-records-reader-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:6px; flex-shrink:0; }
+        .engineering-records-reader-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; width:100%; margin-top:12px; gap:6px; flex-shrink:0; }
         .engineering-records-reader-actions > button[hidden] { display:none; }
         .engineering-records-dialog .engineering-records-preview-head > div:first-child { min-width:0; }
         .engineering-record-window #d1RecordsPrevious, .engineering-record-window #d1RecordsNext { display:none; }
         @media (max-width: 760px) {
             .engineering-records-dialog { width:100vw; height:100dvh; max-width:none; max-height:none; margin:0; border:0; border-radius:0; }
-            .engineering-records-dialog .engineering-records-preview-head { flex-wrap:wrap; }
-            .engineering-records-reader-actions { width:100%; }
             :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview { padding:18px 16px 28px; }
             .engineering-records-dialog .engineering-records-preview-head { padding:18px; }
             .engineering-records-dialog .engineering-records-preview { padding:22px 18px 32px; }
@@ -4495,7 +4493,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             </section>
             <dialog id="d1RecordsDialog" class="engineering-records-dialog" aria-labelledby="d1RecordsPreviewTitle">
                 <div class="engineering-records-preview-head"><div>
-                    <h3 id="d1RecordsPreviewTitle">內容預覽</h3><p id="d1RecordsPreviewMeta"></p>
+                    <h3 id="d1RecordsPreviewTitle">內容預覽</h3><p id="d1RecordsPreviewMeta" hidden></p>
                 </div><div class="engineering-records-reader-actions">
                     <button id="d1RecordsPrevious" class="engineering-records-btn engineering-records-dialog-close" type="button" hidden>上一頁</button>
                     <button id="d1RecordsNext" class="engineering-records-btn engineering-records-dialog-close" type="button" hidden>下一頁</button>
