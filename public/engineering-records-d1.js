@@ -103,11 +103,34 @@
     if (message && (state === 'loading' || state === 'success')) message += '（3.5 Flash-lite）';
     setStatus(message, state, 'summary');
   }
-  async function call(url, options) {
-    var response = await fetch(url, Object.assign({ cache: 'no-store' }, options || {}));
-    var value = await response.json();
-    if (!response.ok || !value.ok) throw new Error(value.error || '資料庫暫時無法使用。');
-    return value;
+  async function call(url, options, policy) {
+    policy = policy || {};
+    for (var attempt = 0; ; attempt++) {
+      var controller = policy.timeout ? new AbortController() : null;
+      var timeout = controller ? setTimeout(function () { controller.abort(); }, policy.timeout) : null;
+      try {
+        var settings = Object.assign({ cache: 'no-store' }, options || {});
+        if (controller) settings.signal = controller.signal;
+        var response = await fetch(url, settings);
+        var value;
+        try { value = await response.json(); } catch (_) { value = null; }
+        if (!response.ok || !value || !value.ok) {
+          var failure = new Error(value && value.error || '服務暫時無法回應（HTTP ' + response.status + '）。');
+          failure.transient = response.status === 408 || response.status === 429 || response.status >= 500;
+          throw failure;
+        }
+        return value;
+      } catch (error) {
+        var transient = error.transient === true || error.name === 'TypeError' || error.name === 'AbortError';
+        if (!transient || attempt >= (policy.retries || 0)) {
+          if (error.name === 'AbortError') throw new Error('讀取逾時，請重試。');
+          throw error;
+        }
+      } finally {
+        if (timeout !== null) clearTimeout(timeout);
+      }
+      await new Promise(function (resolve) { setTimeout(resolve, 800 * Math.pow(2, attempt)); });
+    }
   }
   function view(name) {
     activeView = name === 'summary' ? 'summary' : 'results';
@@ -277,7 +300,7 @@
     var message = document.createElement('p'); message.textContent = '正在讀取反向連結…';
     section.append(title, message);
     try {
-      var result = await call(api + '?action=backlinks&id=' + encodeURIComponent(recordId));
+      var result = await call(api + '?action=backlinks&id=' + encodeURIComponent(recordId), null, { retries: 2, timeout: 20000 });
       var records = (result.results || []).sort(compareRecords);
       message.textContent = records.length ? '共 ' + records.length + ' 篇工程紀錄連到這篇筆記。' : '沒有其他工程紀錄連到這篇筆記。';
       if (!records.length) return;
@@ -527,8 +550,8 @@
     });
   }
 
-  function request(payload) {
-    return call(driveApi, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  function request(payload, policy) {
+    return call(driveApi, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }, policy);
   }
   function renderFolderOptions() {
     excludeSuggestions.replaceChildren();
@@ -615,33 +638,111 @@
     }
   }
 
+  var imageJobs = [], activeImageJobs = 0;
+  function queueImage(task) {
+    return new Promise(function (resolve, reject) {
+      imageJobs.push({ task: task, resolve: resolve, reject: reject });
+      runImageJobs();
+    });
+  }
+  function runImageJobs() {
+    while (activeImageJobs < 2 && imageJobs.length) {
+      var job = imageJobs.shift();
+      activeImageJobs++;
+      (function (current) {
+        Promise.resolve().then(current.task).then(current.resolve, current.reject).finally(function () {
+          activeImageJobs--;
+          runImageJobs();
+        });
+      })(job);
+    }
+  }
+  var imageViewer = null, viewerImage, viewerViewport, viewerScale, viewerZoom = 1;
+  function updateImageZoom(resetScroll) {
+    var fit = Math.min(1, Math.max(1, viewerViewport.clientWidth - 24) / viewerImage.naturalWidth,
+      Math.max(1, viewerViewport.clientHeight - 24) / viewerImage.naturalHeight);
+    if (!isFinite(fit) || fit <= 0) return;
+    viewerImage.style.width = Math.round(viewerImage.naturalWidth * fit * viewerZoom) + 'px';
+    viewerScale.textContent = Math.round(viewerZoom * 100) + '%';
+    if (resetScroll) { viewerViewport.scrollTop = 0; viewerViewport.scrollLeft = 0; }
+  }
+  function openImageViewer(image) {
+    if (!imageViewer) {
+      imageViewer = document.createElement('dialog');
+      imageViewer.className = 'engineering-image-viewer';
+      imageViewer.setAttribute('aria-label', '工程圖片放大檢視');
+      var toolbar = document.createElement('div'); toolbar.className = 'engineering-image-viewer-toolbar';
+      function control(label, action) {
+        var button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+        button.onclick = action; toolbar.appendChild(button); return button;
+      }
+      control('－', function () { viewerZoom = Math.max(0.5, viewerZoom - 0.5); updateImageZoom(); }).setAttribute('aria-label', '縮小圖片');
+      viewerScale = document.createElement('span'); viewerScale.setAttribute('aria-live', 'polite'); toolbar.appendChild(viewerScale);
+      control('＋', function () { viewerZoom = Math.min(4, viewerZoom + 0.5); updateImageZoom(); }).setAttribute('aria-label', '放大圖片');
+      control('適合視窗', function () { viewerZoom = 1; updateImageZoom(true); });
+      control('關閉 ×', function () { imageViewer.close(); });
+      viewerViewport = document.createElement('div'); viewerViewport.className = 'engineering-image-viewer-viewport';
+      viewerImage = document.createElement('img'); viewerImage.referrerPolicy = 'no-referrer';
+      viewerImage.onload = function () { updateImageZoom(true); };
+      viewerViewport.appendChild(viewerImage); imageViewer.append(toolbar, viewerViewport);
+      imageViewer.onclick = function (event) { if (event.target === imageViewer) imageViewer.close(); };
+      document.body.appendChild(imageViewer);
+      window.addEventListener('resize', function () { if (imageViewer.open) updateImageZoom(); });
+    }
+    viewerZoom = 1; viewerImage.alt = image.alt; viewerImage.src = image.currentSrc || image.src;
+    if (!imageViewer.open) imageViewer.showModal();
+    if (viewerImage.complete) updateImageZoom(true);
+  }
   function appendImage(parent, label, source, recordId) {
     var figure = document.createElement('figure');
     figure.className = 'engineering-markdown-image';
     var img = document.createElement('img');
     img.alt = label || '工程紀錄圖片';
-    img.loading = 'lazy';
+    // The queue limits Drive reads; eager decoding also works while the image is hidden.
+    img.loading = 'eager';
     img.referrerPolicy = 'no-referrer';
+    img.hidden = true;
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.setAttribute('aria-label', (label || '工程紀錄圖片') + '，點擊放大');
+    img.title = '點擊放大圖片';
+    img.onclick = function () { if (!img.hidden) openImageViewer(img); };
+    img.onkeydown = function (event) {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); img.onclick(); }
+    };
     var hint = document.createElement('figcaption');
     hint.textContent = '圖片載入中…';
     figure.appendChild(img);
     figure.appendChild(hint);
     parent.appendChild(figure);
-    img.onload = function () { hint.remove(); };
-    img.onerror = function () { img.remove(); hint.textContent = '圖片無法預覽：' + (label || source); };
+    img.onload = function () { img.hidden = false; hint.hidden = true; };
     var url;
     try { url = new URL(source, window.location.href); } catch { url = null; }
-    if (url && /^https?:\/\//.test(source) && /^https?:$/.test(url.protocol)) {
-      img.src = url.href;
-      return;
-    }
+    var external = url && /^https?:\/\//.test(source) && /^https?:$/.test(url.protocol);
     var key = recordId + '/' + source;
-    if (!imageCache[key]) imageCache[key] = request({ action: 'engineeringRecords.image', id: recordId, name: source })
-      .then(function (result) { return result.image && result.image.dataUrl; });
-    imageCache[key].then(function (dataUrl) {
-      if (dataUrl && /^data:image\/(png|jpeg|gif|webp);base64,/.test(dataUrl)) img.src = dataUrl;
-      else throw new Error('圖片格式不支援。');
-    }).catch(function () { img.remove(); hint.textContent = '圖片無法預覽：' + (label || source); delete imageCache[key]; });
+    function failed(error) {
+      img.hidden = true; hint.hidden = false;
+      hint.textContent = '圖片無法預覽：' + (label || source) + ' · ' + error.message + ' ';
+      var retry = document.createElement('button'); retry.type = 'button'; retry.className = 'engineering-records-btn'; retry.textContent = '重試圖片';
+      retry.onclick = load; hint.appendChild(retry);
+    }
+    img.onerror = function () { delete imageCache[key]; failed(new Error('圖片讀取失敗。')); };
+    function load() {
+      hint.hidden = false; hint.textContent = '圖片載入中…'; img.hidden = true;
+      img.removeAttribute('src');
+      if (external) { img.src = url.href; return; }
+      if (!imageCache[key]) {
+        imageCache[key] = queueImage(function () {
+          return request({ action: 'engineeringRecords.image', id: recordId, name: source }, { retries: 2, timeout: 65000 });
+        }).then(function (result) {
+          var dataUrl = result.image && result.image.dataUrl;
+          if (!dataUrl || !/^data:image\/(png|jpeg|gif|webp);base64,/.test(dataUrl)) throw new Error('圖片格式不支援。');
+          return dataUrl;
+        }).catch(function (error) { delete imageCache[key]; throw error; });
+      }
+      imageCache[key].then(function (dataUrl) { img.src = dataUrl; }).catch(failed);
+    }
+    load();
   }
 
   function recordLinkName(value) {

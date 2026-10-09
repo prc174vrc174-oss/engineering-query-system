@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>M加法展開計算</title>
   <style>
+/* Keep wheel and touch scrolling without visible scrollbars. */
+html, body, body * { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
     :root{color-scheme:light;--s900:#0f172a;--s700:#334155;--s600:#475569;--s500:#64748b;--s400:#94a3b8;--s300:#cbd5e1;--s200:#e2e8f0;--s100:#f1f5f9;--pink:#be185d;--green:#047857;--orange:#c2410c}
     *{box-sizing:border-box}html,body{margin:0;min-height:0;background:#e9eef4;color:#111827;font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}body{padding:14px}button,input,select{font:inherit}button{cursor:pointer}
     .calculator{width:min(430px,100%);margin:0 auto;border:1px solid #aeb9c8;border-radius:12px;background:#f8fafc;box-shadow:0 18px 46px rgba(15,23,42,.18);overflow:hidden}.head{position:sticky;top:0;z-index:2;padding:14px 16px;border-bottom:1px solid var(--s300);background:var(--s700);color:#fff}.head h1{margin:0;font-size:18px;font-weight:850}.site-version{position:absolute;right:14px;top:50%;color:#cbd5e1;font-size:10px;font-weight:650;opacity:.78;transform:translateY(-50%);white-space:nowrap}.body{padding:14px 16px 16px}

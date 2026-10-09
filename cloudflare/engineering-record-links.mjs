@@ -50,6 +50,15 @@ export function backlinkNeedles(target) {
 
 /** @param {Note[]} candidates @param {Note} target @param {Note[]} catalog */
 export function referencingNotes(candidates, target, catalog) {
+  // Normalize the catalog once per request, instead of for every reference.
+  const paths = new Map(), names = new Map();
+  for (const note of catalog) {
+    const path = normalized(note.relativePath), name = normalized(note.name);
+    if (!paths.has(path)) paths.set(path, note);
+    const named = names.get(name);
+    if (named) named.count++;
+    else names.set(name, { note, count: 1 });
+  }
   function resolves(reference, source) {
     if (!reference || reference.startsWith('#')) return false;
     if (/^(?:https?:\/\/|engineering-query\.html\?)/i.test(reference)) {
@@ -63,11 +72,11 @@ export function referencingNotes(candidates, target, catalog) {
     if (!reference) return false;
     const wanted = normalized(reference);
     const parent = source.relativePath.replace(/[^/]*$/, '');
-    const relative = catalog.find(note => normalized(note.relativePath) === normalized(parent + reference));
-    const exact = catalog.find(note => normalized(note.relativePath) === wanted);
+    const relative = paths.get(normalized(parent + reference));
+    const exact = paths.get(wanted);
     if (relative || exact) return (relative || exact).id === target.id;
-    const matches = catalog.filter(note => normalized(note.name) === wanted.split('/').at(-1));
-    return matches.length === 1 && matches[0].id === target.id;
+    const match = names.get(wanted.split('/').at(-1));
+    return !!match && match.count === 1 && match.note.id === target.id;
   }
   return candidates.filter(note => note.id !== target.id && references(note.content || '').some(ref => resolves(ref, note)))
     .map(({content, ...metadata}) => metadata);
