@@ -1163,4 +1163,6 @@
   regenerate.onclick = summarize;
   summaryClear.onclick = clearSummary;
   if (recordWindow) loadLinkedRecord();
+  // Tab restoration runs before this script loads; activate the restored tab now.
+  else if (document.querySelector('.tab-btn.active[data-sys="engineering-records-d1"]')) window.activateEngineeringRecordsD1();
 })();

@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v230/);
+  assert.match(serviceWorker, /engineering-query-pwa-v231/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -500,9 +500,10 @@ test("D1 is the only engineering records surface", async () => {
   assert.doesNotMatch(route, /engineeringRecords\.(search|read|catalog|batchRead)/);
 });
 
-test("D1 client searches, renders full text and opens its own folder settings", async () => {
+test("D1 client starts on the restored tab, stays lazy on other tabs, searches and reads notes", async () => {
   const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
+  for (const restoredActive of [true, false]) {
   class Element {
     constructor(tag = 'div') { this.tag = tag; this.children = []; this.value = ''; this.textContent = ''; this.listeners = {}; }
     get textContent() { return this.children.length ? this.children.map(node => node.textContent).join('') : this.text || ''; }
@@ -530,6 +531,7 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   ];
   const window = {};
   const document = {
+    querySelector(selector) { assert.equal(selector, '.tab-btn.active[data-sys="engineering-records-d1"]'); return restoredActive ? {} : null; },
     getElementById: (id) => { assert.ok(elements.has(id), `Missing ${id}`); return elements.get(id); },
     addEventListener() {},
     createElement: (tag) => new Element(tag), createDocumentFragment: () => new Element(),
@@ -553,7 +555,12 @@ test("D1 client searches, renders full text and opens its own folder settings", 
       return { ok: true, json: async () => ({ ok: true, ...value }) };
     },
   });
+  assert.equal(requests.filter(r => r.action === 'status').length, restoredActive ? 1 : 0);
   await window.activateEngineeringRecordsD1();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(requests.filter(r => r.action === 'status').length, 1);
+  assert.equal(elements.get('d1RecordsList').children[0].children.length, 15);
+  assert.equal(elements.get('d1RecordsMore').hidden, false);
   const query = elements.get('d1RecordsQuery'); query.value = '10239';
   query.listeners.keydown({ key: 'Enter', preventDefault() {} });
   await new Promise((resolve) => setImmediate(resolve));
@@ -648,6 +655,7 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   releasePage(); await stalePage;
   assert.equal(list.children[0].children.length, 23);
   assert.equal(more.hidden, true);
+  }
 });
 
 
@@ -987,7 +995,7 @@ test("Mobile note links stay in the app and closing or browser back restores the
     },
   };
   const document = {
-    title: '查詢系統', getElementById: id => elements.get(id),
+    title: '查詢系統', getElementById: id => elements.get(id), querySelector: () => null,
     addEventListener() {},
     createElement: tag => new Element(tag), createDocumentFragment: () => new Element('#fragment'), createTextNode: text => new Element('#text', text),
   };
