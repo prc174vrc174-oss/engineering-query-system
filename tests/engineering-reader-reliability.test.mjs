@@ -37,7 +37,7 @@ test('authorization failures and writes are never automatically retried', async 
 });
 
 class Node {
-  constructor(tag) {this.tag=tag;this.children=[];this.style={};this.clientWidth=624;this.clientHeight=424;this.naturalWidth=1200;this.naturalHeight=800;this.complete=true;}
+  constructor(tag) {this.tag=tag;this.children=[];this.style={};this.listeners={};this.classes=new Set();this.classList={add:label=>this.classes.add(label),remove:label=>this.classes.delete(label)};this.scrollLeft=0;this.scrollTop=0;this.clientWidth=624;this.clientHeight=424;this.naturalWidth=1200;this.naturalHeight=800;this.complete=true;}
   appendChild(node) {this.children.push(node);return node;}
   append(...nodes) {this.children.push(...nodes);}
   setAttribute(key, value) {this[key]=value;}
@@ -45,7 +45,12 @@ class Node {
   set textContent(value) {this.text=value;this.children=[];}
   get textContent() {return this.text;}
   showModal() {this.open=true;}
-  close() {this.open=false;}
+  close() {this.open=false;this.listeners.close?.();}
+  addEventListener(event, callback) {this.listeners[event]=callback;}
+  setPointerCapture(id) {this.capturedPointer=id;}
+  hasPointerCapture(id) {return this.capturedPointer===id;}
+  releasePointerCapture(id) {if(this.capturedPointer===id)this.capturedPointer=null;}
+  focus() {this.focused=true;}
 }
 function imageContext(request) {
   return {request, imageCache:{}, URL, document:{createElement:tag=>new Node(tag),body:new Node('body')},
@@ -97,6 +102,42 @@ test('external images retain their URL and support retry without changing signed
   context.appendImage(parent,'external',url,'record1');const [image,hint]=parent.children[0].children;
   assert.equal(image.src,url);image.onerror();assert.equal(image.hidden,true);
   hint.children[0].onclick();assert.equal(image.src,url);image.onload();assert.equal(image.hidden,false);
+});
+
+test('zoomed images pan on both axes with mouse or touch and release the drag on cancellation or close', () => {
+  const context=imageContext();runInNewContext(imageCode,context);
+  const image=new Node('img');image.src='https://example.com/drawing.png';context.openImageViewer(image);
+  const viewer=context.document.body.children[0], [toolbar,viewport]=viewer.children;
+  toolbar.children[2].onclick();
+  assert.equal(viewport.children[0].draggable,false);
+  const event=(pointerId,x,y,extra={})=>({pointerId,clientX:x,clientY:y,button:0,preventDefault(){},...extra});
+  viewport.onpointerdown(event(1,300,200,{pointerType:'mouse'}));
+  viewport.onpointermove(event(1,180,120));
+  assert.equal(viewport.scrollLeft,120);assert.equal(viewport.scrollTop,80);
+  assert.equal(viewport.capturedPointer,1);assert.ok(viewport.classes.has('is-dragging'));
+  viewport.onpointermove(event(2,0,0));assert.equal(viewport.scrollLeft,120);
+  viewport.onpointerup(event(1,180,120));assert.equal(viewport.capturedPointer,null);
+  viewport.onpointermove(event(1,0,0));assert.equal(viewport.scrollLeft,120);
+  viewport.onpointerdown(event(3,200,200,{pointerType:'touch'}));
+  viewport.onpointermove(event(3,160,170));assert.equal(viewport.scrollLeft,160);assert.equal(viewport.scrollTop,110);
+  viewport.onpointercancel(event(3,160,170));assert.ok(!viewport.classes.has('is-dragging'));
+  viewport.onpointerdown(event(4,200,200));viewer.close();
+  assert.equal(viewport.capturedPointer,null);assert.ok(!viewport.classes.has('is-dragging'));
+});
+
+test('nail keyword clear updates results and focus while preserving other filters', async () => {
+  const html=await readFile(new URL('../public/engineering-query.html',import.meta.url),'utf8');
+  const start=html.indexOf('\tfunction updateNailSearchClear('),end=html.indexOf("\tsearchEl.addEventListener('input', applyFilters);",start);
+  const handlers={},searchEl={value:'SO-M3',focus(){this.focused=true;}},searchClearBtn={hidden:true,addEventListener(name,fn){handlers[name]=fn;}};
+  let refreshes=0,closed=0;
+  const inStockEl={checked:true},realDiaSearchEl={value:'4.2'},sortState={col:3,dir:-1};
+  const context={searchEl,searchClearBtn,inStockEl,realDiaSearchEl,sortState,applyFilters(){refreshes++;context.updateNailSearchClear();},closeSearchHistory(){closed++;}};
+  runInNewContext(html.slice(start,end),context);
+  assert.equal(searchClearBtn.hidden,false);
+  handlers.click();assert.equal(searchEl.value,'');assert.equal(searchClearBtn.hidden,true);
+  assert.equal(refreshes,1);assert.equal(searchEl.focused,true);assert.equal(closed,1);
+  assert.equal(inStockEl.checked,true);assert.equal(realDiaSearchEl.value,'4.2');assert.deepEqual(sortState,{col:3,dir:-1});
+  searchEl.value='FH';context.updateNailSearchClear();assert.equal(searchClearBtn.hidden,false);
 });
 
 test('indexed backlinks preserve relative paths, aliases, ambiguity, code exclusions and fresh catalog changes', () => {

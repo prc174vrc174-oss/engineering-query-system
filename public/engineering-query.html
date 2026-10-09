@@ -1880,6 +1880,12 @@ h3 {
         #bend-sys-panel #section-bend .metric strong {
             color: #111827 !important;
         }
+        .nail-search-input { position:relative; }
+        .nail-search-input #search { padding-right:40px; }
+        .nail-search-clear { position:absolute; right:5px; top:50%; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; width:28px; height:28px; min-height:0; padding:0; border:0; border-radius:4px; box-shadow:none; background:transparent; color:#64748b; font-size:20px; line-height:1; cursor:pointer; }
+        .nail-search-clear[hidden] { display:none; }
+        .nail-search-clear:hover { color:#1e293b; background:#eef2f7; }
+        .nail-search-clear:focus-visible { outline:2px solid #2563eb; outline-offset:1px; }
         .search-history-panel {
             display: none;
             position: absolute;
@@ -3487,7 +3493,9 @@ h3 {
         .engineering-image-viewer-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; padding:10px 12px; flex-shrink:0; border-bottom:1px solid #475569; }
         .engineering-image-viewer-toolbar button { min-height:36px; padding:6px 12px; border:1px solid #64748b; background:#283548; color:#fff; border-radius:6px; font:inherit; cursor:pointer; }
         .engineering-image-viewer-toolbar span { min-width:48px; text-align:center; }
-        .engineering-image-viewer-viewport { flex:1; min-height:0; overflow:auto; padding:12px; touch-action:pan-x pan-y pinch-zoom; }
+        .engineering-image-viewer-help { margin:0 auto 0 0; order:-1; color:#cbd5e1; font-size:12px; }
+        .engineering-image-viewer-viewport { flex:1; min-height:0; overflow:auto; padding:12px; touch-action:pinch-zoom; cursor:grab; user-select:none; }
+        .engineering-image-viewer-viewport.is-dragging { cursor:grabbing; }
         .engineering-image-viewer-viewport img { display:block; max-width:none; max-height:none; height:auto; margin:auto; background:#fff; }
         .engineering-markdown-math { font-size:1em; white-space:nowrap; }
         .engineering-markdown-math math { font-size:1em; }
@@ -3694,7 +3702,10 @@ h3 {
 				全域搜尋
 				<button type="button" class="dia-help-toggle" aria-expanded="false" aria-label="顯示全域搜尋說明" style="cursor:pointer;color:#6b7280;font-size:11px;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;min-width:16px;padding:0;border:1px solid #cbd5e1;border-radius:50%;font-weight:800;background:#f3f4f6;box-shadow:none;line-height:1;">!</button>
 			</label>
-			<input id="search" type="text" placeholder="🔍 品號 / 規格 / 圖號 / 備註…" style="width:100%; height:36px; padding-left:12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+			<div class="nail-search-input">
+				<input id="search" type="text" placeholder="🔍 品號 / 規格 / 圖號 / 備註…" style="width:100%; height:36px; padding-left:12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+				<button type="button" id="nailSearchClear" class="nail-search-clear" aria-label="清除釘子搜尋關鍵字" title="清除搜尋" hidden>×</button>
+			</div>
 			<div id="searchHistoryPanel" class="search-history-panel" aria-label="最近兩次搜尋紀錄"></div>
 			<div class="dia-help-tip" style="visibility: hidden; position: absolute; z-index: 100; bottom: calc(100% + 6px); left: 0; width: 520px; background: #1e293b; color: #f8fafc; padding: 10px 14px; border-radius: 6px; font-size: 13px; line-height: 1.5; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); opacity: 0; transition: opacity 0.2s, transform 0.2s; transform: translateY(4px); pointer-events: none; border: 1px solid #334155;">
 				<div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">💡 全域搜尋語法：</div>
@@ -4880,6 +4891,7 @@ init();
 	var el = function (id) { return document.getElementById(id); };
 	var tableWrap = el('tableWrap'), controls = el('controls'), clearBtn = el('nailClearBtn');
 	var searchEl = el('search'), realDiaSearchEl = el('realDiaSearch');
+	var searchClearBtn = el('nailSearchClear');
 	var inStockEl = el('inStock');
 	var rowCountEl = el('rowCount');
 	var cardViewBtn = el('nailCardViewBtn'), reportViewBtn = el('nailReportViewBtn');
@@ -5688,6 +5700,7 @@ init();
 		}
 	}
 	function applyFilters() {
+		updateNailSearchClear();
 		var rawSearch = searchEl.value.trim();
 		var q = normalizeDiameterSymbol(rawSearch).toLowerCase();
 		var rawDiaSearch = realDiaSearchEl ? normalizeDiameterSymbol(realDiaSearchEl.value).trim() : '';
@@ -6231,6 +6244,17 @@ init();
 
 
 
+	function updateNailSearchClear() {
+		if (searchClearBtn) searchClearBtn.hidden = !searchEl.value;
+	}
+	function clearNailSearch() {
+		searchEl.value = '';
+		applyFilters();
+		searchEl.focus();
+		closeSearchHistory();
+	}
+	if (searchClearBtn) searchClearBtn.addEventListener('click', clearNailSearch);
+	updateNailSearchClear();
 	searchEl.addEventListener('input', applyFilters);
 	searchEl.addEventListener('focus', function () { renderSearchHistory(true); });
 	searchEl.addEventListener('click', function () { renderSearchHistory(true); });
@@ -6903,7 +6927,7 @@ init();
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
     <script src="vendor/katex/katex-0.19.0.min.js"></script>
-    <script src="engineering-records-d1.js?v=239"></script>
+    <script src="engineering-records-d1.js?v=240"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

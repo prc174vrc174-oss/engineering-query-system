@@ -681,8 +681,38 @@
       control('＋', function () { viewerZoom = Math.min(4, viewerZoom + 0.5); updateImageZoom(); }).setAttribute('aria-label', '放大圖片');
       control('適合視窗', function () { viewerZoom = 1; updateImageZoom(true); });
       control('關閉 ×', function () { imageViewer.close(); });
+      var help = document.createElement('p'); help.className = 'engineering-image-viewer-help'; help.textContent = '拖曳圖片移動查看'; toolbar.appendChild(help);
       viewerViewport = document.createElement('div'); viewerViewport.className = 'engineering-image-viewer-viewport';
+      viewerViewport.tabIndex = 0;
+      viewerViewport.setAttribute('aria-label', '圖片檢視區，可拖曳或使用方向鍵移動');
+      var pan = null;
+      function endPan(event) {
+        if (!pan || event && event.pointerId !== pan.id) return;
+        var pointerId = pan.id;
+        pan = null;
+        viewerViewport.classList.remove('is-dragging');
+        if (viewerViewport.hasPointerCapture(pointerId)) viewerViewport.releasePointerCapture(pointerId);
+      }
+      viewerViewport.onpointerdown = function (event) {
+        if (event.button !== 0 || event.isPrimary === false || pan) return;
+        pan = { id: event.pointerId, x: event.clientX, y: event.clientY, left: viewerViewport.scrollLeft, top: viewerViewport.scrollTop };
+        viewerViewport.setPointerCapture(event.pointerId);
+        viewerViewport.classList.add('is-dragging');
+        viewerViewport.focus({ preventScroll: true });
+        event.preventDefault();
+      };
+      viewerViewport.onpointermove = function (event) {
+        if (!pan || event.pointerId !== pan.id) return;
+        viewerViewport.scrollLeft = pan.left + pan.x - event.clientX;
+        viewerViewport.scrollTop = pan.top + pan.y - event.clientY;
+        event.preventDefault();
+      };
+      viewerViewport.onpointerup = endPan;
+      viewerViewport.onpointercancel = endPan;
+      viewerViewport.onlostpointercapture = endPan;
+      imageViewer.addEventListener('close', function () { endPan(); });
       viewerImage = document.createElement('img'); viewerImage.referrerPolicy = 'no-referrer';
+      viewerImage.draggable = false;
       viewerImage.onload = function () { updateImageZoom(true); };
       viewerViewport.appendChild(viewerImage); imageViewer.append(toolbar, viewerViewport);
       imageViewer.onclick = function (event) { if (event.target === imageViewer) imageViewer.close(); };
