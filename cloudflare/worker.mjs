@@ -42,8 +42,9 @@ export async function search(db, query) {
   const terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map(s=>s.trim().toLowerCase())
     .filter(s=>s && (s.length>=2 || /^\d+$/.test(s))).slice(0,6);
   if (!terms.length) terms.push(query.toLowerCase());
-  const predicates = terms.map(()=>"(lower(name) LIKE ? ESCAPE '\\' OR lower(content) LIKE ? ESCAPE '\\')");
-  const params = terms.flatMap(term=>{const pattern=`%${term.replace(/[\\%_]/g,'\\$&')}%`;return [pattern,pattern];});
+  // Literal substring matching avoids D1 LIKE limits on long Chinese filenames.
+  const predicates = terms.map(()=>"(instr(lower(name), ?) > 0 OR instr(lower(content), ?) > 0)");
+  const params = terms.flatMap(term=>[term,term]);
   const result = await db.prepare(`SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime
     FROM engineering_notes WHERE ${predicates.join(' AND ')} LIMIT 500`).bind(...params).all();
   return result.results;

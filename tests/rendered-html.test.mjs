@@ -1206,6 +1206,28 @@ test('Sites empty engineering search loads only one SQL page and validates offse
   } finally {delete env.DB;}
 });
 
+test('Sites resolves long Chinese linked filenames and searches literal wildcard characters without LIKE patterns', async () => {
+  const {env}=await import('cloudflare:workers');
+  const {DatabaseSync}=await import('node:sqlite');
+  const {searchEngineeringD1}=await import('../db/engineering-notes.ts');
+  const sqlite=new DatabaseSync(':memory:');
+  sqlite.exec('CREATE TABLE engineering_notes (id TEXT, name TEXT, relative_path TEXT, modified_time TEXT, content TEXT)');
+  const name='2025-06-30 (週一) 3📣(鴻發)烤漆件,如果客圖未明確提到哪裡是外觀面或是毛邊面.md';
+  const seed=sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)');
+  seed.run('long_link_001',name,'工程/'+name,'2025-06-30','雷射 折彎 10017');
+  seed.run('literal_link_001','A_10%.md','工程/A_10%.md','','尺寸 A_10% C:\\Temp');
+  seed.run('decoy_link_001','AX100.md','工程/AX100.md','','雷射');
+  env.DB={prepare(sql){assert.doesNotMatch(sql,/\bLIKE\b|\bGLOB\b/i);return {values:[],bind(...values){this.values=values;return this;},async all(){return {results:sqlite.prepare(sql).all(...this.values)};}};}};
+  try {
+    const query=name.replace(/\.md$/,'');
+    assert.ok(Buffer.byteLength(query)>50);
+    assert.deepEqual((await searchEngineeringD1(query)).map(r=>r.id),['long_link_001']);
+    for(const query of ['A_10%','C:\\Temp'])assert.deepEqual((await searchEngineeringD1(query)).map(r=>r.id),['literal_link_001']);
+    assert.deepEqual((await searchEngineeringD1('雷射 10017')).map(r=>r.id),['long_link_001']);
+    assert.equal((await searchEngineeringD1('不存在')).length,0);
+  } finally {delete env.DB;sqlite.close();}
+});
+
 test('note backlink footer opens records outside search results and supports empty, error, and retry states', async () => {
   const source=await readFile(new URL('../public/engineering-records-d1.js',import.meta.url),'utf8');
   class Node {

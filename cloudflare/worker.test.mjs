@@ -154,3 +154,17 @@ test('backlinks span all records and reflect Drive content edits and removals', 
   assert.equal(response.status,200);
   assert.deepEqual((await response.json()).results.map(row=>row.id),['long_source_001']);
 });
+
+test('long linked filenames and wildcard literals avoid production D1 LIKE limits', async () => {
+  const db=database(),name='2025-06-30 (週一) 3📣(鴻發)烤漆件,如果客圖未明確提到哪裡是外觀面或是毛邊面.md';
+  await seed(db,[note('long_link_001',name),note('literal_link_001','A_10%.md','C:\\Temp A_10%'),note('decoy_link_001','AX100.md','雷射')]);
+  const prepare=db.prepare;
+  db.prepare=function(sql){assert.doesNotMatch(sql,/\bLIKE\b|\bGLOB\b/i);return prepare.call(this,sql);};
+  const query=name.replace(/\.md$/,'');
+  assert.ok(Buffer.byteLength(query)>50);
+  const response=await worker.fetch(new Request('https://api/api/engineering-records-d1?action=search&query='+encodeURIComponent(query)),{DB:db});
+  assert.equal(response.status,200);
+  assert.deepEqual((await response.json()).results.map(row=>row.id),['long_link_001']);
+  for(const query of ['A_10%','C:\\Temp'])assert.deepEqual((await search(db,query)).map(row=>row.id),['literal_link_001']);
+  assert.deepEqual((await search(db,'雷射 10017')).map(row=>row.id),['long_link_001']);
+});
