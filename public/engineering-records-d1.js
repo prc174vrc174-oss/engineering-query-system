@@ -270,8 +270,14 @@
   function updateReaderNavigation() {
     var index = rows.findIndex(function (record) { return record.id === readerRecordId; });
     var available = !recordWindow && dialog.open && index >= 0;
-    if (readerPrevious) readerPrevious.hidden = !available || index === 0;
-    if (readerNext) readerNext.hidden = !available || index >= rows.length - 1;
+    if (readerPrevious) {
+      readerPrevious.hidden = !!recordWindow;
+      readerPrevious.disabled = !available || index === 0;
+    }
+    if (readerNext) {
+      readerNext.hidden = !!recordWindow;
+      readerNext.disabled = !available || index >= rows.length - 1;
+    }
   }
   function navigateReader(direction) {
     if (recordWindow || !dialog.open) return;

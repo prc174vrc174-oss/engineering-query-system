@@ -187,18 +187,22 @@ function navigationContext() {
   return {context,states};
 }
 
-test('reader navigation follows loaded records, hides boundaries and restores linked-note state without stacking sibling switches', async () => {
+test('reader navigation keeps boundary buttons visible but disabled and restores linked-note state without stacking sibling switches', async () => {
   const {context,states}=navigationContext();const {rows,readerPrevious,readerNext}=context;
-  await context.openRecord(rows[0]);assert.equal(readerPrevious.hidden,true);assert.equal(readerNext.hidden,false);
-  await context.navigateReader(1);assert.equal(context.readerRecordId,'b');assert.equal(readerPrevious.hidden,false);assert.equal(readerNext.hidden,false);
-  await context.navigateReader(1);assert.equal(context.readerRecordId,'c');assert.equal(readerNext.hidden,true);
+  await context.openRecord(rows[0]);assert.equal(readerPrevious.hidden,false);assert.equal(readerNext.hidden,false);
+  assert.equal(readerPrevious.disabled,true);assert.equal(readerNext.disabled,false);
+  await context.navigateReader(-1);assert.equal(context.readerRecordId,'a');
+  await context.navigateReader(1);assert.equal(context.readerRecordId,'b');assert.equal(readerPrevious.disabled,false);assert.equal(readerNext.disabled,false);
+  await context.navigateReader(1);assert.equal(context.readerRecordId,'c');assert.equal(readerNext.hidden,false);assert.equal(readerNext.disabled,true);
   await context.navigateReader(1);assert.equal(context.readerRecordId,'c');
   assert.equal(states.length,1);assert.equal(context.readerStack.length,1);
   await context.navigateReader(-1);await context.openRecord(rows[0]);
   assert.equal(states.length,2);context.restoreReaderView(context.readerStack.pop());
-  assert.equal(context.readerRecordId,'b');assert.equal(readerPrevious.hidden,false);assert.equal(readerNext.hidden,false);
-  context.rows=[rows[1]];context.updateReaderNavigation();assert.equal(readerPrevious.hidden,true);assert.equal(readerNext.hidden,true);
-  context.readerRecordId='outside-results';context.updateReaderNavigation();assert.equal(readerPrevious.hidden,true);assert.equal(readerNext.hidden,true);
+  assert.equal(context.readerRecordId,'b');assert.equal(readerPrevious.disabled,false);assert.equal(readerNext.disabled,false);
+  context.rows=[rows[1]];context.updateReaderNavigation();assert.equal(readerPrevious.hidden,false);assert.equal(readerNext.hidden,false);
+  assert.equal(readerPrevious.disabled,true);assert.equal(readerNext.disabled,true);
+  context.readerRecordId='outside-results';context.updateReaderNavigation();assert.equal(readerPrevious.hidden,false);assert.equal(readerNext.hidden,false);
+  assert.equal(readerPrevious.disabled,true);assert.equal(readerNext.disabled,true);
   context.rows=rows;context.readerRecordId='b';context.recordWindow=true;context.updateReaderNavigation();
   assert.equal(readerPrevious.hidden,true);assert.equal(readerNext.hidden,true);await context.navigateReader(1);assert.equal(context.readerRecordId,'b');
 });
