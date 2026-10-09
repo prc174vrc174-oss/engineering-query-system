@@ -1,4 +1,4 @@
-import { backlinkPatterns, referencingNotes } from "./engineering-record-links.mjs";
+import { backlinkNeedles, referencingNotes } from "./engineering-record-links.mjs";
 // GitHub Pages engineering records API, independently bound to janyu056's D1.
 export const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2WWjD9NKQKYNYLnVtU0E7xLKe69ELXw1FeIeEMUaFGY0zintiPAhwsnCC_figFrEScQ/exec';
 const ORIGIN = 'https://prc174vrc174-oss.github.io';
@@ -51,11 +51,11 @@ export async function search(db, query) {
 export async function backlinks(db, id) {
   const target=await db.prepare('SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime,content FROM engineering_notes WHERE id=?').bind(id).first();
   if (!target) return null;
-  const patterns=backlinkPatterns(target);
+  const needles=backlinkNeedles(target);
   const [catalog,candidates]=await Promise.all([
     db.prepare('SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime FROM engineering_notes').all(),
     db.prepare(`SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime,content FROM engineering_notes
-      WHERE id <> ? AND (${patterns.map(()=>"lower(content) LIKE ? ESCAPE '\\'").join(' OR ')})`).bind(id,...patterns).all(),
+      WHERE id <> ? AND (${needles.map(()=>"instr(lower(content), ?) > 0").join(' OR ')})`).bind(id,...needles).all(),
   ]);
   return referencingNotes(candidates.results,target,catalog.results);
 }

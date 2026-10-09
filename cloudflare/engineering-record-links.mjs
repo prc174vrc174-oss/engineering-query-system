@@ -41,11 +41,11 @@ function references(content) {
 }
 
 /** @param {Note} target */
-export function backlinkPatterns(target) {
+export function backlinkNeedles(target) {
   const name = target.name.replace(/\.md$/i, '');
   const pieces = name.split(/[\s%_()[\]#?]+/).filter(value => value.length >= 2);
   return [...new Set([name, ...pieces].flatMap(value => [value, encodeURI(value), encodeURIComponent(value)]).concat(target.id).filter(Boolean))]
-    .map(value => '%' + value.toLowerCase().replace(/[\\%_]/g, '\\$&') + '%');
+    .map(value => value.toLowerCase());
 }
 
 /** @param {Note[]} candidates @param {Note} target @param {Note[]} catalog */

@@ -143,3 +143,14 @@ test('backlinks span all records and reflect Drive content edits and removals', 
   const result=await read();assert.equal(result.length,24);
   assert.ok(!result.some(r=>r.id===links[0].id || r.id===links[1].id));
 });
+
+ test('backlinks accept long Chinese and emoji filenames without LIKE patterns', async () => {
+  const db=database(),name='2025-09-22 (週一) 1📣防烤治具以0.8T為主';
+  const target=note('long_target_001',name+'.md');
+  await seed(db,[target,note('long_source_001','來源.md','[來源]('+encodeURIComponent(name)+'.md)')]);
+  const prepare=db.prepare;
+  db.prepare=function(sql){assert.ok(!sql.includes('LIKE'),'Avoid production D1 LIKE limits');return prepare.call(this,sql);};
+  const response=await worker.fetch(new Request('https://api/api/engineering-records-d1?action=backlinks&id='+target.id),{DB:db});
+  assert.equal(response.status,200);
+  assert.deepEqual((await response.json()).results.map(row=>row.id),['long_source_001']);
+});
