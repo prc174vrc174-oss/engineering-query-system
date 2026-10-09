@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v243-cloudflare-note-reader-header';
+const CACHE_NAME = 'engineering-query-pwa-v244-cloudflare-note-reader-footer';
 const APP_SHELL = [
   './',
   './engineering-query.html',
