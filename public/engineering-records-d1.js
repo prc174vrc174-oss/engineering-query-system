@@ -20,6 +20,7 @@
   var started = false, rows = [], resultVersion = 0, timer = 0, token = '', signInPending = false;
   var recordParams = window.location ? new URL(window.location.href).searchParams : null;
   var recordWindow = recordParams && (recordParams.has('recordId') || recordParams.has('recordName'));
+  var readerSearch = recordParams && recordParams.get('highlight') || '';
   var readerStack = [], readerRequest = 0, readerSession = String(Date.now()), readerTitle = document.title;
   var activeView = 'results';
   var viewStatuses = { results: { message: '', state: '' }, summary: { message: '', state: '' } };
@@ -75,15 +76,20 @@
     return recordDateKey(b.name) - recordDateKey(a.name) ||
       b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' });
   }
-  function highlightedRecordName(name, searchValue) {
-    var label = document.createElement('span');
+  function searchHighlightPattern(searchValue) {
     var terms = searchValue.split(/[\s，。；、？！?：:（）()／/]+/).map(function (term) { return term.trim(); })
       .filter(function (term) { return term && (term.length >= 2 || /^\d+$/.test(term)); }).slice(0, 6);
     if (!terms.length && searchValue.trim()) terms.push(searchValue.trim());
     terms.sort(function (a, b) { return b.length - a.length; });
-    if (!terms.length) { label.textContent = name; return label; }
+    if (!terms.length) return null;
     var escaped = terms.map(function (term) { return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
-    var parts = name.split(new RegExp('(' + escaped.join('|') + ')', 'gi'));
+    return new RegExp('(' + escaped.join('|') + ')', 'gi');
+  }
+  function highlightedRecordName(name, searchValue) {
+    var label = document.createElement('span');
+    var pattern = searchHighlightPattern(searchValue);
+    if (!pattern) { label.textContent = name; return label; }
+    var parts = name.split(pattern);
     parts.forEach(function (part, index) {
       if (!part) return;
       if (index % 2 === 1) {
@@ -94,6 +100,20 @@
       } else label.appendChild(document.createTextNode(part));
     });
     return label;
+  }
+  function highlightRecordContent(target, searchValue) {
+    var pattern = searchHighlightPattern(searchValue);
+    if (!pattern) return;
+    function visit(node) {
+      if (node.nodeType === 1 && node.matches('mark, math, .katex, .engineering-markdown-math, script, style, textarea')) return;
+      if (node.nodeType === 3) {
+        pattern.lastIndex = 0;
+        if (!pattern.test(node.nodeValue)) return;
+        var label = highlightedRecordName(node.nodeValue, searchValue);
+        node.replaceWith.apply(node, Array.from(label.childNodes));
+      } else Array.from(node.childNodes || []).forEach(visit);
+    }
+    visit(target);
   }
   function render(searchValue) {
     list.replaceChildren();
@@ -130,6 +150,7 @@
     view('results');
     if (!value) {
       rows = [];
+      readerSearch = '';
       list.innerHTML = '<div class="engineering-records-empty">輸入關鍵字即可搜尋。</div>';
       updateSummaryButtons();
       setStatus('輸入關鍵字即可搜尋。', 'success');
@@ -140,6 +161,7 @@
       var result = await call(api + '?action=search&query=' + encodeURIComponent(value));
       if (version !== resultVersion) return;
       rows = result.results || [];
+      readerSearch = value;
       rows.sort(compareRecords);
       render(value);
       setStatus('找到 ' + rows.length + ' 筆工程紀錄。', 'success');
@@ -179,6 +201,7 @@
       if (recordWindow) document.title = result.record.name.replace(/\.md$/i, '') + '｜工程紀錄';
       previewMeta.textContent = result.record.relativePath + ' · 更新 ' + date(result.record.modifiedTime);
       renderMarkdown(result.record.content, record.id, preview);
+      highlightRecordContent(preview, readerSearch);
     } catch (error) {
       if (version !== readerRequest || !dialog.open) return;
       previewMeta.textContent = ''; preview.textContent = error.message;
@@ -513,6 +536,7 @@
     var destination = new URL('engineering-query.html', window.location.href);
     var record = findLinkedRecord(rows.concat(summarySources), reference);
     destination.searchParams.set(record ? 'recordId' : 'recordName', record ? record.id : reference);
+    if (typeof readerSearch === 'string' && readerSearch) destination.searchParams.set('highlight', readerSearch);
     link.href = destination.href;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
