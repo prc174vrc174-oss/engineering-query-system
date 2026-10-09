@@ -698,10 +698,16 @@
   }
   var imageViewer = null, viewerImage, viewerViewport, viewerScale, viewerZoom = 1;
   function updateImageZoom(resetScroll) {
-    var fit = Math.min(1, Math.max(1, viewerViewport.clientWidth - 24) / viewerImage.naturalWidth,
-      Math.max(1, viewerViewport.clientHeight - 24) / viewerImage.naturalHeight);
+    var availableWidth = Math.max(1, viewerViewport.clientWidth - 24);
+    var availableHeight = Math.max(1, viewerViewport.clientHeight - 24);
+    var fit = Math.min(1, availableWidth / viewerImage.naturalWidth, availableHeight / viewerImage.naturalHeight);
     if (!isFinite(fit) || fit <= 0) return;
-    viewerImage.style.width = Math.round(viewerImage.naturalWidth * fit * viewerZoom) + 'px';
+    var width = Math.round(viewerImage.naturalWidth * fit * viewerZoom);
+    var height = width * viewerImage.naturalHeight / viewerImage.naturalWidth;
+    viewerImage.style.width = width + 'px';
+    // Positive margins center images that fit without hiding oversized image edges.
+    viewerImage.style.margin = Math.max(0, (availableHeight - height) / 2) + 'px ' +
+      Math.max(0, (availableWidth - width) / 2) + 'px';
     viewerScale.textContent = Math.round(viewerZoom * 100) + '%';
     if (resetScroll) { viewerViewport.scrollTop = 0; viewerViewport.scrollLeft = 0; }
   }

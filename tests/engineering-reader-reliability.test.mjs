@@ -96,6 +96,22 @@ test('image failures evict the cache and expose a working retry and click-to-zoo
   assert.equal(requests,2);
 });
 
+test('image viewer centers wide and tall images, then preserves reachable edges when zoomed or resized', () => {
+  const context=imageContext();runInNewContext(imageCode,context);
+  context.openImageViewer({src:'https://example.com/drawing.png',alt:'drawing'});
+  const [toolbar,viewport]=context.document.body.children[0].children,image=viewport.children[0];
+  image.naturalHeight=300;image.onload();
+  assert.equal(image.style.width,'600px');assert.equal(image.style.margin,'125px 0px');
+  for(let i=0;i<6;i++)toolbar.children[2].onclick();
+  assert.equal(image.style.width,'2400px');assert.equal(image.style.margin,'0px 0px');
+  image.naturalWidth=300;image.naturalHeight=1200;
+  viewport.scrollTop=50;viewport.scrollLeft=50;toolbar.children[3].onclick();
+  assert.equal(image.style.width,'100px');assert.equal(image.style.margin,'0px 250px');
+  assert.equal(viewport.scrollTop,0);assert.equal(viewport.scrollLeft,0);
+  viewport.clientWidth=424;viewport.clientHeight=624;context.updateImageZoom();
+  assert.equal(image.style.width,'150px');assert.equal(image.style.margin,'0px 125px');
+});
+
 test('external images retain their URL and support retry without changing signed query strings', () => {
   const context=imageContext(()=>{throw Error('must not proxy');});runInNewContext(imageCode,context);
   const parent=new Node('div'),url='https://example.com/a.png?token=signed';
