@@ -893,22 +893,39 @@
     } catch (error) { previewMeta.textContent = ''; preview.textContent = error.message; }
   }
 
+  function submittedSummarySources() {
+    var keys = new Set();
+    return summarySources.filter(function (source) {
+      var key = source.id || recordLinkName(source.relativePath || source.name);
+      if (keys.has(key)) return false;
+      keys.add(key);
+      return true;
+    });
+  }
   function appendSummaryCitation(parent, reference, citations) {
-    var record = findLinkedRecord(summarySources.concat(rows), reference);
-    var references = record ? [record.relativePath || record.name] : [reference];
+    // Citation scope is the submitted set, never all search results or unknown text.
+    var submitted = submittedSummarySources();
+    var wanted = recordLinkName(reference);
+    var exact = submitted.filter(function (source) { return source.relativePath && recordLinkName(source.relativePath) === wanted; });
+    var named = wanted.indexOf('/') === -1 ? submitted.filter(function (source) { return recordLinkName(source.name) === wanted; }) : [];
+    var record = exact.length === 1 ? exact[0] : named.length === 1 ? named[0] : null;
+    var references = record ? [record] : [];
     if (!record) {
-      var contained = summarySources.filter(function (source) { return source.name && reference.indexOf(source.name) !== -1; });
-      if (contained.length) references = contained.sort(function (a, b) { return reference.indexOf(a.name) - reference.indexOf(b.name); }).map(function (source) { return source.relativePath || source.name; });
+      references = submitted.filter(function (source) {
+        return source.name && reference.indexOf(source.name) !== -1 && submitted.filter(function (other) { return other.name === source.name; }).length === 1;
+      }).sort(function (a, b) { return reference.indexOf(a.name) - reference.indexOf(b.name); });
+      if (references.length < 2) references = [];
     }
-    references.forEach(function (ref) {
-      var source = findLinkedRecord(summarySources.concat(rows), ref);
-      var key = source ? source.id : recordLinkName(ref);
+    if (!references.length) { parent.appendChild(document.createTextNode('[來源：' + reference + ']')); return; }
+    references.forEach(function (source) {
+      var ref = source.relativePath || source.name;
+      var key = source.id || recordLinkName(ref);
       var index = citations.entries.findIndex(function (entry) { return entry.key === key; });
       if (index === -1) {
         index = citations.entries.length;
-        citations.entries.push({ key: key, reference: ref, name: source ? source.name : ref });
+        citations.entries.push({ key: key, reference: ref, name: source.name, source: source });
       }
-      appendRecordLink(parent, '[' + (index + 1) + ']', ref);
+      appendRecordLink(parent, '[' + (index + 1) + ']', ref, source);
       var link = parent.lastChild;
       link.className += ' engineering-summary-citation';
       link.setAttribute('aria-label', '來源 ' + (index + 1) + '：' + citations.entries[index].name);
@@ -943,13 +960,7 @@
     renderMarkdown(sections.body, '', summary, citations);
     // Only references in the summary body count as cited.
     var citedKeys = new Set(citations.entries.map(function (entry) { return entry.key; }));
-    var submittedKeys = new Set();
-    var submitted = summarySources.filter(function (source) {
-      var key = source.id || recordLinkName(source.relativePath || source.name);
-      if (submittedKeys.has(key)) return false;
-      submittedKeys.add(key);
-      return true;
-    });
+    var submitted = submittedSummarySources();
     var uncited = submitted.filter(function (source) {
       return !citedKeys.has(source.id || recordLinkName(source.relativePath || source.name));
     });
@@ -965,7 +976,7 @@
     var sourcesList = document.createElement('ol');
     citations.entries.forEach(function (entry) {
       var item = document.createElement('li');
-      appendRecordLink(item, entry.name.replace(/\.md$/i, ''), entry.reference);
+      appendRecordLink(item, entry.name.replace(/\.md$/i, ''), entry.reference, entry.source);
       sourcesList.appendChild(item);
     });
     section.appendChild(heading);
@@ -981,7 +992,7 @@
       var uncitedList = document.createElement('ul');
       uncited.forEach(function (source) {
         var item = document.createElement('li');
-        appendRecordLink(item, source.name.replace(/\.md$/i, ''), source.relativePath || source.name);
+        appendRecordLink(item, source.name.replace(/\.md$/i, ''), source.relativePath || source.name, source);
         uncitedList.appendChild(item);
       });
       section.appendChild(description);

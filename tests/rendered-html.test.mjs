@@ -821,6 +821,40 @@ test("Summary citations reuse numbers and open the corresponding source record",
   assert.equal(summary.children.at(-1).children.length, 5);
 });
 
+test('22 submitted notes remain exactly 22 cited notes despite path variants, duplicates and four outside references',async()=>{
+  const source=await readFile(new URL('../public/engineering-records-d1.js',import.meta.url),'utf8');
+  class Node {
+    constructor(tag,text=''){this.tag=tag;this.textContent=text;this.children=[];}
+    get lastChild(){return this.children.at(-1);}
+    appendChild(node){this.children.push(node);}
+    replaceChildren(...nodes){this.children=nodes;}
+    setAttribute(key,value){this[key]=value;}
+  }
+  const submitted=Array.from({length:22},(_,i)=>({id:'selected_'+i,name:'筆記'+i+'.md',relativePath:'01.每日筆記/筆記'+i+'.md'}));
+  const outside=Array.from({length:4},(_,i)=>({id:'outside_'+i,name:'未勾選'+i+'.md',relativePath:'其他/未勾選'+i+'.md'}));
+  const summary=new Node('div'),document={createElement:tag=>new Node(tag),createTextNode:text=>new Node('#text',text),createDocumentFragment:()=>new Node('#fragment')};
+  const context={summary,document,URL,summarySources:submitted.concat(submitted[0]),rows:submitted.concat(outside),updateSummaryButtons(){},window:{location:{href:'https://example.com/'}}};
+  const code=source.slice(source.indexOf('  function recordLinkName('),source.indexOf('  excludeInput.addEventListener'));
+  runInNewContext(code,context);
+  const citations=submitted.map(s=>'[來源：'+s.relativePath+'] [來源：'+s.name+'] [來源：'+encodeURIComponent(s.relativePath)+']');
+  context.renderSummary(citations.concat(outside.map(s=>'[來源：'+s.name+']'),'[來源：不存在.md]').join('\n'));
+  const footer=summary.children.at(-1);
+  assert.equal(footer.children[1].textContent,'送入摘要的紀錄：22 篇。');
+  assert.equal(footer.children[2].textContent,'已引用（22 篇）');
+  assert.equal(footer.children[3].children.length,22);
+  assert.equal(footer.children[4].textContent,'未引用（0 篇）');
+  const nodes=[];(function walk(n){nodes.push(n);n.children.forEach(walk);})(summary);
+  const links=nodes.filter(n=>n.tag==='a');
+  assert.ok(links.every(n=>submitted.some(s=>new URL(n.href).searchParams.get('recordId')===s.id)));
+  assert.equal(nodes.filter(n=>n.className?.includes('engineering-summary-citation')).length,66);
+  context.renderSummary('[來源：'+submitted[0].name+'] [來源：'+outside[0].name+']');
+  assert.equal(summary.children.at(-1).children[2].textContent,'已引用（1 篇）');
+  assert.equal(summary.children.at(-1).children[4].textContent,'未引用（21 篇）');
+  context.renderSummary('[來源：未送入的資料夾/'+submitted[0].name+']');
+  assert.equal(summary.children.at(-1).children[2].textContent,'已引用（0 篇）');
+  assert.equal(summary.children.at(-1).children[4].textContent,'未引用（22 篇）');
+});
+
 test("Gemini summarizes up to 40 records in one request and splits only above 40", async () => {
   const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
   for (const count of [20, 23, 40, 43]) {

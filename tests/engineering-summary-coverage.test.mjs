@@ -20,6 +20,11 @@ test('same filenames require exact paths to identify every source',()=>{
   assert.deepEqual(missingSummarySources('[來源：'+a.name+']',[a,other]),[a,other]);
   assert.deepEqual(missingSummarySources(cite(a),[a,other]),[other]);
 });
+test('outside and nonexistent references never replace missing submitted sources',()=>{
+  assert.deepEqual(missingSummarySources('[來源：其他.md] [來源：不存在.md]',[a,b]),[a,b]);
+  assert.deepEqual(missingSummarySources(cite(a)+' [來源：其他.md]',[a,b]),[b]);
+  assert.deepEqual(missingSummarySources('[來源：未送入的資料夾/'+a.name+']',[a,b]),[a,b]);
+});
 test('complete summary adds policy and keeps all selected IDs and authentication in one call',async()=>{
   const calls=[];
   const result=await completeEngineeringSummary(payload,async p=>{calls.push(p);return {summary:'規定 '+cite(a)+cite(b),sources:[a,b]};});
