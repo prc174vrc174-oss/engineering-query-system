@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v235-cloudflare-die-setup-menu';
+const CACHE_NAME = 'engineering-query-pwa-v236-cloudflare-records-back-top';
 const APP_SHELL = [
   './',
   './engineering-query.html',

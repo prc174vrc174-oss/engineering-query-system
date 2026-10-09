@@ -260,13 +260,13 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.name, "查詢系統");
   assert.equal(manifest.short_name, "查詢系統");
   assert.match(source, /<title>查詢系統<\/title>/);
-  assert.match(source, /<h1 class="header-tabs-title">🔧 查詢系統<\/h1>/);
+  assert.match(source, /<h1 class="header-tabs-title">查詢系統<\/h1>/);
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.start_url, "./");
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v234/);
+  assert.match(serviceWorker, /engineering-query-pwa-v236/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);

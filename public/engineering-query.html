@@ -3572,7 +3572,7 @@ h3 {
 <body>
     <header class="app-header-tabs">
         <div class="header-tabs-container">
-            <h1 class="header-tabs-title">🔧 查詢系統</h1>
+            <h1 class="header-tabs-title">查詢系統</h1>
             <nav class="tabs-nav" aria-label="查詢頁面">
                 <button class="tab-btn active" data-sys="bend">係數查詢</button>
                 <button class="tab-btn" data-sys="nail">釘子查詢</button>
@@ -4457,6 +4457,8 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <article id="d1RecordsPreview" class="engineering-records-preview">選取檔名後顯示完整內容。</article>
             </dialog>
         </main>
+	var recordsBackToTopBtn = el('recordsBackToTopBtn');
+        <button type="button" id="recordsBackToTopBtn" class="back-to-top-btn" aria-label="返回頁面最頂端">↑ 回到頂端</button>
     </div>
     <script>
     (function() {
@@ -4881,15 +4883,13 @@ init();
 	var manualReloadRequested = false;
 
 	function updateBackToTopButton() {
-		if (!backToTopBtn) return;
 		var y = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-		var nailPanel = document.getElementById('nail-sys-panel');
-		var isNailVisible = !nailPanel || window.getComputedStyle(nailPanel).display !== 'none';
-		if (y > 360 && isNailVisible) {
-			backToTopBtn.classList.add('is-visible');
-		} else {
-			backToTopBtn.classList.remove('is-visible');
-		}
+		[[backToTopBtn, 'nail-sys-panel'], [recordsBackToTopBtn, 'engineering-records-d1-panel']].forEach(function (entry) {
+			var button = entry[0], panel = document.getElementById(entry[1]);
+			if (!button) return;
+			var isVisible = panel && window.getComputedStyle(panel).display !== 'none';
+			button.classList.toggle('is-visible', y > 360 && isVisible);
+		});
 	}
 	window.updateNailBackToTopButton = updateBackToTopButton;
 	var lanWebUpdateOrigin = 'http://192.168.0.52:8767';
@@ -6317,13 +6317,14 @@ init();
 
 	
 
-	if (backToTopBtn) {
-		backToTopBtn.addEventListener('click', function () {
+	[backToTopBtn, recordsBackToTopBtn].forEach(function (button) {
+		if (!button) return;
+		button.addEventListener('click', function () {
 			window.scrollTo({ top: 0, behavior: 'smooth' });
 		});
-		window.addEventListener('scroll', updateBackToTopButton, { passive: true });
-		updateBackToTopButton();
-	}
+	});
+	window.addEventListener('scroll', updateBackToTopButton, { passive: true });
+	updateBackToTopButton();
 
 	var savedUrl = '';
 	try { savedUrl = localStorage.getItem('nailSheetUrl'); } catch(e) {}
@@ -6630,7 +6631,7 @@ init();
                     document.title = cleanName;
                     var headerTitle = document.querySelector('.header-tabs-title');
                     if (headerTitle) {
-                        headerTitle.innerHTML = '🔧 ' + cleanName;
+                        headerTitle.textContent = cleanName;
                     }
                 }
             } catch(e) {}
