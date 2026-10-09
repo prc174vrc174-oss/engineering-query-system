@@ -1882,10 +1882,10 @@ h3 {
         }
         .nail-search-input { position:relative; }
         .nail-search-input #search { padding-right:40px; }
-        .nail-search-clear { position:absolute; right:5px; top:50%; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; width:28px; height:28px; min-height:0; padding:0; border:0; border-radius:4px; box-shadow:none; background:transparent; color:#64748b; font-size:20px; line-height:1; cursor:pointer; }
-        .nail-search-clear[hidden] { display:none; }
-        .nail-search-clear:hover { color:#1e293b; background:#eef2f7; }
-        .nail-search-clear:focus-visible { outline:2px solid #2563eb; outline-offset:1px; }
+        .nail-search-clear, .engineering-records-search-clear { position:absolute; right:5px; top:50%; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; width:28px; height:28px; min-height:0; padding:0; border:0; border-radius:4px; box-shadow:none; background:transparent; color:#64748b; font-size:20px; line-height:1; cursor:pointer; }
+        .nail-search-clear[hidden], .engineering-records-search-clear[hidden] { display:none; }
+        .nail-search-clear:hover, .engineering-records-search-clear:hover { color:#1e293b; background:#eef2f7; }
+        .nail-search-clear:focus-visible, .engineering-records-search-clear:focus-visible { outline:2px solid #2563eb; outline-offset:1px; }
         .search-history-panel {
             display: none;
             position: absolute;
@@ -3381,7 +3381,7 @@ h3 {
         .engineering-records-query {
             min-width: 0;
             height: 42px;
-            padding: 0 12px;
+            padding: 0 40px 0 12px;
             border: 1px solid #cbd5e1;
             border-radius: 9px;
             color: #172033;
@@ -3389,6 +3389,7 @@ h3 {
             font-size: 16px;
         }
         .engineering-records-query:focus { outline: 2px solid rgba(37,99,235,.16); border-color: #60a5fa; }
+        #d1RecordsQuery::-webkit-search-cancel-button { -webkit-appearance:none; display:none; }
         .engineering-records-btn {
             min-height: 42px;
             padding: 0 15px;
@@ -3449,13 +3450,13 @@ h3 {
         .engineering-records-preview-head h3 { margin:0; color:#344054; font-size:16px; overflow-wrap:anywhere; }
         .engineering-records-preview-head p { margin:4px 0 0; color:#64748b; font-size:12px; overflow-wrap:anywhere; }
         .engineering-records-preview { text-align:left; min-height:220px; margin:0; padding:18px; overflow:auto; color:#253044; font-family:'Noto Sans TC','Microsoft JhengHei',sans-serif; font-size:14px; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; }
-        .engineering-records-dialog { width:min(1080px,calc(100vw - 48px)); height:min(780px,calc(100dvh - 48px)); max-height:calc(100dvh - 48px); padding:0; border:1px solid #d8e0eb; border-radius:12px; box-shadow:0 24px 80px rgba(15,23,42,.25); }
+        .engineering-records-dialog { width:min(960px,calc(100vw - 48px)); height:min(780px,calc(100dvh - 48px)); max-height:calc(100dvh - 48px); padding:0; border:1px solid #d8e0eb; border-radius:12px; box-shadow:0 24px 80px rgba(15,23,42,.25); }
         .engineering-records-dialog[open] { display:flex; flex-direction:column; }
         .engineering-records-dialog::backdrop { background:rgba(15,23,42,.4); }
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview-head { flex-shrink:0; }
         :is(.engineering-records-dialog, .engineering-records-summary-card) .engineering-records-preview { flex:1; min-height:0; max-height:none; padding:22px 30px 36px; white-space:normal; }
         .engineering-records-dialog .engineering-records-preview-head,
-        .engineering-records-dialog .engineering-records-preview { width:100%; max-width:960px; box-sizing:border-box; margin-inline:auto; }
+        .engineering-records-dialog .engineering-records-preview { width:100%; max-width:840px; box-sizing:border-box; margin-inline:auto; }
         .engineering-records-dialog .engineering-records-preview-head { padding:20px 40px; }
         .engineering-records-dialog .engineering-records-preview-head h3 { font-size:1.25rem; line-height:1.5; }
         .engineering-records-dialog .engineering-records-preview-head p { font-size:0.875rem; line-height:1.6; }
@@ -4436,6 +4437,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <div class="engineering-records-controls">
                     <div id="d1RecordsSearchBox" class="engineering-records-search">
                         <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" aria-label="搜尋工程紀錄" aria-controls="d1RecordsHistory" aria-expanded="false" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
+                        <button id="d1RecordsQueryClear" class="engineering-records-search-clear" type="button" aria-label="清除工程紀錄搜尋關鍵字" title="清除搜尋" hidden>×</button>
                         <div id="d1RecordsHistory" class="search-history-panel engineering-records-history" aria-label="最近兩筆搜尋紀錄" hidden></div>
                     </div>
                     <button id="d1RecordsReload" class="engineering-records-btn" type="button"><span class="engineering-button-full">🔄 重新載入</span><span class="engineering-button-compact">重新載入</span></button>
@@ -6927,7 +6929,7 @@ init();
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
     <script src="vendor/katex/katex-0.19.0.min.js"></script>
-    <script src="engineering-records-d1.js?v=240"></script>
+    <script src="engineering-records-d1.js?v=241"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

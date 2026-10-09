@@ -6,6 +6,7 @@
   var clientId = '406267166897-8geeu3tpc425nc9n7gmimmmflbckp0ta.apps.googleusercontent.com';
   var byId = function (id) { return document.getElementById('d1Records' + id); };
   var query = byId('Query'), reload = byId('Reload'), gemini = byId('Gemini');
+  var queryClear = byId('QueryClear');
   var recordHistory = byId('History'), recordHistoryKey = 'engineeringRecordsSearchHistoryV1';
   var regenerate = byId('Regenerate'), summaryStart = byId('SummaryStart'), summaryClear = byId('SummaryClear');
   var signInDialog = byId('SignInDialog'), signInStatus = byId('SignInStatus'), summarizing = false, summaryHasContent = false;
@@ -229,7 +230,19 @@
     more.hidden = !!searchValue || !hasMore;
     loadMore.setAttribute('aria-label', '再載入 15 筆工程紀錄');
   }
+  function updateRecordQueryClear() {
+    if (queryClear) queryClear.hidden = !query.value;
+  }
+  function clearRecordQuery() {
+    clearTimeout(timer);
+    query.value = '';
+    updateRecordQueryClear();
+    query.focus();
+    closeRecordSearchHistory();
+    search();
+  }
   async function search() {
+    updateRecordQueryClear();
     var value = query.value.trim(), version = ++resultVersion;
     hasMore = false; loadingMore = false; more.hidden = true; loadMore.disabled = true;
     loadMore.textContent = '顯示更多';
@@ -386,7 +399,10 @@
       refresh(false);
     } catch (error) { reload.disabled = false; setStatus('工程紀錄載入失敗：' + error.message, 'error'); }
   };
+  if (queryClear) queryClear.onclick = clearRecordQuery;
+  updateRecordQueryClear();
   query.addEventListener('input', function () {
+    updateRecordQueryClear();
     closeRecordSearchHistory();
     clearTimeout(timer);
     if (!query.value.trim()) search();
