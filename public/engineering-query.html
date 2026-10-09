@@ -3350,6 +3350,9 @@ h3 {
             font-family: 'Outfit', 'Inter', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
         }
         .engineering-records-toolbar {
+            position: sticky;
+            top: calc(var(--engineering-header-height, 72px) + 8px);
+            z-index: 900;
             display: grid;
             grid-template-columns: minmax(0, 1fr);
             gap: 8px;
@@ -6647,6 +6650,14 @@ init();
             } catch(e) {}
 
             var tabs = document.querySelectorAll('.tab-btn[data-sys]');
+            var appHeader = document.querySelector('.app-header-tabs');
+            function updateEngineeringHeaderHeight() {
+                if (!appHeader) return;
+                document.documentElement.style.setProperty('--engineering-header-height', Math.ceil(appHeader.getBoundingClientRect().height) + 'px');
+            }
+            updateEngineeringHeaderHeight();
+            window.addEventListener('resize', updateEngineeringHeaderHeight);
+            if (appHeader && window.ResizeObserver) new window.ResizeObserver(updateEngineeringHeaderHeight).observe(appHeader);
             var otherPagesButton = document.getElementById('otherPagesButton');
             var otherPagesMenu = document.getElementById('otherPagesMenu');
             function closeOtherPages(returnFocus) {

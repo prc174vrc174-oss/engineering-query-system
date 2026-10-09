@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v237-cloudflare-records-block-back-top';
+const CACHE_NAME = 'engineering-query-pwa-v238-cloudflare-sticky-records-search';
 const APP_SHELL = [
   './',
   './engineering-query.html',
