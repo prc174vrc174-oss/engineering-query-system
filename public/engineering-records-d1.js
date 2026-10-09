@@ -285,8 +285,7 @@
       records.forEach(function (record) {
         var item = document.createElement('li');
         appendRecordLink(item, record.name.replace(/\.md$/i, ''), record.relativePath || record.name, record);
-        var path = document.createElement('span'); path.className = 'engineering-record-backlink-path'; path.textContent = record.relativePath;
-        item.appendChild(path); links.appendChild(item);
+        links.appendChild(item);
       });
       section.appendChild(links);
     } catch (error) {

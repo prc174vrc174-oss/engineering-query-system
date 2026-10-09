@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v233/);
+  assert.match(serviceWorker, /engineering-query-pwa-v234/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -1248,10 +1248,10 @@ test('Sites backlinks query the whole D1 catalog and return only matching metada
   const {transpileModule,ModuleKind}=await import('typescript');
   const sqlite=new DatabaseSync(':memory:');
   sqlite.exec('CREATE TABLE engineering_notes(id TEXT PRIMARY KEY,name TEXT,relative_path TEXT,modified_time TEXT,content TEXT)');
-  sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('target_note_001','A.md','工程/A.md','2026-10-09','內容');
-  sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('source_note_001','B.md','工程/B.md','2026-10-09','註腳[^x]\n[^x]: [[A|規則]]');
+  sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('target_note_001','2025-09-22 (週一) 1📣防烤治具以0.8T為主.md','工程/2025-09-22 (週一) 1📣防烤治具以0.8T為主.md','2026-10-09','內容');
+  sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('source_note_001','B.md','工程/B.md','2026-10-09','註腳[^x]\n[^x]: [[2025-09-22 (週一) 1📣防烤治具以0.8T為主|規則]]');
   sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('mention_note_001','C.md','工程/C.md','2026-10-09','只提到 A.md');
-  env.DB={prepare(sql){return{values:[],bind(...values){this.values=values;return this;},async first(){return sqlite.prepare(sql).get(...this.values)||null;},async all(){return{results:sqlite.prepare(sql).all(...this.values)};}};}};
+  env.DB={prepare(sql){assert.ok(!sql.includes('LIKE'), 'Backlinks must avoid D1 LIKE-pattern limits');return{values:[],bind(...values){this.values=values;return this;},async first(){return sqlite.prepare(sql).get(...this.values)||null;},async all(){return{results:sqlite.prepare(sql).all(...this.values)};}};}};
   const text=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8')).replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href));
   const {GET}=await import('data:text/javascript,'+encodeURIComponent(transpileModule(text,{compilerOptions:{module:ModuleKind.ESNext}}).outputText));
   try {
