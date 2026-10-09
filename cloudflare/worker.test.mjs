@@ -77,17 +77,17 @@ test('Gemini proxy forwards all 40 selected IDs in one request',async()=>{
   } finally {globalThis.fetch=original;}
 });
 
-test('empty search loads 20 metadata rows per page with dates first, no gaps, and bounds', async () => {
+test('empty search loads 15 metadata rows per page with dates first, no gaps, and bounds', async () => {
   const db=database(), notes=Array.from({length:51},(_,i)=>note('all_record_'+String(i).padStart(6,'0'),i<45?'2026-10-'+String(1+i%9).padStart(2,'0')+' '+i+'.md':'99999 '+i+'.md'));
   await seed(db,notes);
   const fetchPage=async(offset)=>worker.fetch(new Request('https://api/api/engineering-records-d1?action=search&query=&offset='+offset),{DB:db});
   const pages=[];
-  for(const offset of [0,20,40]){
+  for(const offset of [0,15,30,45]){
     const response=await fetchPage(offset);assert.equal(response.status,200);pages.push(await response.json());
   }
-  assert.deepEqual(pages.map(p=>p.results.length),[20,20,11]);
-  assert.deepEqual(pages.map(p=>p.nextOffset),[20,40,51]);
-  assert.deepEqual(pages.map(p=>p.hasMore),[true,true,false]);
+  assert.deepEqual(pages.map(p=>p.results.length),[15,15,15,6]);
+  assert.deepEqual(pages.map(p=>p.nextOffset),[15,30,45,51]);
+  assert.deepEqual(pages.map(p=>p.hasMore),[true,true,true,false]);
   assert.ok(pages.every(p=>p.total===51));
   const records=pages.flatMap(p=>p.results);
   assert.equal(new Set(records.map(r=>r.id)).size,51);

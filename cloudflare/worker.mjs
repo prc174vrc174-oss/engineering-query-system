@@ -28,7 +28,7 @@ export async function list(db, offset = 0) {
       FROM engineering_notes
       ORDER BY CASE WHEN name GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*'
         AND substr(name, 11, 1) NOT GLOB '[0-9]' THEN substr(name, 1, 10) ELSE '' END DESC,
-        name COLLATE NOCASE DESC, id DESC LIMIT 20 OFFSET ?`).bind(offset)
+        name COLLATE NOCASE DESC, id DESC LIMIT 15 OFFSET ?`).bind(offset)
       .all(),
     db.prepare("SELECT COUNT(*) AS total FROM engineering_notes").first(),
   ]);

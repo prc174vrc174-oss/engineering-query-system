@@ -204,7 +204,7 @@
     });
     list.appendChild(items);
     more.hidden = !!searchValue || !hasMore;
-    loadMore.setAttribute('aria-label', '再載入 20 筆工程紀錄');
+    loadMore.setAttribute('aria-label', '再載入 15 筆工程紀錄');
   }
   async function search() {
     var value = query.value.trim(), version = ++resultVersion;
