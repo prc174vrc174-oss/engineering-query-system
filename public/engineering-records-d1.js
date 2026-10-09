@@ -15,6 +15,7 @@
   var resultsTab = byId('ResultsTab'), summaryTab = byId('SummaryTab');
   var resultsView = byId('ResultsView'), summaryView = byId('SummaryView'), summary = byId('Summary');
   var dialog = byId('Dialog'), preview = byId('Preview'), previewTitle = byId('PreviewTitle');
+  var readerPrevious = byId('Previous'), readerNext = byId('Next'), readerRecordId = '';
   var previewMeta = byId('PreviewMeta'), googleButton = byId('GoogleButton');
   var includedFolders = [], folderPaths = null, imageCache = {}, summarySources = [], saveAfterLogin = false;
   var excludeDialog = byId('SettingsDialog'), excludeInput = byId('SettingsInput');
@@ -195,6 +196,7 @@
   }
   function render(searchValue) {
     list.replaceChildren();
+    updateReaderNavigation();
     updateSummaryButtons();
     if (!rows.length) {
       more.hidden = true;
@@ -265,11 +267,24 @@
       setStatus('搜尋失敗：' + error.message, 'error');
     }
   }
-  async function openRecord(record, initialWindow) {
-    if (isMobileReader() && !initialWindow) {
+  function updateReaderNavigation() {
+    var index = rows.findIndex(function (record) { return record.id === readerRecordId; });
+    var available = !recordWindow && dialog.open && index >= 0;
+    if (readerPrevious) readerPrevious.hidden = !available || index === 0;
+    if (readerNext) readerNext.hidden = !available || index >= rows.length - 1;
+  }
+  function navigateReader(direction) {
+    if (recordWindow || !dialog.open) return;
+    var index = rows.findIndex(function (record) { return record.id === readerRecordId; });
+    var nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= rows.length) return;
+    return openRecord(rows[nextIndex], false, true);
+  }
+  async function openRecord(record, initialWindow, replaceCurrent) {
+    if (isMobileReader() && !initialWindow && !replaceCurrent) {
       readerStack.push(dialog.open ? {
         title: previewTitle.textContent, meta: previewMeta.textContent,
-        nodes: Array.from(preview.childNodes), scrollTop: preview.scrollTop, documentTitle: document.title
+        nodes: Array.from(preview.childNodes), scrollTop: preview.scrollTop, documentTitle: document.title, recordId: readerRecordId
       } : null);
       if (window.history && window.history.pushState) {
         var state = Object.assign({}, window.history.state, { engineeringRecordReader: { session: readerSession, depth: readerStack.length } });
@@ -278,6 +293,8 @@
     }
     if (!dialog.open) dialog.showModal();
     var version = ++readerRequest;
+    readerRecordId = record.id || '';
+    updateReaderNavigation();
     previewTitle.textContent = record.name;
     previewMeta.textContent = '讀取中…';
     preview.replaceChildren();
@@ -290,6 +307,8 @@
         if (!record) throw new Error('找不到連結的工程紀錄，或有多篇同名紀錄。');
       }
       if (version !== readerRequest || !dialog.open) return;
+      readerRecordId = record.id;
+      updateReaderNavigation();
       var result = await call(api + '?action=read&id=' + encodeURIComponent(record.id));
       if (version !== readerRequest || !dialog.open) return;
       previewTitle.textContent = result.record.name;
@@ -333,12 +352,14 @@
   }
   function restoreReaderView(frame) {
     readerRequest++;
-    if (!frame) { dialog.close(); document.title = readerTitle; return; }
+    if (!frame) { readerRecordId = ''; dialog.close(); updateReaderNavigation(); document.title = readerTitle; return; }
+    readerRecordId = frame.recordId || '';
     previewTitle.textContent = frame.title;
     previewMeta.textContent = frame.meta;
     preview.replaceChildren.apply(preview, frame.nodes);
     preview.scrollTop = frame.scrollTop;
     document.title = frame.documentTitle;
+    updateReaderNavigation();
   }
   function closeRecordReader() {
     if (isMobileReader() || readerStack.length) {
@@ -451,6 +472,8 @@
   folders.onclick = showExcludeSettings;
   resultsTab.onclick = function () { view('results'); };
   summaryTab.onclick = function () { view('summary'); };
+  if (readerPrevious) readerPrevious.onclick = function () { return navigateReader(-1); };
+  if (readerNext) readerNext.onclick = function () { return navigateReader(1); };
   byId('DialogClose').onclick = closeRecordReader;
 
   function updateSummaryButtons() {
@@ -1340,6 +1363,7 @@
   });
   excludeSave.onclick = saveExcludeSettings;
   byId('SettingsCancel').onclick = function () { saveAfterLogin = false; excludeDialog.close(); };
+  dialog.addEventListener('close', updateReaderNavigation);
   dialog.addEventListener('click', function (event) { if (!recordWindow && event.target === dialog) closeRecordReader(); });
   dialog.addEventListener('cancel', function (event) { event.preventDefault(); closeRecordReader(); });
   gemini.onclick = summarize;

@@ -153,3 +153,47 @@ test('indexed backlinks preserve relative paths, aliases, ambiguity, code exclus
   assert.deepEqual(ids([target,...candidates]),['relative','other','exact','ambiguous','footnote']);
   assert.deepEqual(ids([duplicate,...candidates]),[]);
 });
+
+function navigationContext() {
+  const rows=['a','b','c'].map(id=>({id,name:id+'.md',relativePath:'工程/'+id+'.md',content:id,modifiedTime:''}));
+  const preview=new Node('article');preview.replaceChildren=function(...nodes){this.children=nodes;};
+  Object.defineProperty(preview,'childNodes',{get(){return this.children;}});
+  const states=[];
+  const context={rows,readerRecordId:'',readerPrevious:new Node('button'),readerNext:new Node('button'),dialog:new Node('dialog'),
+    preview,previewTitle:new Node('h3'),previewMeta:new Node('p'),readerStack:[],readerRequest:0,readerSession:'test',readerSearch:'a',readerTitle:'查詢系統',
+    recordWindow:false,isMobileReader:()=>true,api:'/api/records',date:()=>'',
+    document:{title:'查詢系統',createElement:tag=>new Node(tag)},
+    window:{location:{href:'https://example.com/'},history:{state:{preserved:true},pushState(state){this.state=state;states.push(state);}}},
+    call:async url=>({record:rows.find(note=>note.id===new URL(url,'https://example.com/').searchParams.get('id'))}),
+    renderMarkdown(content,id,target){target.appendChild(new Node(content));},highlightRecordContent(){},loadRecordBacklinks:async()=>{}};
+  runInNewContext(source.slice(source.indexOf('  function updateReaderNavigation('),source.indexOf('  async function loadRecordBacklinks('))+
+    source.slice(source.indexOf('  function restoreReaderView('),source.indexOf('  function closeRecordReader(')),context);
+  return {context,states};
+}
+
+test('reader navigation follows loaded records, hides boundaries and restores linked-note state without stacking sibling switches', async () => {
+  const {context,states}=navigationContext();const {rows,readerPrevious,readerNext}=context;
+  await context.openRecord(rows[0]);assert.equal(readerPrevious.hidden,true);assert.equal(readerNext.hidden,false);
+  await context.navigateReader(1);assert.equal(context.readerRecordId,'b');assert.equal(readerPrevious.hidden,false);assert.equal(readerNext.hidden,false);
+  await context.navigateReader(1);assert.equal(context.readerRecordId,'c');assert.equal(readerNext.hidden,true);
+  await context.navigateReader(1);assert.equal(context.readerRecordId,'c');
+  assert.equal(states.length,1);assert.equal(context.readerStack.length,1);
+  await context.navigateReader(-1);await context.openRecord(rows[0]);
+  assert.equal(states.length,2);context.restoreReaderView(context.readerStack.pop());
+  assert.equal(context.readerRecordId,'b');assert.equal(readerPrevious.hidden,false);assert.equal(readerNext.hidden,false);
+  context.rows=[rows[1]];context.updateReaderNavigation();assert.equal(readerPrevious.hidden,true);assert.equal(readerNext.hidden,true);
+  context.readerRecordId='outside-results';context.updateReaderNavigation();assert.equal(readerPrevious.hidden,true);assert.equal(readerNext.hidden,true);
+  context.rows=rows;context.readerRecordId='b';context.recordWindow=true;context.updateReaderNavigation();
+  assert.equal(readerPrevious.hidden,true);assert.equal(readerNext.hidden,true);await context.navigateReader(1);assert.equal(context.readerRecordId,'b');
+});
+
+test('rapid next-page clicks keep the newest note when an older read finishes later', async () => {
+  const {context}=navigationContext();await context.openRecord(context.rows[0]);
+  let finishOlder;
+  context.call=async url=>{const id=new URL(url,'https://example.com/').searchParams.get('id');
+    if(id==='b')return new Promise(resolve=>{finishOlder=()=>resolve({record:context.rows[1]});});
+    return {record:context.rows.find(row=>row.id===id)};};
+  const older=context.navigateReader(1);await context.navigateReader(1);
+  assert.equal(context.previewTitle.textContent,'c.md');finishOlder();await older;
+  assert.equal(context.previewTitle.textContent,'c.md');assert.equal(context.readerRecordId,'c');
+});

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v241-cloudflare-note-width-record-search-clear';
+const CACHE_NAME = 'engineering-query-pwa-v242-cloudflare-note-reader-navigation';
 const APP_SHELL = [
   './',
   './engineering-query.html',
@@ -8,7 +8,7 @@ const APP_SHELL = [
   './nail-excel-upload.js',
   './nail-data.js',
   './common-words.js',
-  './engineering-records-d1.js?v=241',
+  './engineering-records-d1.js?v=242',
   './vendor/katex/katex-0.19.0.min.js',
   './favicon.svg',
   './app-icon-192.png',
