@@ -261,9 +261,39 @@
       previewMeta.textContent = result.record.relativePath + ' · 更新 ' + date(result.record.modifiedTime);
       renderMarkdown(result.record.content, record.id, preview);
       highlightRecordContent(preview, readerSearch);
+      var backlinksSection = document.createElement('section');
+      backlinksSection.className = 'engineering-record-backlinks';
+      backlinksSection.setAttribute('aria-label', '反向連結');
+      preview.appendChild(backlinksSection);
+      await loadRecordBacklinks(record.id, backlinksSection);
     } catch (error) {
       if (version !== readerRequest || !dialog.open) return;
       previewMeta.textContent = ''; preview.textContent = error.message;
+    }
+  }
+  async function loadRecordBacklinks(recordId, section) {
+    section.replaceChildren();
+    var title = document.createElement('h3'); title.textContent = '反向連結';
+    var message = document.createElement('p'); message.textContent = '正在讀取反向連結…';
+    section.append(title, message);
+    try {
+      var result = await call(api + '?action=backlinks&id=' + encodeURIComponent(recordId));
+      var records = (result.results || []).sort(compareRecords);
+      message.textContent = records.length ? '共 ' + records.length + ' 篇工程紀錄連到這篇筆記。' : '沒有其他工程紀錄連到這篇筆記。';
+      if (!records.length) return;
+      var links = document.createElement('ul');
+      records.forEach(function (record) {
+        var item = document.createElement('li');
+        appendRecordLink(item, record.name.replace(/\.md$/i, ''), record.relativePath || record.name, record);
+        var path = document.createElement('span'); path.className = 'engineering-record-backlink-path'; path.textContent = record.relativePath;
+        item.appendChild(path); links.appendChild(item);
+      });
+      section.appendChild(links);
+    } catch (error) {
+      message.textContent = '反向連結讀取失敗：' + error.message;
+      var retry = document.createElement('button'); retry.type = 'button'; retry.className = 'engineering-records-btn'; retry.textContent = '重試';
+      retry.onclick = function () { loadRecordBacklinks(recordId, section); };
+      section.appendChild(retry);
     }
   }
   function restoreReaderView(frame) {
@@ -631,13 +661,13 @@
     var ids = new Set(matches.map(function (record) { return record.id; }));
     return ids.size === 1 ? matches[0] : null;
   }
-  function appendRecordLink(parent, label, reference) {
+  function appendRecordLink(parent, label, reference, resolvedRecord) {
     var link = document.createElement('a');
     link.className = 'engineering-markdown-link engineering-markdown-record-link';
     link.textContent = label;
     link.title = (isMobileReader() ? '開啟工程紀錄：' : '在新視窗開啟工程紀錄：') + reference;
     var destination = new URL('engineering-query.html', window.location.href);
-    var record = findLinkedRecord(rows.concat(summarySources), reference);
+    var record = resolvedRecord || findLinkedRecord(rows.concat(summarySources), reference);
     destination.searchParams.set(record ? 'recordId' : 'recordName', record ? record.id : reference);
     if (typeof readerSearch === 'string' && readerSearch) destination.searchParams.set('highlight', readerSearch);
     link.href = destination.href;
@@ -646,7 +676,7 @@
     link.onclick = function (event) {
       if (isMobileReader()) {
         event.preventDefault();
-        openRecord(findLinkedRecord(rows.concat(summarySources), reference) || { name: reference });
+        openRecord(record || findLinkedRecord(rows.concat(summarySources), reference) || { name: reference });
         return;
       }
       var display = window.screen || {};

@@ -1,4 +1,4 @@
-import { listEngineeringD1, engineeringStatus, readEngineeringD1, refreshEngineeringD1, searchEngineeringD1 } from "../../../db/engineering-notes";
+import { engineeringBacklinks, listEngineeringD1, engineeringStatus, readEngineeringD1, refreshEngineeringD1, searchEngineeringD1 } from "../../../db/engineering-notes";
 
 const origins = new Set(["https://engineering-query.prc174.chatgpt.site", "https://prc174vrc174-oss.github.io"]);
 function headers(request: Request) {
@@ -30,6 +30,12 @@ export async function GET(request: Request) {
         return reply(request, { ok: true, ...(await listEngineeringD1(offset)) });
       }
       return reply(request, { ok: true, results: await searchEngineeringD1(query) });
+    }
+    if (params.get("action") === "backlinks") {
+      const id = params.get("id") || "";
+      if (!/^[\w-]{10,100}$/.test(id)) return reply(request, { ok: false, error: "檔案編號不正確。" }, 400);
+      const results = await engineeringBacklinks(id);
+      return results ? reply(request, { ok: true, results }) : reply(request, { ok: false, error: "找不到工程紀錄。" }, 404);
     }
     if (params.get("action") === "read") {
       const id = params.get("id") || "";

@@ -108,3 +108,38 @@ test('empty search loads 15 metadata rows per page with dates first, no gaps, an
   for(const offset of ['-1','1.5','no','10000001'])assert.equal((await fetchPage(offset)).status,400);
   const empty=await list(database());assert.deepEqual(empty,{results:[],total:0,nextOffset:0,hasMore:false});
 });
+
+test('backlinks resolve wiki aliases, footnotes, encoded Markdown and note URLs without false mentions', async () => {
+  const db=database(), target={...note('back_target_001','A_%(新版).md','[[A_%(新版)]]'),relativePath:'工程/A_%(新版).md'};
+  const link=(id,content,path='其他/'+id+'.md')=>({...note(id,id+'.md',content),relativePath:path});
+  await seed(db,[target,
+    link('wiki_record_001','[[A_%(新版)|顯示名稱]]\n註腳[^x]\n[^x]: [[工程/A_%(新版).md#段落]]'),
+    link('mark_record_001','[筆記](../工程/A_%25(新版).md#段落)'),
+    link('url_record_001','[筆記](https://engineering-query.prc174.chatgpt.site/engineering-query.html?recordId=back_target_001)'),
+    link('text_record_001','只是提到 A_%(新版).md，沒有連結'),
+    link('code_record_001','`[[A_%(新版)]]`\n```md\n[[A_%(新版)]]\n```\n%%[[A_%(新版)]]%%'),
+    link('evil_record_001','[外站](https://unrelated.example/?recordId=back_target_001)'),
+    link('wrong_record_001','[[A_%(新版)其他]]'),
+  ]);
+  const response=await worker.fetch(new Request('https://api/api/engineering-records-d1?action=backlinks&id='+target.id),{DB:db});
+  assert.equal(response.status,200);const result=await response.json();
+  assert.deepEqual(result.results.map(r=>r.id).sort(),['mark_record_001','url_record_001','wiki_record_001']);
+  assert.ok(result.results.every(r=>!Object.hasOwn(r,'content')));
+  await seed(db,[{...note('duplicate_0001',target.name),relativePath:'別處/'+target.name},link('ambig_record_001','[[A_%(新版)]]')]);
+  const again=await worker.fetch(new Request('https://api/api/engineering-records-d1?action=backlinks&id='+target.id),{DB:db});
+  assert.ok(!(await again.json()).results.some(r=>r.id==='ambig_record_001'));
+  assert.equal((await worker.fetch(new Request('https://api/api/engineering-records-d1?action=backlinks&id=bad'),{DB:db})).status,400);
+  assert.equal((await worker.fetch(new Request('https://api/api/engineering-records-d1?action=backlinks&id=missing_record_001'),{DB:db})).status,404);
+});
+
+test('backlinks span all records and reflect Drive content edits and removals', async () => {
+  const db=database(),target=note('back_target_002','目標.md','規則');
+  const links=Array.from({length:26},(_,i)=>note('back_source_'+String(i).padStart(6,'0'),'來源'+i+'.md','[[目標]]'));
+  await seed(db,[target,...links]);
+  const read=async()=> (await (await worker.fetch(new Request('https://api/api/engineering-records-d1?action=backlinks&id='+target.id),{DB:db})).json()).results;
+  assert.equal((await read()).length,26);
+  const edited={...links[0],content:'已移除原連結',modifiedTime:'2026-10-09T07:00:00Z'};
+  await refresh(db,true,source([target,edited,...links.slice(2)]));
+  const result=await read();assert.equal(result.length,24);
+  assert.ok(!result.some(r=>r.id===links[0].id || r.id===links[1].id));
+});

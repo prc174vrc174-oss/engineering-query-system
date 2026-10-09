@@ -1,3 +1,4 @@
+import { backlinkPatterns, referencingNotes } from "./engineering-record-links.mjs";
 // GitHub Pages engineering records API, independently bound to janyu056's D1.
 export const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2WWjD9NKQKYNYLnVtU0E7xLKe69ELXw1FeIeEMUaFGY0zintiPAhwsnCC_figFrEScQ/exec';
 const ORIGIN = 'https://prc174vrc174-oss.github.io';
@@ -47,6 +48,18 @@ export async function search(db, query) {
     FROM engineering_notes WHERE ${predicates.join(' AND ')} LIMIT 500`).bind(...params).all();
   return result.results;
 }
+export async function backlinks(db, id) {
+  const target=await db.prepare('SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime,content FROM engineering_notes WHERE id=?').bind(id).first();
+  if (!target) return null;
+  const patterns=backlinkPatterns(target);
+  const [catalog,candidates]=await Promise.all([
+    db.prepare('SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime FROM engineering_notes').all(),
+    db.prepare(`SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime,content FROM engineering_notes
+      WHERE id <> ? AND (${patterns.map(()=>"lower(content) LIKE ? ESCAPE '\\'").join(' OR ')})`).bind(id,...patterns).all(),
+  ]);
+  return referencingNotes(candidates.results,target,catalog.results);
+}
+
 export async function refresh(db, force, fetchDrive = drive) {
   const now = Date.now();
   await db.prepare("INSERT OR IGNORE INTO engineering_sync (key,value,updated_at) VALUES ('lock','0',0)").run();
@@ -146,6 +159,12 @@ export default {
             return reply({ok:true,...await list(env.DB,offset)});
           }
           return reply({ok:true,results:await search(env.DB,query)});
+        }
+        if (action==='backlinks') {
+          const id=url.searchParams.get('id') || '';
+          if (!ID.test(id)) return reply({ok:false,error:'檔案編號不正確。'},400);
+          const results=await backlinks(env.DB,id);
+          return results ? reply({ok:true,results}) : reply({ok:false,error:'找不到工程紀錄。'},404);
         }
         if (action==='read') {
           const id=url.searchParams.get('id') || '';

@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v232/);
+  assert.match(serviceWorker, /engineering-query-pwa-v233/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -1204,4 +1204,62 @@ test('Sites empty engineering search loads only one SQL page and validates offse
     }
     assert.equal(statements.length,2);
   } finally {delete env.DB;}
+});
+
+test('note backlink footer opens records outside search results and supports empty, error, and retry states', async () => {
+  const source=await readFile(new URL('../public/engineering-records-d1.js',import.meta.url),'utf8');
+  class Node {
+    constructor(tag){this.tag=tag;this.children=[];}
+    replaceChildren(...nodes){this.children=nodes;}
+    append(...nodes){this.children.push(...nodes);}
+    appendChild(node){this.children.push(node);}
+    setAttribute(key,value){this[key]=value;}
+  }
+  const opened=[],popups=[],section=new Node('section');let mode='records',mobile=true;
+  const record={id:'outside_search_001',name:'來源.md',relativePath:'其他/來源.md'};
+  const context={document:{createElement:tag=>new Node(tag)},URL,api:'/api/records',rows:[],summarySources:[],readerSearch:'10017',
+    window:{location:{href:'https://example.com/engineering-query.html'},screen:{availWidth:1920,availHeight:1080},open:(url,_,features)=>{popups.push({url,features});return{};}},
+    isMobileReader:()=>mobile,openRecord:async note=>opened.push(note.id),compareRecords:()=>0,
+    call:async()=>{if(mode==='error')throw Error('network');return{results:mode==='empty'?[]:[record]};}
+  };
+  const code=source.slice(source.indexOf('  async function loadRecordBacklinks('),source.indexOf('  function restoreReaderView('))+
+    source.slice(source.indexOf('  function recordLinkName('),source.indexOf('  function isMobileReader('))+
+    source.slice(source.indexOf('  function findLinkedRecord('),source.indexOf('  async function loadLinkedRecord('));
+  runInNewContext(code,context);
+  await context.loadRecordBacklinks('target12345',section);
+  assert.equal(section.children[0].textContent,'反向連結');
+  assert.match(section.children[1].textContent,/共 1 篇/);
+  const link=section.children[2].children[0].children[0];
+  assert.equal(new URL(link.href).searchParams.get('recordId'),record.id);
+  link.onclick({preventDefault(){}});assert.deepEqual(opened,[record.id]);
+  mobile=false;link.onclick({preventDefault(){}});
+  assert.match(popups[0].features,/width=720,height=510/);
+  mode='empty';await context.loadRecordBacklinks('target12345',section);
+  assert.equal(section.children.length,2);assert.match(section.children[1].textContent,/沒有其他工程紀錄/);
+  mode='error';await context.loadRecordBacklinks('target12345',section);
+  assert.match(section.children[1].textContent,/讀取失敗/);assert.equal(section.children[2].textContent,'重試');
+  mode='records';section.children[2].onclick();await new Promise(resolve=>setImmediate(resolve));
+  assert.match(section.children[1].textContent,/共 1 篇/);
+});
+
+test('Sites backlinks query the whole D1 catalog and return only matching metadata', async () => {
+  const {env}=await import('cloudflare:workers');
+  const {DatabaseSync}=await import('node:sqlite');
+  const {transpileModule,ModuleKind}=await import('typescript');
+  const sqlite=new DatabaseSync(':memory:');
+  sqlite.exec('CREATE TABLE engineering_notes(id TEXT PRIMARY KEY,name TEXT,relative_path TEXT,modified_time TEXT,content TEXT)');
+  sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('target_note_001','A.md','工程/A.md','2026-10-09','內容');
+  sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('source_note_001','B.md','工程/B.md','2026-10-09','註腳[^x]\n[^x]: [[A|規則]]');
+  sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('mention_note_001','C.md','工程/C.md','2026-10-09','只提到 A.md');
+  env.DB={prepare(sql){return{values:[],bind(...values){this.values=values;return this;},async first(){return sqlite.prepare(sql).get(...this.values)||null;},async all(){return{results:sqlite.prepare(sql).all(...this.values)};}};}};
+  const text=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8')).replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href));
+  const {GET}=await import('data:text/javascript,'+encodeURIComponent(transpileModule(text,{compilerOptions:{module:ModuleKind.ESNext}}).outputText));
+  try {
+    const response=await GET(new Request('https://example.com/api/engineering-records-d1?action=backlinks&id=target_note_001'));
+    assert.equal(response.status,200);const result=await response.json();
+    assert.deepEqual(result.results.map(r=>r.id),['source_note_001']);
+    assert.ok(!Object.hasOwn(result.results[0],'content'));
+    assert.equal((await GET(new Request('https://example.com/api/engineering-records-d1?action=backlinks&id=bad'))).status,400);
+    assert.equal((await GET(new Request('https://example.com/api/engineering-records-d1?action=backlinks&id=missing_note_001'))).status,404);
+  } finally {delete env.DB;sqlite.close();}
 });

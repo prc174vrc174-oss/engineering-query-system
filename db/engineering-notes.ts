@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { backlinkPatterns, referencingNotes } from "../cloudflare/engineering-record-links.mjs";
 
 type Note = { id: string; name: string; relativePath: string; modifiedTime: string; content: string };
 type Meta = { id: string; modifiedTime: string };
@@ -68,6 +69,20 @@ export async function searchEngineeringD1(query: string) {
 export async function readEngineeringD1(id: string) {
   return database().prepare(`SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime, content
     FROM engineering_notes WHERE id = ?`).bind(id).first<Note>();
+}
+
+export async function engineeringBacklinks(id: string) {
+  const db = database();
+  const target = await readEngineeringD1(id);
+  if (!target) return null;
+  const patterns = backlinkPatterns(target);
+  const [catalog, candidates] = await Promise.all([
+    db.prepare("SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime FROM engineering_notes").all<Note>(),
+    db.prepare(`SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime,content FROM engineering_notes
+      WHERE id <> ? AND (${patterns.map(() => "lower(content) LIKE ? ESCAPE '\\'").join(" OR ")})`)
+      .bind(id, ...patterns).all<Note>(),
+  ]);
+  return referencingNotes(candidates.results, target, catalog.results);
 }
 
 async function drive(action: string, extra: Record<string, unknown> = {}) {
