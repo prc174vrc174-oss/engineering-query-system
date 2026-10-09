@@ -1,4 +1,4 @@
-const CACHE_NAME = 'engineering-query-pwa-v246-cloudflare-reader-navigation-disabled';
+const CACHE_NAME = 'engineering-query-pwa-v247-cloudflare-diameter-clear';
 const APP_SHELL = [
   './',
   './engineering-query.html',
