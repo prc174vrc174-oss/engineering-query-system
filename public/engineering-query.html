@@ -3420,6 +3420,8 @@ h3 {
         .engineering-records-view[hidden] { display:none; }
         .engineering-records-results, .engineering-records-summary-card { min-width:0; border:1px solid #d8e0eb; border-radius:10px; background:#fff; overflow:hidden; }
         .engineering-records-list { max-height:650px; overflow:auto; }
+        .engineering-records-list-wrap { position:relative; }
+        #recordsBackToTopBtn, #recordsPreviewBackToTopBtn { position:absolute; right:16px; bottom:16px; }
         .engineering-records-more { padding:10px; border-top:1px solid #e5eaf1; text-align:center; }
         .engineering-records-more[hidden] { display:none; }
         .engineering-records-items { margin:0; padding:8px 10px; list-style:none; }
@@ -4442,7 +4444,10 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                 <div id="d1RecordsStatus" class="engineering-records-status" role="status" aria-live="polite"></div>
             </div>
             <section id="d1RecordsResultsView" class="engineering-records-view engineering-records-results" role="tabpanel">
-                <div id="d1RecordsList" class="engineering-records-list"><div class="engineering-records-empty">正在載入工程紀錄…</div></div>
+                <div class="engineering-records-list-wrap">
+                    <div id="d1RecordsList" class="engineering-records-list"><div class="engineering-records-empty">正在載入工程紀錄…</div></div>
+                    <button type="button" id="recordsBackToTopBtn" class="back-to-top-btn" aria-label="返回搜尋結果最頂端">↑ 回到頂端</button>
+                </div>
                 <div id="d1RecordsMore" class="engineering-records-more" hidden><button id="d1RecordsLoadMore" class="engineering-records-btn" type="button">顯示更多</button></div>
             </section>
             <section id="d1RecordsSummaryView" class="engineering-records-view engineering-records-summary-card" role="tabpanel" hidden>
@@ -4455,10 +4460,9 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                     <h3 id="d1RecordsPreviewTitle">內容預覽</h3><p id="d1RecordsPreviewMeta"></p>
                 </div><button id="d1RecordsDialogClose" class="engineering-records-btn engineering-records-dialog-close" type="button">關閉</button></div>
                 <article id="d1RecordsPreview" class="engineering-records-preview">選取檔名後顯示完整內容。</article>
+                <button type="button" id="recordsPreviewBackToTopBtn" class="back-to-top-btn" aria-label="返回筆記內文最頂端">↑ 回到頂端</button>
             </dialog>
         </main>
-	var recordsBackToTopBtn = el('recordsBackToTopBtn');
-        <button type="button" id="recordsBackToTopBtn" class="back-to-top-btn" aria-label="返回頁面最頂端">↑ 回到頂端</button>
     </div>
     <script>
     (function() {
@@ -4866,6 +4870,9 @@ init();
 	var loadBtn = el('loadBtn'), reloadBtn = el('reloadBtn');
 	var webUpdateBtn = el('webUpdateBtn');
 	var backToTopBtn = el('backToTopBtn');
+	var recordsBackToTopBtn = el('recordsBackToTopBtn');
+	var recordsPreviewBackToTopBtn = el('recordsPreviewBackToTopBtn');
+	var recordsList = el('d1RecordsList'), recordsPreview = el('d1RecordsPreview'), recordsDialog = el('d1RecordsDialog');
 	var sortFieldEl = el('sortField'), sortOrderEl = el('sortOrder');
 	
 
@@ -4884,12 +4891,10 @@ init();
 
 	function updateBackToTopButton() {
 		var y = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-		[[backToTopBtn, 'nail-sys-panel'], [recordsBackToTopBtn, 'engineering-records-d1-panel']].forEach(function (entry) {
-			var button = entry[0], panel = document.getElementById(entry[1]);
-			if (!button) return;
-			var isVisible = panel && window.getComputedStyle(panel).display !== 'none';
-			button.classList.toggle('is-visible', y > 360 && isVisible);
-		});
+		var nailPanel = document.getElementById('nail-sys-panel');
+		if (backToTopBtn) backToTopBtn.classList.toggle('is-visible', y > 360 && !!nailPanel && window.getComputedStyle(nailPanel).display !== 'none');
+		if (recordsBackToTopBtn) recordsBackToTopBtn.classList.toggle('is-visible', !!recordsList && recordsList.getClientRects().length > 0 && recordsList.scrollTop > 360);
+		if (recordsPreviewBackToTopBtn) recordsPreviewBackToTopBtn.classList.toggle('is-visible', !!recordsDialog && recordsDialog.open && !!recordsPreview && recordsPreview.scrollTop > 360);
 	}
 	window.updateNailBackToTopButton = updateBackToTopButton;
 	var lanWebUpdateOrigin = 'http://192.168.0.52:8767';
@@ -6317,13 +6322,18 @@ init();
 
 	
 
-	[backToTopBtn, recordsBackToTopBtn].forEach(function (button) {
+	[[backToTopBtn, window], [recordsBackToTopBtn, recordsList], [recordsPreviewBackToTopBtn, recordsPreview]].forEach(function (entry) {
+		var button = entry[0], scroller = entry[1];
 		if (!button) return;
 		button.addEventListener('click', function () {
-			window.scrollTo({ top: 0, behavior: 'smooth' });
+			if (scroller) scroller.scrollTo({ top: 0, behavior: 'smooth' });
 		});
 	});
 	window.addEventListener('scroll', updateBackToTopButton, { passive: true });
+	[recordsList, recordsPreview].forEach(function (scroller) {
+		if (scroller) scroller.addEventListener('scroll', updateBackToTopButton, { passive: true });
+	});
+	if (recordsDialog) recordsDialog.addEventListener('close', updateBackToTopButton);
 	updateBackToTopButton();
 
 	var savedUrl = '';
