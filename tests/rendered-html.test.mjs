@@ -266,7 +266,7 @@ test("GitHub Pages build is installable and receives verified upload responses",
   assert.equal(manifest.scope, "./");
   assert.equal(manifest.icons.some((icon) => icon.sizes === "192x192"), true);
   assert.equal(manifest.icons.some((icon) => icon.sizes === "512x512"), true);
-  assert.match(serviceWorker, /engineering-query-pwa-v222/);
+  assert.match(serviceWorker, /engineering-query-pwa-v223/);
   assert.doesNotMatch(source, /nailUploadSwitchAccountBtn|更換登入帳號/);
   assert.doesNotMatch(source, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
   assert.doesNotMatch(pagesWorkflow, /Gemini notebook|geminiNotebookLink|notebook\.google\.com\/notebook\/e8e53926/);
@@ -517,6 +517,11 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   const elements = new Map([...html.matchAll(/id="(d1Records[^"]+)"/g)].map((m) => [m[1], new Element()]));
   const requests = [];
   const note = { id: 'record123456789', name: '10239.md', relativePath: '工程/10239.md', content: '# 德承\n- 沙拉孔', modifiedTime: '2026-10-07' };
+  const resultNames = [
+    '99999 客戶筆記.md', '2024-07-22 (週一) 1 工程筆記.md',
+    '2026-01-08 (週四) 2 新筆記.md', '10240 客戶筆記.md',
+    '1999-01-01 舊筆記.md', '2026-01-08 (週四) 10 新筆記.md',
+  ];
   const window = {};
   const document = {
     getElementById: (id) => { assert.ok(elements.has(id), `Missing ${id}`); return elements.get(id); },
@@ -529,7 +534,7 @@ test("D1 client searches, renders full text and opens its own folder settings", 
     fetch: async (url, options) => {
       const action = options?.body ? JSON.parse(options.body).action : new URL(url).searchParams.get('action');
       requests.push({ url, action });
-      const value = action === 'search' ? { results: Array.from({ length: 23 }, (_, i) => ({ ...note, id: note.id + i })) } : action === 'read' ? { record: note } : action === 'engineeringRecords.folders' ? { folders: ['工程', '.hidden'] } : { total: 350, includedFolders: ['工程'], changed: 0 };
+      const value = action === 'search' ? { results: Array.from({ length: 23 }, (_, i) => ({ ...note, id: note.id + i, name: resultNames[i] || note.name })) } : action === 'read' ? { record: note } : action === 'engineeringRecords.folders' ? { folders: ['工程', '.hidden'] } : { total: 350, includedFolders: ['工程'], changed: 0 };
       return { ok: true, json: async () => ({ ok: true, ...value }) };
     },
   });
@@ -540,6 +545,11 @@ test("D1 client searches, renders full text and opens its own folder settings", 
   const renderedItems = elements.get('d1RecordsList').children[0].children;
   assert.equal(renderedItems.length, 23);
   assert.ok(renderedItems.every(item => item.children[0].checked));
+  assert.deepEqual(Array.from(renderedItems.slice(0, 6), item => item.children[1].textContent), [
+    '2026-01-08 (週四) 10 新筆記', '2026-01-08 (週四) 2 新筆記',
+    '2024-07-22 (週一) 1 工程筆記', '1999-01-01 舊筆記',
+    '99999 客戶筆記', '10240 客戶筆記',
+  ]);
   const item = renderedItems[0];
   item.children[1].onclick();
   await new Promise((resolve) => setImmediate(resolve));

@@ -67,6 +67,14 @@
     if (!value || isNaN(Date.parse(value))) return '';
     return new Intl.DateTimeFormat('zh-TW', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
   }
+  function recordDateKey(name) {
+    var match = name.match(/^(\d{4})-(\d{2})-(\d{2})(?=\D|$)/);
+    return match ? Number(match[1] + match[2] + match[3]) : 0;
+  }
+  function compareRecords(a, b) {
+    return recordDateKey(b.name) - recordDateKey(a.name) ||
+      b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' });
+  }
   function render() {
     list.replaceChildren();
     updateSummaryButtons();
@@ -112,7 +120,7 @@
       var result = await call(api + '?action=search&query=' + encodeURIComponent(value));
       if (version !== resultVersion) return;
       rows = result.results || [];
-      rows.sort(function (a, b) { return b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' }); });
+      rows.sort(compareRecords);
       render();
       setStatus('找到 ' + rows.length + ' 筆工程紀錄。', 'success');
     } catch (error) {
