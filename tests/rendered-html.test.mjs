@@ -819,6 +819,19 @@ test("Summary citations reuse numbers and open the corresponding source record",
   assert.equal(summary.children.at(-1).children[1].textContent, '送入摘要的紀錄：3 篇。');
   assert.equal(summary.children.at(-1).children[4].textContent, '未引用（0 篇）');
   assert.equal(summary.children.at(-1).children.length, 5);
+  // D1 citations identify notes by ID, so copied filenames and duplicate names
+  // cannot change either the count or the clicked note.
+  context.summarySources = [
+    {id:'first123',name:'同名[新版].md',relativePath:'目錄一/同名[新版].md'},
+    {id:'second456',name:'同名[新版].md',relativePath:'目錄二/同名[新版].md'},
+  ];
+  context.renderSummary('德承專用 [來源：ID:first123] 友通專用 [來源：ID:second456] 重複 [來源：ID:first123] [來源：ID:outside999]');
+  assert.equal(summary.children.at(-1).children[2].textContent,'已引用（2 篇）');
+  assert.equal(summary.children.at(-1).children[4].textContent,'未引用（0 篇）');
+  const idNodes=[];(function walk(n){idNodes.push(n);n.children.forEach(walk);})(summary);
+  const idLinks=idNodes.filter(n=>n.className?.includes('engineering-summary-citation'));
+  assert.deepEqual(idLinks.map(n=>new URL(n.href).searchParams.get('recordId')),['first123','second456','first123']);
+  assert.ok(idNodes.some(n=>n.tag==='#text'&&n.textContent.includes('ID:outside999')));
 });
 
 test('22 submitted notes remain exactly 22 cited notes despite path variants, duplicates and four outside references',async()=>{

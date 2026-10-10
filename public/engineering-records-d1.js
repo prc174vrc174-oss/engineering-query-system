@@ -394,14 +394,10 @@
     if (force) setStatus('正在比對 Google Drive，更新工程紀錄…', 'loading');
     try {
       var result;
-      // Continue resumable Cloudflare sync batches until all full texts are present.
       do {
         result = await call(api, { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'refresh', force: force }) });
-        if (result.syncing && !result.busy) {
-          setStatus('正在更新工程紀錄，剩餘 ' + result.remaining + ' 篇…', 'loading');
-          await new Promise(function (resolve) { setTimeout(resolve, 1000); });
-        }
+        if (result.syncing) setStatus('正在同步工程紀錄，尚有 ' + result.remaining + ' 篇…', 'loading');
       } while (result.syncing && !result.busy);
       includedFolders = normalizeFolders(result.includedFolders);
       updateFolderLabel(result.includedFolders.length);
@@ -905,12 +901,14 @@
   function appendSummaryCitation(parent, reference, citations) {
     // Citation scope is the submitted set, never all search results or unknown text.
     var submitted = submittedSummarySources();
+    var idReference = /^ID:([\w-]+)$/.exec(reference);
     var wanted = recordLinkName(reference);
     var exact = submitted.filter(function (source) { return source.relativePath && recordLinkName(source.relativePath) === wanted; });
     var named = wanted.indexOf('/') === -1 ? submitted.filter(function (source) { return recordLinkName(source.name) === wanted; }) : [];
-    var record = exact.length === 1 ? exact[0] : named.length === 1 ? named[0] : null;
+    var record = idReference ? submitted.find(function (source) { return source.id === idReference[1]; })
+      : exact.length === 1 ? exact[0] : named.length === 1 ? named[0] : null;
     var references = record ? [record] : [];
-    if (!record) {
+    if (!record && !idReference) {
       references = submitted.filter(function (source) {
         return source.name && reference.indexOf(source.name) !== -1 && submitted.filter(function (other) { return other.name === source.name; }).length === 1;
       }).sort(function (a, b) { return reference.indexOf(a.name) - reference.indexOf(b.name); });

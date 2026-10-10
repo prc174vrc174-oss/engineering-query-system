@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {missingSummarySources, completeEngineeringSummary} from '../cloudflare/engineering-summary-coverage.mjs';
+import {missingSummarySources, completeEngineeringSummary, completeD1EngineeringSummary} from '../cloudflare/engineering-summary-coverage.mjs';
 
 const a={id:'record_a_001',name:'中文(新版).md',relativePath:'工程/中文(新版).md'};
 const b={id:'record_b_001',name:'B.md',relativePath:'工程/B.md'};
@@ -77,4 +77,94 @@ test('failed or still uncited repair is reported honestly without fake citations
     assert.equal(calls,2);assert.deepEqual(result.citationCoverage.missingIds,[b.id]);
     assert.equal(result.citationCoverage.repairFailed,fails);assert.ok(!result.summary.includes(cite(b)));
   }
+});
+
+const json = (items, exclusions=[]) => JSON.stringify({topics:[{title:'沙拉公差',items}],exclusions});
+const noteA = {...a,content:'#1-客戶/10239德承\n沙拉孔公差 +0.2/-0'};
+const noteB = {...b,content:'#1-客戶/U0001友通\n沙拉孔公差 ±0.15'};
+test('D1 short source keys produce exact clickable IDs even for duplicate or bracketed filenames',async()=>{
+  const notes = [noteA,{...noteB,name:a.name,relativePath:'其他/含[符號]'+a.name}];
+  const calls=[];
+  const result=await completeD1EngineeringSummary({...payload,query:'沙拉'},notes,async prompt=>{
+    calls.push(prompt);return json([{text:'10239 德承（專用）：+0.2/-0',sources:['R1']},{text:'友通（專用）：±0.15',sources:['R02']}]);
+  });
+  assert.equal(calls.length,1);assert.ok(calls[0].includes(notes[1].content));
+  assert.match(result.summary,/10239 德承（專用）[\s\S]*友通（專用）/);
+  assert.deepEqual(missingSummarySources(result.summary,result.sources),[]);
+  assert.match(result.summary,/\[來源：ID:record_a_001\]/);
+  assert.deepEqual(result.citationCoverage.missingIds,[]);
+});
+test('D1 merges duplicate-rule source arrays and excludes fabricated or outside IDs',async()=>{
+  const result=await completeD1EngineeringSummary(payload,[noteA,noteB],async()=>json([
+    {text:'原文共同規則',sources:['R1','R1','R2','R999']},
+    {text:'不明來源規定',sources:['R999']},
+  ]));
+  assert.doesNotMatch(result.summary,/不明來源規定|R999/);
+  assert.equal((result.summary.match(/ID:record_a_001/g)||[]).length,1);
+  assert.equal((result.summary.match(/ID:record_b_001/g)||[]).length,1);
+  assert.deepEqual(result.citationCoverage.missingIds,[]);
+});
+test('D1 missing-source batch and isolated repair use only missing notes and merge existing topics',async()=>{
+  const calls=[];
+  const result=await completeD1EngineeringSummary({...payload,query:'沙拉'},[noteA,noteB],async prompt=>{
+    calls.push(prompt);
+    if(calls.length===1)return json([{text:'德承（專用）：+0.2/-0',sources:['R1']}]);
+    if(calls.length===2)return json([]);
+    return json([{text:'友通（專用）：±0.15'}]); // Model forgets source array again.
+  });
+  assert.equal(calls.length,3);
+  for(const prompt of calls.slice(1)){
+    assert.ok(prompt.includes(noteB.content));assert.ok(!prompt.includes(noteA.content));
+    assert.match(prompt,/既有工程主題名稱[\s\S]*沙拉公差/);
+    assert.match(prompt,/未指定客戶時，必須納入[\s\S]*專用/);
+  }
+  assert.equal((result.summary.match(/^## 沙拉公差$/gm)||[]).length,1);
+  assert.doesNotMatch(result.summary,/補充工程紀錄/);
+  assert.deepEqual(result.citationCoverage.missingIds,[]);
+  assert.deepEqual(missingSummarySources(result.summary,result.sources),[]);
+});
+test('D1 no-relevant-content explanations cite the reviewed note without claiming an engineering rule',async()=>{
+  const result=await completeD1EngineeringSummary({...payload,query:'10239'},[noteA,noteB],async()=>json(
+    [{text:'德承（專用）：+0.2/-0',sources:['R1']}],
+    [{source:'R2',reason:'此篇僅記載友通的專用規則，未記載適用於 10239 的內容。'}]));
+  assert.match(result.summary,/搜尋範圍核對[\s\S]*未記載適用於 10239/);
+  assert.doesNotMatch(result.summary,/±0.15/);
+  assert.deepEqual(result.citationCoverage.missingIds,[]);
+});
+test('D1 incomplete or failed isolated repairs remain genuinely uncited and all sent notes remain visible',async()=>{
+  for(const fails of [true,false]){
+    let calls=0;
+    const result=await completeD1EngineeringSummary(payload,[noteA,noteB],async()=>{
+      calls++;if(calls===1)return json([{text:'德承（專用）：+0.2/-0',sources:['R1']}]);
+      if(fails)throw Error('provider failure');return json([]);
+    });
+    assert.equal(calls,3);assert.deepEqual(result.sources,[a,b]);
+    assert.deepEqual(result.citationCoverage.missingIds,[b.id]);
+    assert.equal(result.citationCoverage.repairFailed,fails);
+    assert.doesNotMatch(result.summary,/ID:record_b_001/);
+  }
+});
+test('D1 isolated repair cannot attach a source already handled or outside its input',async()=>{
+  let calls=0;
+  const result=await completeD1EngineeringSummary(payload,[noteA,noteB],async()=>{
+    calls++;if(calls===1)return json([{text:'德承（專用）：+0.2/-0',sources:['R1']}]);
+    if(calls===2)return json([{text:'不可接受的 R1 規定',sources:['R1']}]);
+    return json([{text:'友通（專用）：±0.15',sources:['R999']}]);
+  });
+  assert.doesNotMatch(result.summary,/不可接受的 R1 規定/);
+  assert.deepEqual(result.citationCoverage.missingIds,[]);
+});
+test('D1 40-note batches account for exactly 40 submitted unique IDs without filename transcription',async()=>{
+  const notes=Array.from({length:40},(_,i)=>({...noteA,id:'record_'+i+'_001',name:'重複.md',relativePath:'目錄'+i+'/重複.md'}));
+  let calls=0;
+  const result=await completeD1EngineeringSummary({...payload,ids:notes.map(n=>n.id)},notes,async()=>{
+    calls++;return json([{text:'共同規則',sources:notes.map((_,i)=>'R'+(i+1))}]);
+  });
+  assert.equal(calls,1);assert.equal(result.sources.length,40);
+  assert.equal((result.summary.match(/\[來源：ID:/g)||[]).length,40);
+  assert.deepEqual(missingSummarySources(result.summary,result.sources),[]);
+});
+test('D1 rejects malformed structured output instead of presenting JSON as a completed summary',async()=>{
+  for(const text of ['not JSON','{"topics":{}}','null'])
+    await assert.rejects(completeD1EngineeringSummary(payload,[noteA,noteB],async()=>text),/格式未完整/);
 });

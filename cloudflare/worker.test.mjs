@@ -184,7 +184,7 @@ test('GitHub API uses its own D1 full text and never calls Drive when the server
     if(url==='https://www.googleapis.com/oauth2/v3/certs')return Response.json({keys:[jwk]});
     assert.equal(url,'https://generativelanguage.googleapis.com/v1beta/interactions');
     assert.ok(JSON.parse(options.body).input.includes('10239 D1 全文 尺寸5.2±0.05'));
-    return Response.json({outputs:[{type:'text',text:'尺寸 5.2±0.05 [來源：筆記/直接摘要.md]'}]});
+    return Response.json({outputs:[{type:'text',text:JSON.stringify({topics:[{title:'公差',items:[{text:'尺寸 5.2±0.05',sources:['R1']}]}],exclusions:[]})}]});
   };
   try {
     const result=await worker.fetch(new Request('https://api/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.summarize',query:'10239',ids:['direct_record_001'],idToken})}),{DB:db,GEMINI_API_KEY:'test-secret',ENGINEERING_SUMMARY_ALLOWED_EMAILS:'allowed@example.com'});

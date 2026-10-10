@@ -32,7 +32,9 @@ function upstream(answer){
     assert.equal(options.headers['x-goog-api-key'],env.GEMINI_API_KEY);
     const request=JSON.parse(options.body);calls.push(request);
     assert.equal(request.model,'gemini-3.5-flash-lite');assert.equal(request.store,false);
-    return answer ? answer(request,calls.length) : Response.json({status:'completed',steps:[{type:'user_input',content:[{type:'text',text:'不要回傳這段'}]},{type:'model_output',content:[{type:'text',text:'## 鉚釘\n工程規定 [來源：工程/A.md] [來源：工程/B.md]'}]}]});
+    assert.equal(request.response_format.mime_type,'application/json');
+    assert.deepEqual(request.response_format.schema.required,['topics','exclusions']);
+    return answer ? answer(request,calls.length) : Response.json({status:'completed',steps:[{type:'user_input',content:[{type:'text',text:'不要回傳這段'}]},{type:'model_output',content:[{type:'text',text:JSON.stringify({topics:[{title:'鉚釘',items:[{text:'工程規定',sources:['R1','R2']}]}],exclusions:[]})}]}]});
   }};
 }
 test('D1 mode activates with a server key and can explicitly return to Drive',()=>{
@@ -62,7 +64,7 @@ test('only selected D1 full text reaches Gemini, preserving Markdown, paths and 
   assert.doesNotMatch(result.summary,/不要回傳這段/);
 });
 test('citation repair reuses the same D1 snapshot and sends only uncited full text',async()=>{
-  const api=upstream((request,n)=>Response.json({outputs:[{type:'text',text:n===1?'尺寸 5.2±0.05 [來源：工程/A.md]':'頭部大於外徑 [來源：工程/B.md]'}]}));
+  const api=upstream((request,n)=>Response.json({outputs:[{type:'text',text:JSON.stringify({topics:[{title:'鉚釘',items:[{text:n===1?'尺寸 5.2±0.05':'頭部大於外徑',sources:[n===1?'R1':'R2']}]}],exclusions:[]})}]}));
   const result=await summarizeEngineeringD1(payload(),database(),env,api.fetch);
   assert.equal(api.calls.length,2);assert.ok(!api.calls[1].input.includes(notes[0].content));assert.ok(api.calls[1].input.includes(notes[1].content));
   assert.match(result.summary,/5.2±0.05[\s\S]*頭部大於外徑/);assert.equal(result.sources.length,2);
