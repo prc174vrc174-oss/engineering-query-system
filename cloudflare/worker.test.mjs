@@ -1,3 +1,4 @@
+import {generateKeyPairSync,sign} from 'node:crypto';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
@@ -167,4 +168,26 @@ test('long linked filenames and wildcard literals avoid production D1 LIKE limit
   assert.deepEqual((await response.json()).results.map(row=>row.id),['long_link_001']);
   for(const query of ['A_10%','C:\\Temp'])assert.deepEqual((await search(db,query)).map(row=>row.id),['literal_link_001']);
   assert.deepEqual((await search(db,'雷射 10017')).map(row=>row.id),['long_link_001']);
+});
+
+test('GitHub API uses its own D1 full text and never calls Drive when the server key is configured',async()=>{
+  const db=database();await seed(db,[note('direct_record_001','直接摘要.md','10239 D1 全文 尺寸5.2±0.05')]);
+  await db.prepare("INSERT INTO engineering_sync VALUES ('last_sync','ok',?)").bind(Date.now()).run();
+  const {privateKey,publicKey}=generateKeyPairSync('rsa',{modulusLength:2048});
+  const jwk={...publicKey.export({format:'jwk'}),kid:'test'};
+  const enc=value=>Buffer.from(JSON.stringify(value)).toString('base64url'),now=Math.floor(Date.now()/1000);
+  const signed=enc({alg:'RS256',kid:'test'})+'.'+enc({iss:'https://accounts.google.com',aud:'406267166897-8geeu3tpc425nc9n7gmimmmflbckp0ta.apps.googleusercontent.com',sub:'user',email:'allowed@example.com',email_verified:true,iat:now,exp:now+3600});
+  const idToken=signed+'.'+sign('RSA-SHA256',Buffer.from(signed),privateKey).toString('base64url');
+  const original=globalThis.fetch,calls=[];
+  globalThis.fetch=async(url,options)=>{
+    calls.push(url);
+    if(url==='https://www.googleapis.com/oauth2/v3/certs')return Response.json({keys:[jwk]});
+    assert.equal(url,'https://generativelanguage.googleapis.com/v1beta/interactions');
+    assert.ok(JSON.parse(options.body).input.includes('10239 D1 全文 尺寸5.2±0.05'));
+    return Response.json({outputs:[{type:'text',text:'尺寸 5.2±0.05 [來源：筆記/直接摘要.md]'}]});
+  };
+  try {
+    const result=await worker.fetch(new Request('https://api/api/engineering-records-drive',{method:'POST',body:JSON.stringify({action:'engineeringRecords.summarize',query:'10239',ids:['direct_record_001'],idToken})}),{DB:db,GEMINI_API_KEY:'test-secret',ENGINEERING_SUMMARY_ALLOWED_EMAILS:'allowed@example.com'});
+    assert.equal(result.status,200);const body=await result.json();assert.equal(body.summaryInputSource,'d1');assert.equal(body.sources[0].id,'direct_record_001');assert.equal(calls.length,2);
+  } finally {globalThis.fetch=original;}
 });

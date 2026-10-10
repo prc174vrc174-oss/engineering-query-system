@@ -1,4 +1,6 @@
 import { completeEngineeringSummary } from "../../../cloudflare/engineering-summary-coverage.mjs";
+import { engineeringSummaryUsesD1, summarizeEngineeringD1 } from "../../../cloudflare/engineering-summary-d1.mjs";
+import { env } from "cloudflare:workers";
 
 const WEB_APP_URL =
   "https://script.google.com/macros/s/AKfycbw2WWjD9NKQKYNYLnVtU0E7xLKe69ELXw1FeIeEMUaFGY0zintiPAhwsnCC_figFrEScQ/exec";
@@ -101,6 +103,9 @@ export async function POST(request: Request) {
     } finally { clearTimeout(timeout); }
   }
   try {
+    if (action === "engineeringRecords.summarize" && engineeringSummaryUsesD1(env)) {
+      return json(request, await summarizeEngineeringD1(payload, env.DB, env));
+    }
     const result = action === "engineeringRecords.summarize"
       ? await completeEngineeringSummary(payload, forward) : await forward(payload);
     return json(request, result);
