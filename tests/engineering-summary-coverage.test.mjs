@@ -97,9 +97,10 @@ test('keyword summaries put universal rules first and nest topics under each cus
     {customer:'U0002 展煜（專用）',title:'沙拉加工',items:[{text:'U0002 展煜（專用）：先確認刀具',sources:['R3']}]},
   ]}));
   assert.equal(result.summarySearchMode,'keyword');
-  assert.match(result.summary,/^# 工程紀錄摘要\n\n## 通用規則\n\n### 沙拉加工/);
-  assert.match(result.summary,/## 10239 德承（專用）\n\n### 沙拉加工/);
-  assert.match(result.summary,/## U0001 友通（專用）\n\n### 沙拉加工/);
+  assert.match(result.summary,/^# 工程紀錄摘要\n\n## 一、通用規則\n\n### 沙拉加工/);
+  assert.match(result.summary,/## 一、通用規則[\s\S]*## 二、客戶專屬規則\n\n### 10239/);
+  assert.match(result.summary,/### 10239 德承（專用）\n\n#### 沙拉加工/);
+  assert.match(result.summary,/### U0001 友通（專用）\n\n#### 沙拉加工/);
   assert.doesNotMatch(result.summary,/展煜（專用）/);
   assert.deepEqual(missingSummarySources(result.summary,result.sources),[]);
   assert.equal(result.sources.length,3);
@@ -113,8 +114,17 @@ test('customer searches merge universal and customer rules under topics without 
     ]}));
     assert.equal(result.summarySearchMode,'customer');
     assert.equal((result.summary.match(/^## 沙拉加工$/gm)||[]).length,1);
-    assert.doesNotMatch(result.summary,/^## 通用規則|^## .*德承|^### /m);
+    assert.doesNotMatch(result.summary,/^## 一、通用規則|^## 二、客戶專屬規則|^## .*德承|^### /m);
     assert.deepEqual(missingSummarySources(result.summary,result.sources),[]);
+  }
+});
+test('universal-only and unidentified rules never create an empty customer block',async()=>{
+  for(const note of [commonNote,{...a,content:'操作時需確認刀具'}]){
+    const result=await completeD1EngineeringSummary({...payload,query:'刀具',ids:[note.id]},[note],async()=>JSON.stringify({topics:[
+      {customer:'適用範圍未註明',title:'刀具確認',items:[{text:'確認刀具',sources:['R1']}]},
+    ]}));
+    assert.doesNotMatch(result.summary,/客戶專屬規則/);
+    assert.match(result.summary,note===commonNote?/^## 一、通用規則/m:/^## 適用範圍未註明/m);
   }
 });
 test('mixed-client notes split customer topics while counting one unique submitted source',async()=>{
@@ -123,7 +133,7 @@ test('mixed-client notes split customer topics while counting one unique submitt
     {customer:'德承',title:'公差',items:[{text:'+0.2/-0',sources:['R1']}]},
     {customer:'友通',title:'公差',items:[{text:'±0.15',sources:['R1']}]},
   ]}));
-  assert.match(result.summary,/## 10239 德承（專用）[\s\S]*## U0001 友通（專用）/);
+  assert.match(result.summary,/### 10239 德承（專用）[\s\S]*### U0001 友通（專用）/);
   assert.equal(result.sources.length,1);
   assert.deepEqual(missingSummarySources(result.summary,result.sources),[]);
 });
@@ -137,7 +147,7 @@ test('repairs preserve the original keyword mode and put repaired universal rule
       : {customer:'U0002',title:'刀具',items:[{text:'先確認刀具',sources:['R2']}]}]});
   });
   assert.equal(calls,2);
-  assert.match(result.summary,/^# 工程紀錄摘要\n\n## 通用規則[\s\S]*## 10239 德承（專用）/);
+  assert.match(result.summary,/^# 工程紀錄摘要\n\n## 一、通用規則[\s\S]*### 10239 德承（專用）/);
   assert.deepEqual(result.citationCoverage.missingIds,[]);
 });
 test('D1 short source keys produce exact clickable IDs even for duplicate or bracketed filenames',async()=>{
@@ -176,7 +186,7 @@ test('D1 missing-source batch and isolated repair use only missing notes and mer
     assert.match(prompt,/既有工程主題名稱[\s\S]*沙拉公差/);
     assert.match(prompt,/未指定客戶的任何關鍵字搜尋，必須納入[\s\S]*專用/);
   }
-  assert.equal((result.summary.match(/^### 沙拉公差$/gm)||[]).length,2);
+  assert.equal((result.summary.match(/^#### 沙拉公差$/gm)||[]).length,2);
   assert.doesNotMatch(result.summary,/補充工程紀錄/);
   assert.deepEqual(result.citationCoverage.missingIds,[]);
   assert.deepEqual(missingSummarySources(result.summary,result.sources),[]);
