@@ -88,12 +88,72 @@ async function syncState(db) {
 }
 
 function geminiText(data) {
-  if (data.status && data.status !== 'completed') return '';
-  const outputs = Array.isArray(data.steps)
-    ? data.steps.filter(step => step.type === 'model_output').flatMap(step => Array.isArray(step.content) ? step.content : [])
-    : Array.isArray(data.outputs) ? data.outputs : [];
-  return outputs.filter(output => output.type === 'text' && typeof output.text === 'string')
-    .map(output => output.text).join('\n').trim();
+  if (!data || typeof data!=='object') return '';
+  const candidate = data.candidates?.[0];
+  if (data.promptFeedback?.blockReason || (candidate?.finishReason && candidate.finishReason !== 'STOP')) {
+    if (candidate?.finishReason === 'MAX_TOKENS') throw new Error('Gemini 回覆達到長度上限，摘要未完整產生；請減少勾選篇數。');
+    throw new Error('Gemini 未完成這批摘要，或內容被服務阻擋；系統未將它視為完成。');
+  }
+  if (candidate?.content?.role && candidate.content.role !== 'model') return '';
+  const parts=Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+  return parts.filter(part=>!part.thought && typeof part.text === 'string')
+    .map(part=>part.text).join('').trim();
+}
+
+function providerError(response, data) {
+  const codes = new Set(['INVALID_ARGUMENT','UNAUTHENTICATED','PERMISSION_DENIED','NOT_FOUND','RESOURCE_EXHAUSTED','FAILED_PRECONDITION','INTERNAL','UNAVAILABLE','DEADLINE_EXCEEDED']);
+  const status = codes.has(data?.error?.status) ? data.error.status : '';
+  const reasons = (Array.isArray(data?.error?.details) ? data.error.details : []).map(detail=>detail?.reason);
+  let message;
+  if (reasons.some(reason=>['API_KEY_INVALID','API_KEY_EXPIRED'].includes(reason))) message='Gemini 後端金鑰無效或已過期，需更新網站的金鑰設定。';
+  else if ([401,403].includes(response.status)) message='Gemini 拒絕網站後端的金鑰或存取權限，請檢查金鑰限制與專案設定。';
+  else if (response.status===400) message='Gemini 拒絕這次請求的格式或參數，請保留錯誤代碼供查修。';
+  else if (response.status===404) message='Gemini 找不到目前設定的 3.5 Flash-lite 模型或 API。';
+  else if (response.status===429) message='Gemini 配額或速率限制，請稍後重試。';
+  else if (response.status>=500) message='Gemini 服務發生錯誤，自動重試後仍未成功，請稍後再試。';
+  else message='Gemini 無法完成摘要請求。';
+  // Never expose the upstream message: it can echo keys or submitted content.
+  return new Error(message+'（HTTP '+response.status+(status?'／'+status:'')+'）');
+}
+
+export async function generateEngineeringSummary(prompt, env, fetcher=fetch, pause=ms=>new Promise(resolve=>setTimeout(resolve,ms))) {
+  const endpoint='https://generativelanguage.googleapis.com/v1beta/models/'+MODEL+':generateContent';
+  const deadline=Date.now()+120000;
+  let withSchema=true;
+  for (let attempt=0;attempt<2;attempt++) {
+    let response;
+    try {
+      response=await fetcher(endpoint,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},
+        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],store:false,
+          generationConfig:{responseMimeType:'application/json',...(withSchema?{responseJsonSchema:OUTPUT_SCHEMA}:{})}}),
+        signal:AbortSignal.timeout(Math.max(1,deadline-Date.now())),
+      });
+    } catch {
+      if (attempt===0 && deadline-Date.now()>1500) { await pause(1000); continue; }
+      throw new Error('網站連線 Gemini 失敗或逾時；系統未完成這批摘要，請稍後重試。');
+    }
+    let data;
+    try { data=await boundedJson(response); }
+    catch (error) {
+      if (response.ok) throw new Error(error.message==='雲端服務回應過長。' ? error.message : 'Gemini 回傳格式不完整，摘要未完成。');
+      data={};
+    }
+    if (response.ok) {
+      const summary=geminiText(data);
+      if (!summary) throw new Error('Gemini 沒有回傳摘要內容。');
+      return summary;
+    }
+    const schemaRejected=response.status===400 && withSchema && /(?:schema|response[_ .]?format|responseJsonSchema|responseMimeType)/i.test(String(data?.error?.message || ''));
+    const transient=[408,500,502,503,504].includes(response.status);
+    if (attempt===0 && deadline-Date.now()>1500 && (schemaRejected||transient)) {
+      if (schemaRejected) withSchema=false; // JSON mode retains the same prompt, data and server validation.
+      else await pause(1000);
+      continue;
+    }
+    const error=providerError(response,data);
+    console.warn('engineering_summary_provider_error',JSON.stringify({api:'generateContent',model:MODEL,httpStatus:response.status,attempt:attempt+1}));
+    throw error;
+  }
 }
 
 export async function summarizeEngineeringD1(payload, db, env, fetcher = fetch) {
@@ -121,16 +181,7 @@ export async function summarizeEngineeringD1(payload, db, env, fetcher = fetch) 
       '整合重點、規定與工程注意事項，不分成兩大段；保留尺寸、單位、公差、加工順序、日期及失效或變更標記。',
       input,
     ].join('\n\n');
-    const response = await fetcher('https://generativelanguage.googleapis.com/v1beta/interactions', {
-      method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':env.GEMINI_API_KEY},
-      body:JSON.stringify({model:MODEL,input:prompt,store:false,
-        response_format:{type:'text',mime_type:'application/json',schema:OUTPUT_SCHEMA}}),signal:AbortSignal.timeout(120000),
-    });
-    const data = await boundedJson(response);
-    if (!response.ok) throw new Error(response.status === 429 ? 'Gemini 配額或速率限制，請稍後重試。' : 'Gemini 摘要服務暫時無法使用，請稍後重試。');
-    const summary = geminiText(data);
-    if (!summary) throw new Error('Gemini 沒有回傳摘要內容。');
-    return summary;
+    return generateEngineeringSummary(prompt,env,fetcher);
   });
   return {...result,summaryInputSource:'d1',snapshotTime:snapshot};
 }

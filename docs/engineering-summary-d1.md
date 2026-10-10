@@ -1,6 +1,6 @@
 # D1 全文摘要與切回 Drive
 
-兩個網站各從自己的 `DB` 讀取勾選筆記全文，後端呼叫 Gemini Interactions API，維持 `gemini-3.5-flash-lite` 及共享的工程摘要政策。瀏覽器僅傳送查詢、紀錄 ID 與 Google ID token，不接受瀏覽器提供的筆記內容。
+兩個網站各從自己的 `DB` 讀取勾選筆記全文，後端呼叫 Gemini generateContent API，維持 `gemini-3.5-flash-lite` 及共享的工程摘要政策。瀏覽器僅傳送查詢、紀錄 ID 與 Google ID token，不接受瀏覽器提供的筆記內容。
 
 ## 啟用
 
@@ -11,6 +11,10 @@
 - 變更 GPT Sites 正式環境值後須重新部署已儲存的版本。Worker 的秘密值使用 Cloudflare 支援的部署流程套用。
 
 沒有後端金鑰時，自動保留原來的 Apps Script／Drive 摘要流程；不聲稱已經使用 D1。設定金鑰後，自動啟用 D1 摘要。可明確設定 `ENGINEERING_SUMMARY_SOURCE=d1`；此模式缺少金鑰時回報設定錯誤，避免誤認已切換。
+
+## Gemini 請求與錯誤處理
+
+單次文字摘要改用 `models/gemini-3.5-flash-lite:generateContent`，送入同一份 D1 全文、分類政策與短引用編號。使用 JSON MIME 與 JSON Schema；若 Google 明確拒絕結構化參數，只退回 JSON 模式一次，後端仍驗證格式與來源，不切換模型或省略筆記。暫時性 5xx／網路錯誤最多重試一次，每次生成共用 120 秒期限。400、401、403、404、429 均顯示實際 HTTP 與已知服務代碼，不把參數或金鑰拒絕說成短暫故障；不顯示或記錄原始上游訊息、金鑰、token 或筆記。完成原因不是 STOP、輸出截斷或空回覆都不能算成功。
 
 ## 全文與同步
 

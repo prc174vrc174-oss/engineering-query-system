@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
 import {generateKeyPairSync,sign} from 'node:crypto';
-import {authorizeEngineeringSummary,engineeringSummaryUsesD1,summarizeEngineeringD1} from '../cloudflare/engineering-summary-d1.mjs';
+import {authorizeEngineeringSummary,engineeringSummaryUsesD1,summarizeEngineeringD1,generateEngineeringSummary} from '../cloudflare/engineering-summary-d1.mjs';
 
 const {privateKey,publicKey}=generateKeyPairSync('rsa',{modulusLength:2048});
 const jwk={...publicKey.export({format:'jwk'}),kid:'google-test-key',alg:'RS256',use:'sig'};
@@ -28,15 +28,77 @@ function upstream(answer){
   const calls=[];
   return {calls,async fetch(url,options){
     if(url==='https://www.googleapis.com/oauth2/v3/certs')return Response.json({keys:[jwk]});
-    assert.equal(url,'https://generativelanguage.googleapis.com/v1beta/interactions');
+    assert.equal(url,'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
     assert.equal(options.headers['x-goog-api-key'],env.GEMINI_API_KEY);
     const request=JSON.parse(options.body);calls.push(request);
-    assert.equal(request.model,'gemini-3.5-flash-lite');assert.equal(request.store,false);
-    assert.equal(request.response_format.mime_type,'application/json');
-    assert.deepEqual(request.response_format.schema.required,['topics','exclusions']);
-    return answer ? answer(request,calls.length) : Response.json({status:'completed',steps:[{type:'user_input',content:[{type:'text',text:'不要回傳這段'}]},{type:'model_output',content:[{type:'text',text:JSON.stringify({topics:[{title:'鉚釘',items:[{text:'工程規定',sources:['R1','R2']}]}],exclusions:[]})}]}]});
+    assert.equal(request.store,false);assert.ok(!('input' in request));
+    assert.equal(request.generationConfig.responseMimeType,'application/json');
+    assert.deepEqual(request.generationConfig.responseJsonSchema.required,['topics','exclusions']);
+    return answer ? answer(request,calls.length) : Response.json({candidates:[{finishReason:'STOP',content:{role:'model',parts:[{thought:true,text:'不要回傳這段'},{text:JSON.stringify({topics:[{customer:'',title:'鉚釘',items:[{text:'工程規定',sources:['R1','R2']}]}],exclusions:[]})}]}}]});
   }};
 }
+const generated=text=>Response.json({candidates:[{finishReason:'STOP',content:{role:'model',parts:[{text}]}}]});
+test('generateContent retries a transient service failure once with unchanged full input and schema',async()=>{
+  const requests=[],delays=[];
+  const text=await generateEngineeringSummary('全文尺寸 5.2±0.05',env,async(url,options)=>{
+    requests.push({url,body:JSON.parse(options.body)});
+    return requests.length===1?Response.json({error:{status:'UNAVAILABLE',message:'test-secret'}},{status:503}):generated('{"topics":[],"exclusions":[]}');
+  },async delay=>delays.push(delay));
+  assert.equal(requests.length,2);assert.deepEqual(requests[0],requests[1]);assert.deepEqual(delays,[1000]);
+  assert.equal(text,'{"topics":[],"exclusions":[]}');
+});
+test('a specifically rejected schema falls back once to JSON mode without altering input or model',async()=>{
+  const requests=[];
+  await generateEngineeringSummary('原全文與引用 R1 R2',env,async(url,options)=>{
+    requests.push({url,body:JSON.parse(options.body)});
+    return requests.length===1?Response.json({error:{status:'INVALID_ARGUMENT',message:'responseJsonSchema is too complex'}},{status:400}):generated('{}');
+  },async()=>assert.fail('schema compatibility fallback needs no backoff'));
+  assert.equal(requests.length,2);assert.equal(requests[0].url,requests[1].url);
+  assert.deepEqual(requests[0].body.contents,requests[1].body.contents);
+  assert.ok(requests[0].body.generationConfig.responseJsonSchema);
+  assert.equal(requests[1].body.generationConfig.responseMimeType,'application/json');
+  assert.ok(!requests[1].body.generationConfig.responseJsonSchema);
+});
+test('permanent rejections expose safe HTTP codes without repeating requests or leaking provider text',async()=>{
+  for(const [status,code] of [[400,'INVALID_ARGUMENT'],[401,'UNAUTHENTICATED'],[403,'PERMISSION_DENIED'],[404,'NOT_FOUND'],[429,'RESOURCE_EXHAUSTED']]){
+    let calls=0;
+    await assert.rejects(generateEngineeringSummary('私有筆記',env,async()=>{
+      calls++;return Response.json({error:{status:code,message:'test-secret 私有筆記'}},{status});
+    },async()=>assert.fail('must not retry permanent errors')),error=>{
+      assert.match(error.message,new RegExp('HTTP '+status));assert.ok(error.message.includes(code));
+      assert.doesNotMatch(error.message,/test-secret|私有筆記|暫時無法使用/);return true;
+    });
+    assert.equal(calls,1);
+  }
+});
+test('invalid API key is distinguished from other invalid arguments without leaking its value',async()=>{
+  await assert.rejects(generateEngineeringSummary('規定',env,async()=>Response.json({error:{status:'INVALID_ARGUMENT',message:'test-secret',details:[{reason:'API_KEY_INVALID'}]}},{status:400})),/金鑰無效或已過期[\s\S]*HTTP 400/);
+});
+test('network retries and persistent server failures are bounded and cannot leak exception messages',async()=>{
+  for(const network of [true,false]){
+    let calls=0;
+    await assert.rejects(generateEngineeringSummary('規定',env,async()=>{
+      calls++;if(network)throw Error('test-secret');return new Response('<html>test-secret gateway</html>',{status:502});
+    },async()=>{}),error=>{assert.doesNotMatch(error.message,/test-secret/);assert.match(error.message,network?/連線|逾時/:/HTTP 502/);return true;});
+    assert.equal(calls,2);
+  }
+});
+test('truncated, blocked, non-model and missing output never become a completed summary',async()=>{
+  for(const data of [
+    {candidates:[{finishReason:'MAX_TOKENS',content:{parts:[{text:'{}'}]}}]},
+    {promptFeedback:{blockReason:'SAFETY'}},
+    {candidates:[{finishReason:'SAFETY',content:{parts:[{text:'{}'}]}}]},
+    {candidates:[{finishReason:'STOP',content:{role:'user',parts:[{text:'{}'}]}}]},
+    null,{candidates:[{content:{parts:'not-an-array'}}]},
+  ])await assert.rejects(generateEngineeringSummary('規定',env,async()=>Response.json(data)),/未完整|未完成|沒有回傳/);
+});
+test('generation joins response fragments and omits reasoning rather than returning other candidates',async()=>{
+  const text=await generateEngineeringSummary('規定',env,async()=>Response.json({candidates:[
+    {finishReason:'STOP',content:{role:'model',parts:[{thought:true,text:'不要呈現推理'},{text:'{"topics":'},{text:'[],"exclusions":[]}'}]}},
+    {finishReason:'STOP',content:{parts:[{text:'另一份摘要'}]}},
+  ]}));
+  assert.equal(text,'{"topics":[],"exclusions":[]}');
+});
 test('D1 mode activates with a server key and can explicitly return to Drive',()=>{
   assert.equal(engineeringSummaryUsesD1({}),false);assert.equal(engineeringSummaryUsesD1(env),true);
   assert.equal(engineeringSummaryUsesD1({...env,ENGINEERING_SUMMARY_SOURCE:'drive'}),false);
@@ -55,18 +117,18 @@ test('only selected D1 full text reaches Gemini, preserving Markdown, paths and 
   const db=database([...notes,{id:'record_outside_001',name:'X.md',relativePath:'其他/X.md',content:'其他客戶禁止送入'}]),api=upstream();
   const result=await summarizeEngineeringD1({...payload(),records:[{content:'瀏覽器偽造文字'}]},db,env,api.fetch);
   assert.equal(api.calls.length,1);
-  for(const note of notes)assert.ok(api.calls[0].input.includes(note.content));
-  assert.doesNotMatch(api.calls[0].input,/其他客戶禁止送入|瀏覽器偽造文字|test-secret/);
-  assert.match(api.calls[0].input,/專屬規則、適用的通用規則與共用規則，都必須整合在同一主題下/);
-  assert.match(api.calls[0].input,/不得為了引用而摘要其他客戶/);
+  for(const note of notes)assert.ok(api.calls[0].contents[0].parts[0].text.includes(note.content));
+  assert.doesNotMatch(api.calls[0].contents[0].parts[0].text,/其他客戶禁止送入|瀏覽器偽造文字|test-secret/);
+  assert.match(api.calls[0].contents[0].parts[0].text,/專屬規則、適用的通用規則與共用規則，都必須整合在同一主題下/);
+  assert.match(api.calls[0].contents[0].parts[0].text,/不得為了引用而摘要其他客戶/);
   assert.deepEqual(result.sources,notes.map(({id,name,relativePath})=>({id,name,relativePath})));
   assert.deepEqual(result.citationCoverage.missingIds,[]);assert.equal(result.summaryInputSource,'d1');
   assert.doesNotMatch(result.summary,/不要回傳這段/);
 });
 test('citation repair reuses the same D1 snapshot and sends only uncited full text',async()=>{
-  const api=upstream((request,n)=>Response.json({outputs:[{type:'text',text:JSON.stringify({topics:[{title:'鉚釘',items:[{text:n===1?'尺寸 5.2±0.05':'頭部大於外徑',sources:[n===1?'R1':'R2']}]}],exclusions:[]})}]}));
+  const api=upstream((request,n)=>Response.json({candidates:[{finishReason:'STOP',content:{role:'model',parts:[{text:JSON.stringify({topics:[{customer:'',title:'鉚釘',items:[{text:n===1?'尺寸 5.2±0.05':'頭部大於外徑',sources:[n===1?'R1':'R2']}]}],exclusions:[]})}]}}]}));
   const result=await summarizeEngineeringD1(payload(),database(),env,api.fetch);
-  assert.equal(api.calls.length,2);assert.ok(!api.calls[1].input.includes(notes[0].content));assert.ok(api.calls[1].input.includes(notes[1].content));
+  assert.equal(api.calls.length,2);assert.ok(!api.calls[1].contents[0].parts[0].text.includes(notes[0].content));assert.ok(api.calls[1].contents[0].parts[0].text.includes(notes[1].content));
   assert.match(result.summary,/5.2±0.05[\s\S]*頭部大於外徑/);assert.equal(result.sources.length,2);
   assert.deepEqual(result.citationCoverage.missingIds,[]);
 });

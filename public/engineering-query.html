@@ -3434,6 +3434,11 @@ h3 {
         .engineering-records-view[hidden] { display:none; }
         .engineering-records-results, .engineering-records-summary-card { min-width:0; border:1px solid #d8e0eb; border-radius:10px; background:#fff; overflow:hidden; }
         .engineering-records-list { max-height:650px; overflow:auto; }
+        #d1RecordsList { overflow-y:scroll; scrollbar-width:auto; scrollbar-gutter:stable; -ms-overflow-style:auto; }
+        #d1RecordsList::-webkit-scrollbar { display:block; width:12px; height:12px; }
+        #d1RecordsList::-webkit-scrollbar-track { background:#f1f5f9; border-radius:8px; }
+        #d1RecordsList::-webkit-scrollbar-thumb { background:#94a3b8; border:3px solid #f1f5f9; border-radius:8px; }
+        #d1RecordsList::-webkit-scrollbar-thumb:hover { background:#64748b; }
         .engineering-records-list-wrap { position:relative; }
         #recordsBackToTopBtn, #recordsPreviewBackToTopBtn { position:absolute; right:16px; bottom:16px; }
         .engineering-records-more { padding:10px; border-top:1px solid #e5eaf1; text-align:center; }
@@ -6963,7 +6968,7 @@ init();
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
     <script src="vendor/katex/katex-0.19.0.min.js"></script>
-    <script src="engineering-records-d1.js?v=251"></script>
+    <script src="engineering-records-d1.js?v=256"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
