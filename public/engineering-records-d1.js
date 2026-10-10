@@ -394,10 +394,14 @@
     if (force) setStatus('正在比對 Google Drive，更新工程紀錄…', 'loading');
     try {
       var result;
+      // Continue resumable Cloudflare sync batches until all full texts are present.
       do {
         result = await call(api, { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'refresh', force: force }) });
-        if (result.syncing) setStatus('正在同步工程紀錄，尚有 ' + result.remaining + ' 篇…', 'loading');
+        if (result.syncing && !result.busy) {
+          setStatus('正在更新工程紀錄，剩餘 ' + result.remaining + ' 篇…', 'loading');
+          await new Promise(function (resolve) { setTimeout(resolve, 1000); });
+        }
       } while (result.syncing && !result.busy);
       includedFolders = normalizeFolders(result.includedFolders);
       updateFolderLabel(result.includedFolders.length);
