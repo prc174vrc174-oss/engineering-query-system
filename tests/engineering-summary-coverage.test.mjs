@@ -41,6 +41,29 @@ test('only omitted or uncited records are retried once; original content and act
   assert.match(result.summary,/5.2±0.05[\s\S]*資料不足/);assert.deepEqual(result.sources,[a,b]);
   assert.deepEqual(result.citationCoverage.missingIds,[]);assert.deepEqual(result.citationCoverage.omittedIds,[]);
 });
+test('customer scope and universal U0002 rules survive citation repair without expanding the search',async()=>{
+  const calls=[];
+  const result=await completeEngineeringSummary({...payload,query:' 10239 '},async p=>{
+    calls.push(p);
+    return calls.length===1
+      ?{summary:'10239 尺寸規定與通用規則（U0002／展煜） '+cite(a),sources:[a,b]}
+      :{summary:'此紀錄無與搜尋客戶相關的內容 '+cite(b),sources:[b]};
+  });
+  assert.equal(calls.length,2);
+  for(const call of calls){
+    assert.ok(call.query.startsWith('搜尋關鍵字："10239"\n'));
+    assert.match(call.query,/只摘要該客戶相關的段落/);
+    assert.match(call.query,/U0002／展煜是適用所有客戶的通用規則/);
+    assert.match(call.query,/其他客戶的專屬尺寸、公差、做法及變更必須排除/);
+    assert.match(call.query,/摘要範圍優先於完整引用要求/);
+    assert.match(call.query,/不得為了引用而摘要其他客戶/);
+    assert.match(call.query,/沒有指定客戶時依搜尋工程主題整理，不猜測客戶/);
+  }
+  assert.match(calls[1].query,/依原搜尋客戶／主題範圍/);
+  assert.deepEqual(calls[1].ids,[b.id]);
+  assert.deepEqual(result.citationCoverage.missingIds,[]);
+  assert.deepEqual(result.sources,[a,b]);
+});
 test('failed or still uncited repair is reported honestly without fake citations or endless calls',async()=>{
   for(const fails of [true,false]){
     let calls=0;
