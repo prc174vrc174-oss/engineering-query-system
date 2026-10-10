@@ -46,7 +46,7 @@ test('customer scope and universal U0002 rules survive citation repair without e
   const result=await completeEngineeringSummary({...payload,query:' 10239 '},async p=>{
     calls.push(p);
     return calls.length===1
-      ?{summary:'10239 尺寸規定與通用規則（U0002／展煜） '+cite(a),sources:[a,b]}
+      ?{summary:'## 鉚釘與特殊釘\n10239 適用的尺寸與共用操作規定 '+cite(a),sources:[a,b]}
       :{summary:'此紀錄無與搜尋客戶相關的內容 '+cite(b),sources:[b]};
   });
   assert.equal(calls.length,2);
@@ -54,12 +54,18 @@ test('customer scope and universal U0002 rules survive citation repair without e
     assert.ok(call.query.startsWith('搜尋關鍵字："10239"\n'));
     assert.match(call.query,/只摘要該客戶相關的段落/);
     assert.match(call.query,/U0002／展煜是適用所有客戶的通用規則/);
+    assert.match(call.query,/專屬規則、適用的通用規則與共用規則，都必須整合在同一主題下/);
+    assert.match(call.query,/不得按客戶或規則來源拆成多個區塊/);
+    assert.match(call.query,/意思相同的內容合併為一項[\s\S]*所有支持它的來源引用/);
+    assert.match(call.query,/適用條件、客戶例外或相互衝突的說法，放在同一主題內明確並列/);
+    assert.doesNotMatch(call.query,/標示為「通用規則/);
     assert.match(call.query,/其他客戶的專屬尺寸、公差、做法及變更必須排除/);
     assert.match(call.query,/摘要範圍優先於完整引用要求/);
     assert.match(call.query,/不得為了引用而摘要其他客戶/);
     assert.match(call.query,/沒有指定客戶時依搜尋工程主題整理，不猜測客戶/);
   }
   assert.match(calls[1].query,/依原搜尋客戶／主題範圍/);
+  assert.match(calls[1].query,/不按客戶或通用／共用規則分區/);
   assert.deepEqual(calls[1].ids,[b.id]);
   assert.deepEqual(result.citationCoverage.missingIds,[]);
   assert.deepEqual(result.sources,[a,b]);
