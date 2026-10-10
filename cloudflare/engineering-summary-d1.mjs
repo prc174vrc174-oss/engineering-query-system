@@ -6,8 +6,8 @@ const MAX_CHARS = 100000;
 const MAX_RESPONSE_BYTES = 1048576;
 const OUTPUT_SCHEMA = {
   type:'object',required:['topics','exclusions'],properties:{
-    topics:{type:'array',items:{type:'object',required:['title','items'],properties:{
-      title:{type:'string'},items:{type:'array',items:{type:'object',required:['text','sources'],properties:{
+    topics:{type:'array',items:{type:'object',required:['customer','title','items'],properties:{
+      customer:{type:'string'},title:{type:'string'},items:{type:'array',items:{type:'object',required:['text','sources'],properties:{
         text:{type:'string'},sources:{type:'array',items:{type:'string'}},
       }}},
     }}},
