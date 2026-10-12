@@ -501,7 +501,7 @@ test("D1 is the only engineering records surface", async () => {
 });
 
 test("D1 client starts on the restored tab, stays lazy on other tabs, searches and reads notes", async () => {
-  const source = await readFile(new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
+  const source = await readFile(process.env.ENGINEERING_D1_CLIENT_PATH || new URL("../public/engineering-records-d1.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../public/engineering-query.html", import.meta.url), "utf8");
   for (const restoredActive of [true, false]) {
   class Element {

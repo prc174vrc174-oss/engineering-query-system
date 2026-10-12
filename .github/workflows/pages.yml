@@ -24,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Check engineering records client syntax
+        run: node --check public/engineering-records-d1.js
+
       - name: Prepare static site
         run: |
           mkdir -p _site

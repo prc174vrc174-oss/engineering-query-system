@@ -259,16 +259,7 @@
     if (!terms.length && text.trim()) terms.push(text.trim());
     terms.sort(function (a, b) { return b.length - a.length; });
     if (!terms.length) return null;
-    var escaped = terms.map(function (term) { return term.replace(/[.*+?^${}()|[\]\\]/g, '\\      b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' });
-  }
-  function searchHighlightPattern(searchValue) {
-    var terms = searchValue.split(/[\s，。；、？！?：:（）()／/]+/).map(function (term) { return term.trim(); })
-      .filter(function (term) { return term && (term.length >= 2 || /^\d+$/.test(term)); }).slice(0, 6);
-    if (!terms.length && searchValue.trim()) terms.push(searchValue.trim());
-    terms.sort(function (a, b) { return b.length - a.length; });
-    if (!terms.length) return null;
     var escaped = terms.map(function (term) { return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
-'); });
     return new RegExp('(' + escaped.join('|') + ')', 'gi');
   }
   function highlightedRecordName(name, searchValue) {
