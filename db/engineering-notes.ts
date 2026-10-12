@@ -1,6 +1,7 @@
 import { status as recordStatus, refresh as refreshRecords } from "../cloudflare/engineering-record-sync.mjs";
 import { env } from "cloudflare:workers";
 import { backlinkNeedles, referencingNotes } from "../cloudflare/engineering-record-links.mjs";
+import {engineeringRecordTags, ensureRecordTagIndex, RECORD_TAG_PREDICATE} from "../cloudflare/engineering-record-tags.mjs";
 
 type Note = { id: string; name: string; relativePath: string; modifiedTime: string; content: string };
 
@@ -12,30 +13,36 @@ function database(): D1Database {
 }
 
 export async function engineeringStatus() { return recordStatus(database()); }
+export async function engineeringTags() { return engineeringRecordTags(database()); }
 
-export async function listEngineeringD1(offset: number) {
+export async function listEngineeringD1(offset: number, tag = '') {
   const db = database();
+  if (tag) await ensureRecordTagIndex(db);
+  const where=tag ? `WHERE ${RECORD_TAG_PREDICATE}` : '', tagParams=tag ? [tag,tag,tag] : [];
   const [rows, count] = await Promise.all([
     db.prepare(`SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime
       FROM engineering_notes
+      ${where}
       ORDER BY CASE WHEN name GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*'
         AND substr(name, 11, 1) NOT GLOB '[0-9]' THEN substr(name, 1, 10) ELSE '' END DESC,
-        name COLLATE NOCASE DESC, id DESC LIMIT 15 OFFSET ?`).bind(offset)
+        name COLLATE NOCASE DESC, id DESC LIMIT 15 OFFSET ?`).bind(...tagParams,offset)
       .all<{ id: string; name: string; relativePath: string; modifiedTime: string }>(),
-    db.prepare("SELECT COUNT(*) AS total FROM engineering_notes").first<{ total: number }>(),
+    db.prepare(`SELECT COUNT(*) AS total FROM engineering_notes ${where}`).bind(...tagParams).first<{ total: number }>(),
   ]);
   const total = count?.total || 0;
   const nextOffset = offset + rows.results.length;
   return { results: rows.results, total, nextOffset, hasMore: nextOffset < total };
 }
 
-export async function searchEngineeringD1(query: string) {
+export async function searchEngineeringD1(query: string, tag = '') {
+  if (tag) await ensureRecordTagIndex(database());
   const terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map((s) => s.trim().toLowerCase())
     .filter((s) => s && (s.length >= 2 || /^\d+$/.test(s))).slice(0, 6);
   if (!terms.length) terms.push(query.toLowerCase());
   // Literal substring matching avoids D1 LIKE limits on long Chinese filenames.
   const predicates = terms.map(() => "(instr(lower(name), ?) > 0 OR instr(lower(content), ?) > 0)");
   const params = terms.flatMap((term) => [term, term]);
+  if (tag) { predicates.push(RECORD_TAG_PREDICATE);params.push(tag,tag,tag); }
   const rows = await database().prepare(`SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime
     FROM engineering_notes WHERE ${predicates.join(" AND ")} LIMIT 500`).bind(...params)
     .all<{ id: string; name: string; relativePath: string; modifiedTime: string }>();

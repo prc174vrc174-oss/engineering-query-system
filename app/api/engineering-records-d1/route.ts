@@ -1,4 +1,5 @@
-import { engineeringBacklinks, listEngineeringD1, engineeringStatus, readEngineeringD1, refreshEngineeringD1, searchEngineeringD1 } from "../../../db/engineering-notes";
+import { engineeringBacklinks, engineeringTags, listEngineeringD1, engineeringStatus, readEngineeringD1, refreshEngineeringD1, searchEngineeringD1 } from "../../../db/engineering-notes";
+import {normalizeRecordTag} from "../../../cloudflare/engineering-record-tags.mjs";
 
 const origins = new Set(["https://engineering-query.prc174.chatgpt.site", "https://prc174vrc174-oss.github.io"]);
 function headers(request: Request) {
@@ -19,17 +20,20 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   try {
     if (params.get("action") === "status") return reply(request, { ok: true, ...(await engineeringStatus()) });
+    if (params.get("action") === "tags") return reply(request, {ok:true,tags:await engineeringTags()});
     if (params.get("action") === "search") {
       const query = (params.get("query") || "").trim();
       if (query.length > 120) return reply(request, { ok: false, error: "搜尋關鍵字最多 120 個字元。" }, 400);
+      const rawTag=(params.get("tag") || '').trim(), tag=normalizeRecordTag(rawTag);
+      if (rawTag && !tag) return reply(request,{ok:false,error:"標籤格式不正確。"},400);
       if (!query) {
         const rawOffset = params.get("offset") || "0";
         const offset = Number(rawOffset);
         if (!/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset > 10_000_000)
           return reply(request, { ok: false, error: "載入位置不正確。" }, 400);
-        return reply(request, { ok: true, ...(await listEngineeringD1(offset)) });
+        return reply(request, { ok: true, ...(await listEngineeringD1(offset,tag)) });
       }
-      return reply(request, { ok: true, results: await searchEngineeringD1(query) });
+      return reply(request, { ok: true, results: await searchEngineeringD1(query,tag) });
     }
     if (params.get("action") === "backlinks") {
       const id = params.get("id") || "";

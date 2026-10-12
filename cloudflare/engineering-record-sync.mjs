@@ -1,4 +1,5 @@
 // Shared bounded Drive-to-D1 synchronization for both deployments.
+import {ensureRecordTagTable, recordTagWrite} from './engineering-record-tags.mjs';
 const ID = /^[\w-]{10,100}$/;
 const UPSERT = `INSERT INTO engineering_notes (id,name,relative_path,modified_time,content)
  VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,
@@ -14,6 +15,7 @@ export async function status(db) {
     ...(job ? {syncing:true,remaining:job.pending.length} : {})};
 }
 export async function refresh(db, force, fetchDrive) {
+  await ensureRecordTagTable(db);
   const now = Date.now();
   await db.prepare("INSERT OR IGNORE INTO engineering_sync (key,value,updated_at) VALUES ('lock','0',0)").run();
   const lock = await db.prepare("UPDATE engineering_sync SET value=?,updated_at=? WHERE key='lock' AND CAST(value AS INTEGER) < ?")
@@ -58,6 +60,7 @@ export async function refresh(db, force, fetchDrive) {
       }
       const next = {...job,pending:job.pending.slice(chunk.length)};
       await db.batch([...notes.map(e=>db.prepare(UPSERT).bind(e.id,e.name,e.relativePath,e.modifiedTime,e.content)),
+        recordTagWrite(db,notes),
         db.prepare(SAVE).bind('job',JSON.stringify(next),Date.now())]);
       job = next;
     }

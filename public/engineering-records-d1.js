@@ -7,6 +7,9 @@
   var byId = function (id) { return document.getElementById('d1Records' + id); };
   var query = byId('Query'), reload = byId('Reload'), gemini = byId('Gemini');
   var queryClear = byId('QueryClear');
+  var tagButton = byId('Tags'), tagDialog = byId('TagsDialog'), tagLevels = byId('TagLevels');
+  var tagPath = byId('TagPath'), tagError = byId('TagError'), tagApply = byId('TagApply');
+  var selectedTag = '', draftTag = '', tagCatalog = [], tagRequest = 0;
   var recordHistory = byId('History'), recordHistoryKey = 'engineeringRecordsSearchHistoryV1';
   var regenerate = byId('Regenerate'), summaryStart = byId('SummaryStart'), summaryClear = byId('SummaryClear');
   var signInDialog = byId('SignInDialog'), signInStatus = byId('SignInStatus'), summarizing = false, summaryHasContent = false;
@@ -90,6 +93,70 @@
     compact.className = 'engineering-button-compact';
     compact.textContent = '資料夾' + (count ? '(' + count + ')' : '');
     folders.replaceChildren(full, compact);
+  }
+  function updateRecordTagLabel() {
+    if (!tagButton) return;
+    var label = selectedTag ? '標籤：' + selectedTag.split('/').pop() : '標籤篩選';
+    tagButton.textContent = label;
+    tagButton.title = selectedTag ? '#' + selectedTag : '依階層選擇標籤';
+    tagButton.className = 'engineering-records-btn' + (selectedTag ? ' is-tag-active' : '');
+    tagButton.setAttribute('aria-label', selectedTag ? '標籤篩選：#' + selectedTag : '標籤篩選');
+  }
+  function recordTagParameter() { return selectedTag ? '&tag=' + encodeURIComponent(selectedTag) : ''; }
+  function renderRecordTagLevels() {
+    tagLevels.replaceChildren();
+    var parent = '', depth = 1;
+    while (true) {
+      var children = tagCatalog.filter(function (tag) {
+        var parts = tag.path.split('/');
+        return parts.length === depth && (depth === 1 || parts.slice(0, -1).join('/') === parent);
+      });
+      if (!children.length) break;
+      var row = document.createElement('div'), label = document.createElement('label'), select = document.createElement('select');
+      row.className = 'engineering-tag-level'; select.id = 'd1RecordsTagLevel' + depth;
+      label.htmlFor = select.id; label.textContent = '第 ' + depth + ' 層';
+      var all = document.createElement('option'); all.value = ''; all.textContent = parent ? '全部子標籤' : '全部標籤'; select.appendChild(all);
+      children.forEach(function (tag) {
+        var option = document.createElement('option'); option.value = tag.path;
+        option.textContent = tag.path.split('/').pop() + '（' + tag.count + ' 篇）'; select.appendChild(option);
+      });
+      var wanted = draftTag.split('/').slice(0, depth).join('/');
+      select.value = children.some(function (tag) { return tag.path === wanted; }) ? wanted : '';
+      select.onchange = (function (parentPath, control) { return function () {
+        draftTag = control.value || parentPath; renderRecordTagLevels();
+        var current = document.getElementById(control.id); if (current) current.focus();
+      }; })(parent, select);
+      row.append(label, select); tagLevels.appendChild(row);
+      if (!select.value) break;
+      parent = select.value; depth++;
+    }
+    tagPath.textContent = draftTag ? '目前選擇：#' + draftTag : '目前選擇：全部標籤';
+    if (!tagCatalog.length) tagPath.textContent = '目前工程紀錄沒有可篩選的標籤。';
+  }
+  async function showRecordTags() {
+    draftTag = selectedTag; tagError.textContent = ''; tagLevels.textContent = '正在載入階層標籤…';
+    tagPath.textContent = ''; tagApply.disabled = true;
+    var version = ++tagRequest;
+    tagDialog.showModal();
+    try {
+      var result = await call(api + '?action=tags', null, {retries: 2, timeout: 30000});
+      if (version !== tagRequest || !tagDialog.open) return;
+      tagCatalog = result.tags || [];
+      if (draftTag && !tagCatalog.some(function (tag) { return tag.path === draftTag; })) draftTag = '';
+      renderRecordTagLevels(); tagApply.disabled = false;
+    } catch (error) {
+      if (version !== tagRequest || !tagDialog.open) return;
+      tagLevels.textContent = ''; tagError.textContent = '標籤載入失敗：' + error.message + '，請關閉後重試。';
+    }
+  }
+  if (tagButton) {
+    tagButton.onclick = showRecordTags;
+    byId('TagCancel').onclick = function () { tagDialog.close(); };
+    byId('TagClear').onclick = function () { draftTag = ''; renderRecordTagLevels(); };
+    tagApply.onclick = function () {
+      selectedTag = draftTag; updateRecordTagLabel(); tagDialog.close(); clearTimeout(timer); search();
+    };
+    updateRecordTagLabel();
   }
   function paintStatus() {
     var current = viewStatuses[activeView];
@@ -202,7 +269,7 @@
       more.hidden = true;
       var empty = document.createElement('div');
       empty.className = 'engineering-records-empty';
-      empty.textContent = searchValue ? '沒有找到符合的工程紀錄。' : '目前沒有工程紀錄。';
+      empty.textContent = searchValue || selectedTag ? '沒有找到符合的工程紀錄。' : '目前沒有工程紀錄。';
       list.appendChild(empty);
       return;
     }
@@ -251,7 +318,7 @@
     view('results');
     setStatus(value ? '正在搜尋工程紀錄…' : '正在載入工程紀錄…', 'loading');
     try {
-      var result = await call(api + '?action=search&query=' + encodeURIComponent(value));
+      var result = await call(api + '?action=search&query=' + encodeURIComponent(value) + recordTagParameter());
       if (version !== resultVersion) return;
       rows = result.results || [];
       nextOffset = result.nextOffset || rows.length;
@@ -458,7 +525,7 @@
     var version = resultVersion, offset = nextOffset;
     loadingMore = true; loadMore.disabled = true; loadMore.textContent = '載入中…';
     try {
-      var result = await call(api + '?action=search&query=&offset=' + offset);
+      var result = await call(api + '?action=search&query=&offset=' + offset + recordTagParameter());
       if (version !== resultVersion || query.value.trim()) return;
       var known = new Set(rows.map(function (record) { return record.id; }));
       rows = rows.concat((result.results || []).filter(function (record) { return !known.has(record.id); }));

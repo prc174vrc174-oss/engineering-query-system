@@ -18,6 +18,29 @@ function source(notes,extra={}) {return async(action,payload)=>{
   throw new Error(action);
 };}
 async function seed(db,notes){for(const n of notes)await db.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').bind(n.id,n.name,n.relativePath,n.modifiedTime,n.content).run();}
+test('hierarchical tags cover D1, page filtered results and stay current after Drive synchronization',async()=>{
+  const db=database(),notes=Array.from({length:21},(_,i)=>note('tag_note_'+String(i).padStart(4,'0'),'筆記'+i+'.md','#2-工程/02模具/簡易模\n沙拉'));
+  notes.push(note('other_tag_0001','其他.md','#2-工程師/02模具\n沙拉'));
+  await seed(db,notes);
+  const get=async suffix=>{
+    const response=await worker.fetch(new Request('https://api/api/engineering-records-d1?'+suffix),{DB:db});
+    return {status:response.status,body:await response.json()};
+  };
+  const catalog=await get('action=tags');assert.equal(catalog.status,200);
+  assert.equal(catalog.body.tags.find(t=>t.path==='2-工程').count,21);
+  const first=await get('action=search&tag='+encodeURIComponent('2-工程/02模具'));
+  assert.equal(first.body.results.length,15);assert.equal(first.body.total,21);assert.equal(first.body.hasMore,true);
+  const next=await get('action=search&offset=15&tag='+encodeURIComponent('2-工程/02模具'));
+  assert.equal(next.body.results.length,6);assert.equal(next.body.hasMore,false);
+  const searched=await get('action=search&query=沙拉&tag='+encodeURIComponent('2-工程'));
+  assert.equal(searched.body.results.length,21);
+  assert.equal((await get('action=search&tag=bad%20tag')).status,400);
+  const changed={...notes[0],content:'#3-材料/AL',modifiedTime:'2026-10-12T00:00:00Z'};
+  await refresh(db,true,source([changed,...notes.slice(2)]));
+  const after=await get('action=tags');
+  assert.equal(after.body.tags.find(t=>t.path==='2-工程').count,19);
+  assert.equal(after.body.tags.find(t=>t.path==='3-材料/AL').count,1);
+});
 test('imports resumable batches and returns progress',async()=>{
   const db=database(),notes=Array.from({length:19},(_,i)=>note('record_'+String(i).padStart(6,'0')));
   const first=await refresh(db,true,source(notes));assert.equal(first.syncing,true);assert.equal(first.remaining,3);assert.equal(first.total,16);

@@ -1231,7 +1231,8 @@ test('Sites empty engineering search loads only one SQL page and validates offse
   const {env}=await import('cloudflare:workers');
   const {transpileModule,ModuleKind}=await import('typescript');
   const routeSource=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8'))
-    .replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href));
+    .replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href))
+    .replace('"../../../cloudflare/engineering-record-tags.mjs"',JSON.stringify(new URL('../cloudflare/engineering-record-tags.mjs',import.meta.url).href));
   const compiled=transpileModule(routeSource,{compilerOptions:{module:ModuleKind.ESNext}}).outputText;
   const {GET}=await import('data:text/javascript,'+encodeURIComponent(compiled));
   const statements=[];
@@ -1323,7 +1324,8 @@ test('Sites backlinks query the whole D1 catalog and return only matching metada
   sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('source_note_001','B.md','工程/B.md','2026-10-09','註腳[^x]\n[^x]: [[2025-09-22 (週一) 1📣防烤治具以0.8T為主|規則]]');
   sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('mention_note_001','C.md','工程/C.md','2026-10-09','只提到 A.md');
   env.DB={prepare(sql){assert.ok(!sql.includes('LIKE'), 'Backlinks must avoid D1 LIKE-pattern limits');return{values:[],bind(...values){this.values=values;return this;},async first(){return sqlite.prepare(sql).get(...this.values)||null;},async all(){return{results:sqlite.prepare(sql).all(...this.values)};}};}};
-  const text=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8')).replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href));
+  const text=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8')).replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href))
+    .replace('"../../../cloudflare/engineering-record-tags.mjs"',JSON.stringify(new URL('../cloudflare/engineering-record-tags.mjs',import.meta.url).href));
   const {GET}=await import('data:text/javascript,'+encodeURIComponent(transpileModule(text,{compilerOptions:{module:ModuleKind.ESNext}}).outputText));
   try {
     const response=await GET(new Request('https://example.com/api/engineering-records-d1?action=backlinks&id=target_note_001'));

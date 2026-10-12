@@ -3404,6 +3404,12 @@ h3 {
         .engineering-button-compact { display:none; }
         .engineering-records-btn.is-primary { border-color: #2563eb; background: #2563eb; color: #fff; }
         .engineering-records-btn.is-ai { border-color: #6d5bd0; background: #6d5bd0; color: #fff; }
+        #d1RecordsTags { max-width:190px; overflow:hidden; text-overflow:ellipsis; }
+        #d1RecordsTags.is-tag-active { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
+        .engineering-tag-level { display:grid; grid-template-columns:64px minmax(0,1fr); align-items:center; gap:10px; margin:10px 0; }
+        .engineering-tag-level label { font-size:14px; color:#475569; }
+        .engineering-tag-level select { width:100%; min-height:42px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#172033; font:inherit; }
+        .engineering-tag-path { overflow-wrap:anywhere; font-size:14px; color:#1d4ed8; margin:16px 0 0; }
         .engineering-records-btn:disabled { opacity: .5; cursor: wait; }
         .engineering-records-status { flex: 1 1 240px; min-width: 0; min-height: 20px; color: #64748b; font-size: 13px; line-height: 1.5; }
         .engineering-records-status:empty { display: none; }
@@ -3605,7 +3611,7 @@ h3 {
             .engineering-records-dialog .engineering-records-preview { padding:22px 18px 32px; }
             .engineering-records-shell { padding: 8px 12px 30px; }
             .engineering-records-title { font-size: 24px; }
-            .engineering-records-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 6px; }
+            .engineering-records-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px 6px; }
             .engineering-records-search { grid-column:1 / -1; }
             .engineering-records-controls .engineering-records-query { grid-column:1 / -1; width:100%; box-sizing:border-box; }
             .engineering-records-controls .engineering-records-btn { min-width:0; padding:0 2px; font-size:14px; white-space:nowrap; }
@@ -4460,10 +4466,23 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
                         <button id="d1RecordsQueryClear" class="engineering-records-search-clear" type="button" aria-label="清除工程紀錄搜尋關鍵字" title="清除搜尋" hidden>×</button>
                         <div id="d1RecordsHistory" class="search-history-panel engineering-records-history" aria-label="最近兩筆搜尋紀錄" hidden></div>
                     </div>
+                    <button id="d1RecordsTags" class="engineering-records-btn" type="button" aria-haspopup="dialog" aria-controls="d1RecordsTagsDialog">標籤篩選</button>
                     <button id="d1RecordsReload" class="engineering-records-btn" type="button"><span class="engineering-button-full">🔄 重新載入</span><span class="engineering-button-compact">重新載入</span></button>
                     <button id="d1RecordsFolders" class="engineering-records-btn" type="button"><span class="engineering-button-full">搜尋資料夾</span><span class="engineering-button-compact">資料夾</span></button>
                 </div>
             </section>
+            <dialog id="d1RecordsTagsDialog" class="engineering-records-settings" aria-labelledby="d1RecordsTagsTitle">
+                <h3 id="d1RecordsTagsTitle">階層標籤篩選</h3>
+                <p>由上層逐級選擇；選上層會包含全部子標籤，可搭配搜尋關鍵字。筆數涵蓋全部工程紀錄。</p>
+                <div id="d1RecordsTagLevels"></div>
+                <div id="d1RecordsTagPath" class="engineering-tag-path" aria-live="polite"></div>
+                <div id="d1RecordsTagError" class="engineering-records-settings-error" role="alert"></div>
+                <div class="engineering-records-settings-actions">
+                    <button id="d1RecordsTagClear" class="engineering-records-btn" type="button">全部標籤</button>
+                    <button id="d1RecordsTagCancel" class="engineering-records-btn" type="button">取消</button>
+                    <button id="d1RecordsTagApply" class="engineering-records-btn is-primary" type="button">套用篩選</button>
+                </div>
+            </dialog>
             <dialog id="d1RecordsSignInDialog" class="engineering-records-settings engineering-records-signin" aria-labelledby="d1RecordsSignInTitle">
                 <h3 id="d1RecordsSignInTitle">登入後產生摘要</h3>
                 <p>請使用允許的 Google 帳號登入，登入後會自動整理已勾選的工程紀錄。</p>
@@ -6968,7 +6987,7 @@ init();
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
     <script src="vendor/katex/katex-0.19.0.min.js"></script>
-    <script src="engineering-records-d1.js?v=256"></script>
+    <script src="engineering-records-d1.js?v=257"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
