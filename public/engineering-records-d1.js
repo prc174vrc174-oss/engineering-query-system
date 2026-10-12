@@ -102,19 +102,15 @@
     tagButton.setAttribute('aria-label', selectedTag ? '標籤篩選：#' + selectedTag : '標籤篩選');
   }
   function recordQueryParts() {
-    var value = query.value.trim(), match = /(?:^|\s)#([^\s#]+)/.exec(value);
-    return match ? {tag:match[1].normalize('NFKC'),keyword:(value.slice(0,match.index)+' '+value.slice(match.index+match[0].length)).trim()} : {tag:'',keyword:value};
+    var tags = [], seen = new Set();
+    var keyword = query.value.trim().replace(/(?:^|\s)#([^\s#]+)/g, function (_, value) {
+      var tag = value.normalize('NFKC'), key = tag.toLowerCase();
+      if (!seen.has(key)) { seen.add(key); tags.push(tag); }
+      return ' ';
+    }).replace(/\s+/g, ' ').trim();
+    return {tags:tags,tag:tags[tags.length - 1] || '',keyword:keyword};
   }
   function syncRecordTagFromQuery() { selectedTag = recordQueryParts().tag; updateRecordTagLabel(); }
-  function clearRecordTagFilter() {
-    query.value = recordQueryParts().keyword;
-    selectedTag = ''; draftTag = ''; tagRequest++;
-    updateRecordTagLabel();
-    updateRecordQueryClear();
-    if (tagDialog.open) tagDialog.close();
-    clearTimeout(timer);
-    return search();
-  }
   function recordTagParameter() { return selectedTag ? '&tag=' + encodeURIComponent(selectedTag) : ''; }
   function renderRecordTagLevels() {
     tagLevels.replaceChildren();
@@ -128,7 +124,7 @@
       var row = document.createElement('div'), label = document.createElement('label'), select = document.createElement('select');
       row.className = 'engineering-tag-level'; select.id = 'd1RecordsTagLevel' + depth;
       label.htmlFor = select.id; label.textContent = '第 ' + depth + ' 層';
-      var all = document.createElement('option'); all.value = ''; all.textContent = parent ? '全部子標籤' : '全部標籤'; select.appendChild(all);
+      var all = document.createElement('option'); all.value = ''; all.textContent = parent ? '全部子標籤' : '選擇上層標籤'; select.appendChild(all);
       children.forEach(function (tag) {
         var option = document.createElement('option'); option.value = tag.path;
         option.textContent = tag.path.split('/').pop() + '（' + tag.count + ' 篇）'; select.appendChild(option);
@@ -166,10 +162,10 @@
   if (tagButton) {
     tagButton.onclick = showRecordTags;
     byId('TagCancel').onclick = function () { tagDialog.close(); };
-    byId('TagClear').onclick = clearRecordTagFilter;
     tagApply.onclick = function () {
-      var keyword = recordQueryParts().keyword;
-      query.value = (draftTag ? '#' + draftTag : '') + (draftTag && keyword ? ' ' : '') + keyword;
+      var current = recordQueryParts(), tags = current.tags;
+      if (draftTag && !tags.some(function (tag) { return tag.toLowerCase() === draftTag.toLowerCase(); })) tags.push(draftTag);
+      query.value = tags.map(function (tag) { return '#' + tag; }).concat(current.keyword ? [current.keyword] : []).join(' ');
       syncRecordTagFromQuery(); updateRecordQueryClear(); tagDialog.close(); clearTimeout(timer); search();
     };
     updateRecordTagLabel();

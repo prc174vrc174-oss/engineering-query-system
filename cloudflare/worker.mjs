@@ -16,8 +16,9 @@ export async function drive(action, extra = {}) {
 }
 export { status };
 export async function list(db, offset = 0, tag = '') {
-  if (tag) await ensureRecordTagIndex(db);
-  const where=tag?`WHERE ${RECORD_TAG_PREDICATE}`:'',tagParams=tag?[tag,tag,tag]:[];
+  const tags=Array.isArray(tag)?tag:tag?[tag]:[];
+  if (tags.length) await ensureRecordTagIndex(db);
+  const where=tags.length?`WHERE ${tags.map(()=>RECORD_TAG_PREDICATE).join(' AND ')}`:'',tagParams=tags.flatMap(tag=>[tag,tag,tag]);
   const [rows, count] = await Promise.all([
     db.prepare(`SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime
       FROM engineering_notes
@@ -34,14 +35,15 @@ export async function list(db, offset = 0, tag = '') {
 }
 
 export async function search(db, query, tag = '') {
-  if (tag) await ensureRecordTagIndex(db);
+  const tags=Array.isArray(tag)?tag:tag?[tag]:[];
+  if (tags.length) await ensureRecordTagIndex(db);
   const terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map(s=>s.trim().toLowerCase())
     .filter(s=>s && (s.length>=2 || /^\d+$/.test(s))).slice(0,6);
   if (!terms.length) terms.push(query.toLowerCase());
   // Literal substring matching avoids D1 LIKE limits on long Chinese filenames.
   const predicates = terms.map(()=>"(instr(lower(name), ?) > 0 OR instr(lower(content), ?) > 0)");
   const params = terms.flatMap(term=>[term,term]);
-  if(tag){predicates.push(RECORD_TAG_PREDICATE);params.push(tag,tag,tag);}
+  for(const tag of tags){predicates.push(RECORD_TAG_PREDICATE);params.push(tag,tag,tag);}
   const result = await db.prepare(`SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime
     FROM engineering_notes WHERE ${predicates.join(' AND ')} LIMIT 500`).bind(...params).all();
   return result.results;
@@ -98,14 +100,14 @@ export default {
         if (action==='search') {
           const rawQuery=(url.searchParams.get('query') || '').trim(),parsed=parseRecordTagQuery(rawQuery),query=parsed.query;
           if (query.length>120) return reply({ok:false,error:'搜尋關鍵字最多 120 個字元。'},400);
-          const rawTag=(url.searchParams.get('tag') || '').trim(),tag=parsed.tag||normalizeRecordTag(rawTag);
+          const rawTag=(url.searchParams.get('tag') || '').trim(),tags=parsed.tags.length?parsed.tags:rawTag?[normalizeRecordTag(rawTag)]:[];
           if(parsed.invalidTag||(rawTag&&!normalizeRecordTag(rawTag)))return reply({ok:false,error:'標籤格式不正確。'},400);
           if (!query && !parsed.tag) {
             const rawOffset=url.searchParams.get('offset') || '0', offset=Number(rawOffset);
             if (!/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset>10000000) return reply({ok:false,error:'載入位置不正確。'},400);
-            return reply({ok:true,...await list(env.DB,offset,tag)});
+            return reply({ok:true,...await list(env.DB,offset,tags)});
           }
-          return reply({ok:true,results:await search(env.DB,query,tag)});
+          return reply({ok:true,results:await search(env.DB,query,tags)});
         }
         if (action==='backlinks') {
           const id=url.searchParams.get('id') || '';

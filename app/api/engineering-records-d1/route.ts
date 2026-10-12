@@ -24,16 +24,16 @@ export async function GET(request: Request) {
     if (params.get("action") === "search") {
       const rawQuery=(params.get("query") || '').trim(), parsed=parseRecordTagQuery(rawQuery), query=parsed.query;
       if (query.length > 120) return reply(request, { ok: false, error: "搜尋關鍵字最多 120 個字元。" }, 400);
-      const rawTag=(params.get("tag") || '').trim(), tag=parsed.tag || normalizeRecordTag(rawTag);
+      const rawTag=(params.get("tag") || '').trim(), tags=parsed.tags.length ? parsed.tags : rawTag?[normalizeRecordTag(rawTag)]:[];
       if (parsed.invalidTag || (rawTag && !normalizeRecordTag(rawTag))) return reply(request,{ok:false,error:"標籤格式不正確。"},400);
       if (!query && !parsed.tag) {
         const rawOffset = params.get("offset") || "0";
         const offset = Number(rawOffset);
         if (!/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset > 10_000_000)
           return reply(request, { ok: false, error: "載入位置不正確。" }, 400);
-        return reply(request, { ok: true, ...(await listEngineeringD1(offset,tag)) });
+        return reply(request, { ok: true, ...(await listEngineeringD1(offset,tags)) });
       }
-      return reply(request, { ok: true, results: await searchEngineeringD1(query,tag) });
+      return reply(request, { ok: true, results: await searchEngineeringD1(query,tags) });
     }
     if (params.get("action") === "backlinks") {
       const id = params.get("id") || "";

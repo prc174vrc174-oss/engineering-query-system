@@ -18,10 +18,26 @@ test('Obsidian hierarchical tags support frontmatter, Chinese and emoji without 
   for(const tag of ['a//b','/a','a/','a b','a\' OR 1=1','a'.repeat(241)])assert.equal(normalizeRecordTag(tag),'');
 });
 test('visible tag query keeps keyword text separate and preserves literal descendant filtering',()=>{
-  assert.deepEqual(parseRecordTagQuery('#1-客戶/10239德承'),{query:'',tag:'1-客戶/10239德承',invalidTag:false});
-  assert.deepEqual(parseRecordTagQuery('沙拉 #2-工程/02模具 SUS'),{query:'沙拉  SUS',tag:'2-工程/02模具',invalidTag:false});
-  assert.deepEqual(parseRecordTagQuery('沙拉'),{query:'沙拉',tag:'',invalidTag:false});
+  assert.deepEqual(parseRecordTagQuery('#1-客戶/10239德承'),{query:'',tag:'1-客戶/10239德承',tags:['1-客戶/10239德承'],invalidTag:false});
+  assert.deepEqual(parseRecordTagQuery('沙拉 #2-工程/02模具 SUS'),{query:'沙拉 SUS',tag:'2-工程/02模具',tags:['2-工程/02模具'],invalidTag:false});
+  assert.deepEqual(parseRecordTagQuery('沙拉'),{query:'沙拉',tag:'',tags:[],invalidTag:false});
   assert.equal(parseRecordTagQuery('#a//b').invalidTag,true);
+  assert.deepEqual(parseRecordTagQuery('#2-工程/16噴砂 #1-客戶/10058新漢 #2-工程/16噴砂 沙拉'),{
+    query:'沙拉',tag:'2-工程/16噴砂',tags:['2-工程/16噴砂','1-客戶/10058新漢'],invalidTag:false,
+  });
+  assert.equal(parseRecordTagQuery(Array.from({length:13},(_,i)=>'#工程/'+i).join(' ')).invalidTag,true);
+});
+test('multiple tags intersect exact hierarchies and keywords on the same note',async()=>{
+  const {env}=await import('cloudflare:workers');
+  const {searchEngineeringD1}=await import('../db/engineering-notes.ts');
+  const db=database(['#2-工程/16噴砂 #1-客戶/10058新漢 沙拉','#2-工程/16噴砂 #1-客戶/10239德承 沙拉','#2-工程/04折床 #1-客戶/10058新漢 沙拉',
+    '#2-工程/16噴砂/鋁擠件 #1-客戶/10058新漢 沙拉','#2-工程/16噴砂 #1-客戶/10058新漢\n另一主題']);
+  const saved=env.DB;env.DB=db;
+  try {
+    const filtered=await searchEngineeringD1('沙拉',['2-工程/16噴砂','1-客戶/10058新漢']);
+    assert.deepEqual(filtered.map(n=>n.id).sort(),['record_tag_0','record_tag_3']);
+    assert.equal((await searchEngineeringD1('',['2-工程/16噴砂','1-客戶/10058新漢'])).length,3);
+  }finally{env.DB=saved;}
 });
 test('catalog creates all ancestors and counts each note once per ancestor across the entire D1',async()=>{
   const db=database(['#2-工程/02模具/簡易模 #2-工程/02模具/成型模','#2-工程/02模具/簡易模','#2-工程/05沙拉','#7-📣/國恩']);
@@ -86,13 +102,18 @@ test('cascading picker includes descendants, applies one path, preserves keyword
   assert.equal(context.recordTagParameter(),'&tag='+encodeURIComponent('2-工程/02模具'));
   await context.tagButton.onclick();choose('d1RecordsTagLevel3','2-工程/02模具/簡易模');context.tagApply.onclick();
   assert.equal(context.selectedTag,'2-工程/02模具/簡易模');
-  assert.equal(context.query.value,'#2-工程/02模具/簡易模 沙拉');
+  assert.equal(context.query.value,'#2-工程/02模具 #2-工程/02模具/簡易模 沙拉');
+  await context.tagButton.onclick();context.tagApply.onclick();
+  assert.equal(context.query.value,'#2-工程/02模具 #2-工程/02模具/簡易模 沙拉');
+  await context.tagButton.onclick();choose('d1RecordsTagLevel1','3-材料');choose('d1RecordsTagLevel2','3-材料/AL');context.tagApply.onclick();
+  assert.equal(context.query.value,'#2-工程/02模具 #2-工程/02模具/簡易模 #3-材料/AL 沙拉');
   const clearCode=source.slice(source.indexOf('  function clearRecordQuery('),source.indexOf('  async function search('));
   context.query.focus=()=>{};context.closeRecordSearchHistory=()=>{};
   runInNewContext(clearCode,context);context.clearRecordQuery();
   assert.equal(context.selectedTag,'');assert.equal(context.recordTagParameter(),'');assert.equal(context.query.value,'');
-  context.query.value='沙拉';
-  await context.tagButton.onclick();choose('d1RecordsTagLevel1','2-工程');context.tagApply.onclick();
-  await context.tagButton.onclick();ids.get('TagClear').onclick();
-  assert.equal(context.selectedTag,'');assert.equal(context.tagDialog.open,false);assert.equal(context.query.value,'沙拉');
+  context.query.value='#2-工程/02模具 沙拉';context.syncRecordTagFromQuery();
+  context.query.value='沙拉';context.syncRecordTagFromQuery();
+  assert.equal(context.selectedTag,'');
+  const html=await readFile(new URL('../public/engineering-query.html',import.meta.url),'utf8');
+  assert.ok(!html.includes('id="d1RecordsTagClear"'));
 });

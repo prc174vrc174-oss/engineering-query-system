@@ -13,11 +13,15 @@ export function normalizeRecordTag(value) {
   return tag;
 }
 export function parseRecordTagQuery(value) {
-  const query=String(value || '').trim();
-  const match=/(?:^|\s)#([^\s#]+)/.exec(query);
-  if (!match) return {query,tag:'',invalidTag:false};
-  const tag=normalizeRecordTag(match[1]);
-  return {query:(query.slice(0,match.index)+' '+query.slice(match.index+match[0].length)).trim(),tag,invalidTag:!tag};
+  const tags=[], seen=new Set();let invalidTag=false;
+  const query=String(value || '').trim().replace(/(?:^|\s)#([^\s#]+)/g,(_,raw)=>{
+    const tag=normalizeRecordTag(raw),key=tag.toLowerCase();
+    if(!tag)invalidTag=true;
+    else if(!seen.has(key)){seen.add(key);tags.push(tag);}
+    return ' ';
+  }).replace(/\s+/g,' ').trim();
+  if(tags.length>12)invalidTag=true;
+  return {query,tag:tags[0]||'',tags,invalidTag};
 }
 
 export function extractRecordTags(content) {

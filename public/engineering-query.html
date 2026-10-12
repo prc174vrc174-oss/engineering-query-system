@@ -4462,7 +4462,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             <section class="engineering-records-toolbar" aria-label="工程紀錄搜尋">
                 <div class="engineering-records-controls">
                     <div id="d1RecordsSearchBox" class="engineering-records-search">
-                        <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="362" autocomplete="off" aria-label="搜尋工程紀錄" aria-controls="d1RecordsHistory" aria-expanded="false" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
+                        <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="3024" autocomplete="off" aria-label="搜尋工程紀錄" aria-controls="d1RecordsHistory" aria-expanded="false" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
                         <button id="d1RecordsQueryClear" class="engineering-records-search-clear" type="button" aria-label="清除工程紀錄搜尋關鍵字" title="清除搜尋" hidden>×</button>
                         <div id="d1RecordsHistory" class="search-history-panel engineering-records-history" aria-label="最近兩筆搜尋紀錄" hidden></div>
                     </div>
@@ -4473,12 +4473,11 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             </section>
             <dialog id="d1RecordsTagsDialog" class="engineering-records-settings" aria-labelledby="d1RecordsTagsTitle">
                 <h3 id="d1RecordsTagsTitle">階層標籤篩選</h3>
-                <p>由上層逐級選擇；選上層會包含全部子標籤。套用後標籤會顯示在搜尋框，可搭配關鍵字，按搜尋框「×」可全部清除。筆數涵蓋全部工程紀錄。</p>
+                <p>由上層逐級選擇；選上層會包含全部子標籤。套用後標籤會接續加入搜尋框，結果需同時符合各標籤與關鍵字，按搜尋框「×」可全部清除。筆數涵蓋全部工程紀錄。</p>
                 <div id="d1RecordsTagLevels"></div>
                 <div id="d1RecordsTagPath" class="engineering-tag-path" aria-live="polite"></div>
                 <div id="d1RecordsTagError" class="engineering-records-settings-error" role="alert"></div>
                 <div class="engineering-records-settings-actions">
-                    <button id="d1RecordsTagClear" class="engineering-records-btn" type="button">清除篩選</button>
                     <button id="d1RecordsTagCancel" class="engineering-records-btn" type="button">取消</button>
                     <button id="d1RecordsTagApply" class="engineering-records-btn is-primary" type="button">套用篩選</button>
                 </div>
@@ -6987,7 +6986,7 @@ init();
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
     <script src="vendor/katex/katex-0.19.0.min.js"></script>
-    <script src="engineering-records-d1.js?v=259"></script>
+    <script src="engineering-records-d1.js?v=260"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

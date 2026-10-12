@@ -38,6 +38,10 @@ test('hierarchical tags cover D1, page filtered results and stay current after D
   assert.equal(visible.body.results.length,21);assert.equal(visible.body.hasMore,undefined);
   const combined=await get('action=search&query='+encodeURIComponent('#2-工程/02模具 沙拉'));
   assert.equal(combined.body.results.length,21);
+  await db.prepare("UPDATE engineering_notes SET content=content || ' #1-客戶/10058新漢',modified_time=? WHERE id IN (?,?)")
+    .bind('2026-10-11T00:00:00Z','tag_note_0000','tag_note_0001').run();
+  const intersection=await get('action=search&query='+encodeURIComponent('#2-工程/02模具 #1-客戶/10058新漢 沙拉'));
+  assert.equal(intersection.body.results.length,2);
   assert.equal((await get('action=search&tag=bad%20tag')).status,400);
   const changed={...notes[0],content:'#3-材料/AL',modifiedTime:'2026-10-12T00:00:00Z'};
   await refresh(db,true,source([changed,...notes.slice(2)]));
