@@ -2,7 +2,7 @@ import { status, refresh as refreshRecords } from './engineering-record-sync.mjs
 import { engineeringSummaryUsesD1, summarizeEngineeringD1 } from './engineering-summary-d1.mjs';
 import { backlinkNeedles, referencingNotes } from "./engineering-record-links.mjs";
 import { completeEngineeringSummary } from "./engineering-summary-coverage.mjs";
-import {engineeringRecordTags, ensureRecordTagIndex, normalizeRecordTag, parseRecordTagQuery, RECORD_TAG_PREDICATE} from './engineering-record-tags.mjs';
+import {engineeringRecordTags, ensureRecordTagIndex, normalizeRecordTag, parseRecordTagQuery, parseRecordKeywordQuery, recordKeywordPredicate, RECORD_TAG_PREDICATE} from './engineering-record-tags.mjs';
 // GitHub Pages engineering records API, independently bound to janyu056's D1.
 export const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2WWjD9NKQKYNYLnVtU0E7xLKe69ELXw1FeIeEMUaFGY0zintiPAhwsnCC_figFrEScQ/exec';
 const ORIGIN = 'https://prc174vrc174-oss.github.io';
@@ -37,12 +37,7 @@ export async function list(db, offset = 0, tag = '') {
 export async function search(db, query, tag = '') {
   const tags=Array.isArray(tag)?tag:tag?[tag]:[];
   if (tags.length) await ensureRecordTagIndex(db);
-  const terms = query.split(/[\s，。；、？！?：:（）()／/]+/).map(s=>s.trim().toLowerCase())
-    .filter(s=>s && (s.length>=2 || /^\d+$/.test(s))).slice(0,6);
-  if (!terms.length) terms.push(query.toLowerCase());
-  // Literal substring matching avoids D1 LIKE limits on long Chinese filenames.
-  const predicates = terms.map(()=>"(instr(lower(name), ?) > 0 OR instr(lower(content), ?) > 0)");
-  const params = terms.flatMap(term=>[term,term]);
+  const keyword=recordKeywordPredicate(query),predicates=[keyword.predicate],params=keyword.params;
   for(const tag of tags){predicates.push(RECORD_TAG_PREDICATE);params.push(tag,tag,tag);}
   const result = await db.prepare(`SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime
     FROM engineering_notes WHERE ${predicates.join(' AND ')} LIMIT 500`).bind(...params).all();
@@ -100,6 +95,8 @@ export default {
         if (action==='search') {
           const rawQuery=(url.searchParams.get('query') || '').trim(),parsed=parseRecordTagQuery(rawQuery),query=parsed.query;
           if (query.length>120) return reply({ok:false,error:'搜尋關鍵字最多 120 個字元。'},400);
+          const keyword=parseRecordKeywordQuery(query);
+          if(keyword.error)return reply({ok:false,error:keyword.error},400);
           const rawTag=(url.searchParams.get('tag') || '').trim(),tags=parsed.tags.length?parsed.tags:rawTag?[normalizeRecordTag(rawTag)]:[];
           if(parsed.invalidTag||(rawTag&&!normalizeRecordTag(rawTag)))return reply({ok:false,error:'標籤格式不正確。'},400);
           if (!query && !parsed.tag) {

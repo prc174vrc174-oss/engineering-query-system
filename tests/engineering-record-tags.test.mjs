@@ -3,7 +3,7 @@ import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
-import {extractRecordTags, engineeringRecordTags, normalizeRecordTag,parseRecordTagQuery} from '../cloudflare/engineering-record-tags.mjs';
+import {extractRecordTags, engineeringRecordTags, normalizeRecordTag,parseRecordTagQuery,parseRecordKeywordQuery} from '../cloudflare/engineering-record-tags.mjs';
 
 function database(notes) {
   const sqlite=new DatabaseSync(':memory:');
@@ -11,6 +11,45 @@ function database(notes) {
   for(const [i,content]of notes.entries())sqlite.prepare('INSERT INTO engineering_notes VALUES (?,?,?,?,?)').run('record_tag_'+i,'2026-10-'+String(i+1).padStart(2,'0')+'.md','工程/'+i+'.md','v1',content);
   return {sqlite,prepare(sql){return {values:[],bind(...values){this.values=values;return this;},async run(){const r=sqlite.prepare(sql).run(...this.values);return {meta:{changes:r.changes}};},async first(){return sqlite.prepare(sql).get(...this.values)||null;},async all(){return {results:sqlite.prepare(sql).all(...this.values)};}};},async batch(statements){sqlite.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sqlite.exec('COMMIT');return result;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 }
+test('uppercase OR searches either branch, preserves keyword AND and applies tags to every branch',async()=>{
+  const {env}=await import('cloudflare:workers');
+  const {searchEngineeringD1}=await import('../db/engineering-notes.ts');
+  const db=database(['10258 沙拉 #2-工程/16噴砂','10239 沙拉 #2-工程/16噴砂','10239 沙拉','10258 10239 沙拉 #2-工程/16噴砂','10258 折床 #2-工程/16噴砂','10258 or 10239']);
+  const saved=env.DB;env.DB=db;
+  try {
+    const ids=async(q,tags=[]) => (await searchEngineeringD1(q,tags)).map(n=>n.id).sort();
+    assert.deepEqual(await ids('10258 OR 10239'),Array.from({length:6},(_,i)=>'record_tag_'+i));
+    assert.deepEqual(await ids('10258 OR 10239',['2-工程/16噴砂']),['record_tag_0','record_tag_1','record_tag_3','record_tag_4']);
+    assert.deepEqual(await ids('10258 沙拉 OR 10239 沙拉',['2-工程/16噴砂']),['record_tag_0','record_tag_1','record_tag_3']);
+    assert.deepEqual(await ids('10258 10239'),['record_tag_3','record_tag_5']);
+    assert.deepEqual(await ids('10258 or 10239'),['record_tag_5']);
+    assert.deepEqual(await ids('10258 OR 10258'),['record_tag_0','record_tag_3','record_tag_4','record_tag_5']);
+    for(const q of ['OR','10258 OR','OR 10239','10258 OR OR 10239'])assert.ok(parseRecordKeywordQuery(q).error);
+    assert.equal(parseRecordKeywordQuery('ORing').hasOr,false);
+    const {transpileModule,ModuleKind}=await import('typescript');
+    const source=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8'))
+      .replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href))
+      .replace('"../../../cloudflare/engineering-record-tags.mjs"',JSON.stringify(new URL('../cloudflare/engineering-record-tags.mjs',import.meta.url).href));
+    const {GET}=await import('data:text/javascript,'+encodeURIComponent(transpileModule(source,{compilerOptions:{module:ModuleKind.ESNext}}).outputText));
+    assert.equal((await GET(new Request('https://example.com/api?action=search&query=10258%20OR'))).status,400);
+    const response=await GET(new Request('https://example.com/api?action=search&query='+encodeURIComponent('#2-工程/16噴砂 10258 OR 10239')));
+    assert.equal((await response.json()).results.length,4);
+  }finally{env.DB=saved;}
+});
+test('OR button inserts at the caret or replaces selection, keeps text and focus, and operators are not highlighted',async()=>{
+  const source=await readFile(new URL('../public/engineering-records-d1.js',import.meta.url),'utf8');
+  const code=source.slice(source.indexOf('  function insertRecordOr('),source.indexOf('  function recordQueryParts('));
+  const query={value:'10258',selectionStart:5,selectionEnd:5,maxLength:3024,focus(){this.focused=true;},setSelectionRange(a,b){this.selectionStart=a;this.selectionEnd=b;}};
+  const context={query,orButton:{},timer:0,clearTimeout(){},syncRecordTagFromQuery(){},updateRecordQueryClear(){},closeRecordSearchHistory(){}};
+  runInNewContext(code,context);context.orButton.onclick();assert.equal(query.value,'10258 OR ');assert.equal(query.selectionStart,9);assert.equal(query.focused,true);
+  query.value='10258 10239';query.selectionStart=query.selectionEnd=5;context.orButton.onclick();assert.equal(query.value,'10258 OR 10239');assert.equal(query.selectionStart,9);
+  query.value='10258 AND 10239';query.selectionStart=6;query.selectionEnd=9;context.orButton.onclick();assert.equal(query.value,'10258 OR 10239');
+  const patternCode=source.slice(source.indexOf('  function searchHighlightPattern('),source.indexOf('  function highlightedRecordName('));
+  runInNewContext(patternCode,context);
+  const pattern=context.searchHighlightPattern('10258 OR 10239');assert.equal(pattern.test('OR'),false);assert.equal(pattern.test('10258'),true);
+  const html=await readFile(new URL('../public/engineering-query.html',import.meta.url),'utf8');
+  assert.ok(html.indexOf('id="d1RecordsOr"')<html.indexOf('id="d1RecordsTags"'));
+});
 test('Obsidian hierarchical tags support frontmatter, Chinese and emoji without code, comments or URL fragments',()=>{
   const md='---\ntags:\n  - "1-客戶/10239德承"\n  - 3-材料/AL\naliases: [不是標籤]\n---\n# 標題\n#2-工程/02模具/簡易模 #7-📣/國恩 #2-工程/02模具/簡易模\n`#假標籤`\n```md\n#程式碼/範例\n```\n<!-- #註解 -->\n[連結](https://example.com/#網址片段) \\#跳脫 #123';
   assert.deepEqual(extractRecordTags(md).sort(),['1-客戶/10239德承','2-工程/02模具/簡易模','3-材料/AL','7-📣/國恩'].sort());
@@ -108,7 +147,7 @@ test('cascading picker includes descendants, applies one path, preserves keyword
     showModal(){this.open=true;}close(){this.open=false;}focus(){}
   }
   const tags=[{path:'2-工程',count:30},{path:'2-工程/02模具',count:20},{path:'2-工程/02模具/簡易模',count:12},{path:'3-材料',count:18},{path:'3-材料/AL',count:18}];
-  const context={document:{createElement:()=>new Element(),getElementById:id=>ids.get(id)},selectedTag:'',draftTag:'',tagCatalog:[],tagRequest:0,
+  const context={document:{createElement:()=>new Element(),getElementById:id=>ids.get(id)},selectedTag:'',draftTag:'',tagCatalog:[],tagRequest:0,orButton:null,
     tagButton:new Element(),tagDialog:new Element(),tagLevels:new Element(),tagPath:new Element(),tagError:new Element(),tagApply:new Element(),
     byId:id=>{if(!ids.has(id))ids.set(id,new Element());return ids.get(id);},call:async()=>({tags}),api:'/api',timer:0,clearTimeout(){},query:{value:'沙拉'},updateRecordQueryClear(){},search(){}};
   runInNewContext(code,context);

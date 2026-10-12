@@ -78,6 +78,15 @@ test('search combines terms, escapes wildcard literals, and supports read',async
   assert.equal((await search(db,'雷射 10017')).length,1);assert.equal((await search(db,'A_10%')).length,1);assert.equal((await search(db,'不存在')).length,0);
   const response=await worker.fetch(new Request('https://api/api/engineering-records-d1?action=read&id=search_record_001'),{DB:db});assert.equal((await response.json()).record.content,'雷射 10017');
 });
+test('OR keyword branches are unions within all tag constraints and invalid operators return 400',async()=>{
+  const db=database();await seed(db,[note('or_record_0001','第一.md','10258 沙拉 #2-工程/16噴砂'),note('or_record_0002','第二.md','10239 沙拉 #2-工程/16噴砂'),note('or_record_0003','其他.md','10239 沙拉'),note('or_record_0004','兩家.md','10258 10239 沙拉 #2-工程/16噴砂')]);
+  assert.equal((await search(db,'10258 OR 10239')).length,4);
+  assert.equal((await search(db,'10258 10239')).length,1);
+  const get=q=>worker.fetch(new Request('https://api/api/engineering-records-d1?action=search&query='+encodeURIComponent(q)),{DB:db});
+  const result=await get('#2-工程/16噴砂 10258 沙拉 OR 10239 沙拉');
+  assert.equal(result.status,200);assert.equal((await result.json()).results.length,3);
+  for(const q of ['OR','10258 OR','OR 10239','10258 OR OR 10239'])assert.equal((await get(q)).status,400);
+});
 test('recent sync skips repeated requests and concurrent lock is respected',async()=>{
   const db=database();await refresh(db,true,source([note('record_test_001')]));
   assert.equal((await refresh(db,false,async()=>{throw new Error('must skip');})).skipped,true);

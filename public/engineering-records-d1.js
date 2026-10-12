@@ -7,6 +7,7 @@
   var byId = function (id) { return document.getElementById('d1Records' + id); };
   var query = byId('Query'), reload = byId('Reload'), gemini = byId('Gemini');
   var queryClear = byId('QueryClear');
+  var orButton = byId('Or');
   var tagButton = byId('Tags'), tagDialog = byId('TagsDialog'), tagLevels = byId('TagLevels');
   var tagPath = byId('TagPath'), tagError = byId('TagError'), tagApply = byId('TagApply');
   var selectedTag = '', draftTag = '', tagCatalog = [], tagRequest = 0;
@@ -100,6 +101,22 @@
     tagButton.title = selectedTag ? '#' + selectedTag : '依階層選擇標籤';
     tagButton.className = 'engineering-records-btn' + (selectedTag ? ' is-tag-active' : '');
     tagButton.setAttribute('aria-label', selectedTag ? '標籤篩選：#' + selectedTag : '標籤篩選');
+  }
+  function insertRecordOr() {
+    clearTimeout(timer);
+    var start = typeof query.selectionStart === 'number' ? query.selectionStart : query.value.length;
+    var end = typeof query.selectionEnd === 'number' ? query.selectionEnd : start;
+    var before = query.value.slice(0, start), after = query.value.slice(end).replace(/^\s+/, '');
+    var inserted = (/\s$/.test(before) || !before ? '' : ' ') + 'OR ';
+    if (query.maxLength > 0 && before.length + inserted.length + after.length > query.maxLength) return;
+    query.value = before + inserted + after;
+    query.focus(); query.setSelectionRange(before.length + inserted.length, before.length + inserted.length);
+    syncRecordTagFromQuery(); updateRecordQueryClear(); closeRecordSearchHistory();
+  }
+  if (orButton) {
+    // Keep the input caret when the mouse moves focus to the button.
+    orButton.onmousedown = function (event) { event.preventDefault(); };
+    orButton.onclick = insertRecordOr;
   }
   function recordQueryParts() {
     var tags = [], seen = new Set();
@@ -235,12 +252,23 @@
       b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' });
   }
   function searchHighlightPattern(searchValue) {
+    var hasOr = /(?:^|\s)OR(?=\s|$)/.test(searchValue);
+    var text = hasOr ? searchValue.replace(/(?:^|\s)OR(?=\s|$)/g, ' ') : searchValue;
+    var terms = text.split(/[\s，。；、？！?：:（）()／/]+/).map(function (term) { return term.trim(); })
+      .filter(function (term) { return term && (term.length >= 2 || /^\d+$/.test(term)); }).slice(0, hasOr ? 30 : 6);
+    if (!terms.length && text.trim()) terms.push(text.trim());
+    terms.sort(function (a, b) { return b.length - a.length; });
+    if (!terms.length) return null;
+    var escaped = terms.map(function (term) { return term.replace(/[.*+?^${}()|[\]\\]/g, '\\      b.name.localeCompare(a.name, 'zh-TW', { numeric: true, sensitivity: 'base' });
+  }
+  function searchHighlightPattern(searchValue) {
     var terms = searchValue.split(/[\s，。；、？！?：:（）()／/]+/).map(function (term) { return term.trim(); })
       .filter(function (term) { return term && (term.length >= 2 || /^\d+$/.test(term)); }).slice(0, 6);
     if (!terms.length && searchValue.trim()) terms.push(searchValue.trim());
     terms.sort(function (a, b) { return b.length - a.length; });
     if (!terms.length) return null;
     var escaped = terms.map(function (term) { return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
+'); });
     return new RegExp('(' + escaped.join('|') + ')', 'gi');
   }
   function highlightedRecordName(name, searchValue) {

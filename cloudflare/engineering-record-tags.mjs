@@ -27,6 +27,33 @@ export function parseRecordTagQuery(value) {
   return {query,tag:tags[0]||'',tags,invalidTag};
 }
 
+export function parseRecordKeywordQuery(value) {
+  const query=String(value || '').trim();
+  // Only a standalone uppercase OR is an operator. Within each branch, the
+  // existing whitespace/punctuation-separated keywords remain an intersection.
+  const branches=query.split(/(?:^|\s)OR(?=\s|$)/);
+  const hasOr=branches.length>1;
+  const groups=branches.map(branch=>{
+    const terms=branch.trim().split(/[\s，。；、？！?：:（）()／/]+/).map(s=>s.trim().toLowerCase())
+      .filter(s=>s && (s.length>=2 || /^\d+$/.test(s))).slice(0,6);
+    return terms.length?terms:[branch.trim().toLowerCase()];
+  });
+  const error=hasOr && groups.some(group=>group[0]==='')?'請在 OR 前後輸入搜尋關鍵字。'
+    :hasOr && groups.flat().length>30?'OR 搜尋關鍵字過多，請縮短搜尋內容。':'';
+  return {groups,hasOr,error};
+}
+export function recordKeywordPredicate(value) {
+  const parsed=parseRecordKeywordQuery(value);
+  if(parsed.error)throw new Error(parsed.error);
+  const params=[];
+  const branches=parsed.groups.map(group=>'('+group.map(term=>{
+    params.push(term,term);
+    return '(instr(lower(name), ?) > 0 OR instr(lower(content), ?) > 0)';
+  }).join(' AND ')+')');
+  // Parentheses ensure every OR branch remains inside all selected tag filters.
+  return {predicate:'('+branches.join(' OR ')+')',params};
+}
+
 export function extractRecordTags(content) {
   const source=String(content || '');
   // Binary files decoded as Markdown can contain random '#...' byte sequences.
