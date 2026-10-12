@@ -2,7 +2,7 @@ import { status, refresh as refreshRecords } from './engineering-record-sync.mjs
 import { engineeringSummaryUsesD1, summarizeEngineeringD1 } from './engineering-summary-d1.mjs';
 import { backlinkNeedles, referencingNotes } from "./engineering-record-links.mjs";
 import { completeEngineeringSummary } from "./engineering-summary-coverage.mjs";
-import {engineeringRecordTags, ensureRecordTagIndex, normalizeRecordTag, RECORD_TAG_PREDICATE} from './engineering-record-tags.mjs';
+import {engineeringRecordTags, ensureRecordTagIndex, normalizeRecordTag, parseRecordTagQuery, RECORD_TAG_PREDICATE} from './engineering-record-tags.mjs';
 // GitHub Pages engineering records API, independently bound to janyu056's D1.
 export const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2WWjD9NKQKYNYLnVtU0E7xLKe69ELXw1FeIeEMUaFGY0zintiPAhwsnCC_figFrEScQ/exec';
 const ORIGIN = 'https://prc174vrc174-oss.github.io';
@@ -96,11 +96,11 @@ export default {
         if (action==='status') return reply({ok:true,...await status(env.DB)});
         if (action==='tags') return reply({ok:true,tags:await engineeringRecordTags(env.DB)});
         if (action==='search') {
-          const query=(url.searchParams.get('query') || '').trim();
+          const rawQuery=(url.searchParams.get('query') || '').trim(),parsed=parseRecordTagQuery(rawQuery),query=parsed.query;
           if (query.length>120) return reply({ok:false,error:'搜尋關鍵字最多 120 個字元。'},400);
-          const rawTag=(url.searchParams.get('tag') || '').trim(),tag=normalizeRecordTag(rawTag);
-          if(rawTag&&!tag)return reply({ok:false,error:'標籤格式不正確。'},400);
-          if (!query) {
+          const rawTag=(url.searchParams.get('tag') || '').trim(),tag=parsed.tag||normalizeRecordTag(rawTag);
+          if(parsed.invalidTag||(rawTag&&!normalizeRecordTag(rawTag)))return reply({ok:false,error:'標籤格式不正確。'},400);
+          if (!query && !parsed.tag) {
             const rawOffset=url.searchParams.get('offset') || '0', offset=Number(rawOffset);
             if (!/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset>10000000) return reply({ok:false,error:'載入位置不正確。'},400);
             return reply({ok:true,...await list(env.DB,offset,tag)});

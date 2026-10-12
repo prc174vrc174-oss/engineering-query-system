@@ -3,7 +3,7 @@ import test from 'node:test';
 import {DatabaseSync} from 'node:sqlite';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
-import {extractRecordTags, engineeringRecordTags, normalizeRecordTag} from '../cloudflare/engineering-record-tags.mjs';
+import {extractRecordTags, engineeringRecordTags, normalizeRecordTag,parseRecordTagQuery} from '../cloudflare/engineering-record-tags.mjs';
 
 function database(notes) {
   const sqlite=new DatabaseSync(':memory:');
@@ -16,6 +16,12 @@ test('Obsidian hierarchical tags support frontmatter, Chinese and emoji without 
   assert.deepEqual(extractRecordTags(md).sort(),['1-客戶/10239德承','2-工程/02模具/簡易模','3-材料/AL','7-📣/國恩'].sort());
   assert.deepEqual(extractRecordTags('---\ntags: ["3-材料/SUS", 2-工程/05沙拉]\n---').sort(),['2-工程/05沙拉','3-材料/SUS']);
   for(const tag of ['a//b','/a','a/','a b','a\' OR 1=1','a'.repeat(241)])assert.equal(normalizeRecordTag(tag),'');
+});
+test('visible tag query keeps keyword text separate and preserves literal descendant filtering',()=>{
+  assert.deepEqual(parseRecordTagQuery('#1-客戶/10239德承'),{query:'',tag:'1-客戶/10239德承',invalidTag:false});
+  assert.deepEqual(parseRecordTagQuery('沙拉 #2-工程/02模具 SUS'),{query:'沙拉  SUS',tag:'2-工程/02模具',invalidTag:false});
+  assert.deepEqual(parseRecordTagQuery('沙拉'),{query:'沙拉',tag:'',invalidTag:false});
+  assert.equal(parseRecordTagQuery('#a//b').invalidTag,true);
 });
 test('catalog creates all ancestors and counts each note once per ancestor across the entire D1',async()=>{
   const db=database(['#2-工程/02模具/簡易模 #2-工程/02模具/成型模','#2-工程/02模具/簡易模','#2-工程/05沙拉','#7-📣/國恩']);
@@ -45,6 +51,13 @@ test('Sites tag filtering keeps true 15-row database pages and ANDs keyword sear
     assert.equal((await listEngineeringD1(0,'2-工程/02模具')).total,22);
     assert.equal((await listEngineeringD1(0,'2-工程')).total,23);
     assert.equal((await searchEngineeringD1('不存在','2-工程')).length,0);
+    const {transpileModule,ModuleKind}=await import('typescript');
+    const routeSource=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8'))
+      .replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href))
+      .replace('"../../../cloudflare/engineering-record-tags.mjs"',JSON.stringify(new URL('../cloudflare/engineering-record-tags.mjs',import.meta.url).href));
+    const {GET}=await import('data:text/javascript,'+encodeURIComponent(transpileModule(routeSource,{compilerOptions:{module:ModuleKind.ESNext}}).outputText));
+    const response=await GET(new Request('https://example.com/api/engineering-records-d1?action=search&query='+encodeURIComponent('#2-工程/02模具')));
+    const result=await response.json();assert.equal(response.status,200);assert.equal(result.results.length,22);
   } finally {env.DB=saved;}
 });
 test('cascading picker includes descendants, applies one path, preserves keyword and restores all tags',async()=>{
@@ -60,24 +73,25 @@ test('cascading picker includes descendants, applies one path, preserves keyword
   }
   const tags=[{path:'2-工程',count:30},{path:'2-工程/02模具',count:20},{path:'2-工程/02模具/簡易模',count:12},{path:'3-材料',count:18},{path:'3-材料/AL',count:18}];
   const context={document:{createElement:()=>new Element(),getElementById:id=>ids.get(id)},selectedTag:'',draftTag:'',tagCatalog:[],tagRequest:0,
-    tagButton:new Element(),tagClear:new Element(),tagDialog:new Element(),tagLevels:new Element(),tagPath:new Element(),tagError:new Element(),tagApply:new Element(),
-    byId:id=>{if(!ids.has(id))ids.set(id,new Element());return ids.get(id);},call:async()=>({tags}),api:'/api',timer:0,clearTimeout(){},query:{value:'沙拉'},search(){}};
+    tagButton:new Element(),tagDialog:new Element(),tagLevels:new Element(),tagPath:new Element(),tagError:new Element(),tagApply:new Element(),
+    byId:id=>{if(!ids.has(id))ids.set(id,new Element());return ids.get(id);},call:async()=>({tags}),api:'/api',timer:0,clearTimeout(){},query:{value:'沙拉'},updateRecordQueryClear(){},search(){}};
   runInNewContext(code,context);
-  assert.equal(context.tagClear.hidden,true);
   await context.tagButton.onclick();
   assert.equal(context.tagLevels.children.length,1);
   const choose=(id,value)=>{const select=ids.get(id);select.value=value;select.onchange();};
   choose('d1RecordsTagLevel1','2-工程');assert.equal(context.tagLevels.children.length,2);
   choose('d1RecordsTagLevel2','2-工程/02模具');assert.equal(context.tagLevels.children.length,3);
   context.tagApply.onclick();
-  assert.equal(context.selectedTag,'2-工程/02模具');assert.equal(context.query.value,'沙拉');
-  assert.equal(context.tagClear.hidden,false);
+  assert.equal(context.selectedTag,'2-工程/02模具');assert.equal(context.query.value,'#2-工程/02模具 沙拉');
   assert.equal(context.recordTagParameter(),'&tag='+encodeURIComponent('2-工程/02模具'));
   await context.tagButton.onclick();choose('d1RecordsTagLevel3','2-工程/02模具/簡易模');context.tagApply.onclick();
   assert.equal(context.selectedTag,'2-工程/02模具/簡易模');
-  context.tagClear.onclick();
-  assert.equal(context.selectedTag,'');assert.equal(context.recordTagParameter(),'');
-  assert.equal(context.tagClear.hidden,true);assert.equal(context.query.value,'沙拉');
+  assert.equal(context.query.value,'#2-工程/02模具/簡易模 沙拉');
+  const clearCode=source.slice(source.indexOf('  function clearRecordQuery('),source.indexOf('  async function search('));
+  context.query.focus=()=>{};context.closeRecordSearchHistory=()=>{};
+  runInNewContext(clearCode,context);context.clearRecordQuery();
+  assert.equal(context.selectedTag,'');assert.equal(context.recordTagParameter(),'');assert.equal(context.query.value,'');
+  context.query.value='沙拉';
   await context.tagButton.onclick();choose('d1RecordsTagLevel1','2-工程');context.tagApply.onclick();
   await context.tagButton.onclick();ids.get('TagClear').onclick();
   assert.equal(context.selectedTag,'');assert.equal(context.tagDialog.open,false);assert.equal(context.query.value,'沙拉');

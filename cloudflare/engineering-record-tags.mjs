@@ -12,6 +12,13 @@ export function normalizeRecordTag(value) {
   if (!tag || tag.length>240 || /[\s#.,;:!?()[\]{}<>"'`\\，。；：、？！]/u.test(tag) || tag.split('/').some(part=>!part) || /^\d+$/.test(tag)) return '';
   return tag;
 }
+export function parseRecordTagQuery(value) {
+  const query=String(value || '').trim();
+  const match=/(?:^|\s)#([^\s#]+)/.exec(query);
+  if (!match) return {query,tag:'',invalidTag:false};
+  const tag=normalizeRecordTag(match[1]);
+  return {query:(query.slice(0,match.index)+' '+query.slice(match.index+match[0].length)).trim(),tag,invalidTag:!tag};
+}
 
 export function extractRecordTags(content) {
   const tags=new Set();

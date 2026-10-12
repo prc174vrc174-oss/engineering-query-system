@@ -3405,11 +3405,6 @@ h3 {
         .engineering-records-btn.is-primary { border-color: #2563eb; background: #2563eb; color: #fff; }
         .engineering-records-btn.is-ai { border-color: #6d5bd0; background: #6d5bd0; color: #fff; }
         #d1RecordsTags { max-width:190px; overflow:hidden; text-overflow:ellipsis; }
-        .engineering-records-tag-filter { display:flex; align-items:center; gap:4px; min-width:0; max-width:240px; }
-        .engineering-records-tag-filter #d1RecordsTags { flex:1; min-width:0; }
-        #d1RecordsTagsClear { flex:none; width:38px; padding:0; font-size:22px; line-height:1; color:#64748b; }
-        #d1RecordsTagsClear[hidden] { display:none; }
-        #d1RecordsTagsClear:hover { color:#b42318; background:#fef2f2; }
         #d1RecordsTags.is-tag-active { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
         .engineering-tag-level { display:grid; grid-template-columns:64px minmax(0,1fr); align-items:center; gap:10px; margin:10px 0; }
         .engineering-tag-level label { font-size:14px; color:#475569; }
@@ -4467,21 +4462,18 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
             <section class="engineering-records-toolbar" aria-label="工程紀錄搜尋">
                 <div class="engineering-records-controls">
                     <div id="d1RecordsSearchBox" class="engineering-records-search">
-                        <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="120" autocomplete="off" aria-label="搜尋工程紀錄" aria-controls="d1RecordsHistory" aria-expanded="false" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
+                        <input id="d1RecordsQuery" class="engineering-records-query" type="search" maxlength="362" autocomplete="off" aria-label="搜尋工程紀錄" aria-controls="d1RecordsHistory" aria-expanded="false" placeholder="輸入客戶編號、名稱或關鍵字，例如：10239 沙拉孔">
                         <button id="d1RecordsQueryClear" class="engineering-records-search-clear" type="button" aria-label="清除工程紀錄搜尋關鍵字" title="清除搜尋" hidden>×</button>
                         <div id="d1RecordsHistory" class="search-history-panel engineering-records-history" aria-label="最近兩筆搜尋紀錄" hidden></div>
                     </div>
-                    <div class="engineering-records-tag-filter">
-                        <button id="d1RecordsTags" class="engineering-records-btn" type="button" aria-haspopup="dialog" aria-controls="d1RecordsTagsDialog">標籤篩選</button>
-                        <button id="d1RecordsTagsClear" class="engineering-records-btn" type="button" aria-label="清除標籤篩選" title="清除篩選" hidden>×</button>
-                    </div>
+                    <button id="d1RecordsTags" class="engineering-records-btn" type="button" aria-haspopup="dialog" aria-controls="d1RecordsTagsDialog">標籤篩選</button>
                     <button id="d1RecordsReload" class="engineering-records-btn" type="button"><span class="engineering-button-full">🔄 重新載入</span><span class="engineering-button-compact">重新載入</span></button>
                     <button id="d1RecordsFolders" class="engineering-records-btn" type="button"><span class="engineering-button-full">搜尋資料夾</span><span class="engineering-button-compact">資料夾</span></button>
                 </div>
             </section>
             <dialog id="d1RecordsTagsDialog" class="engineering-records-settings" aria-labelledby="d1RecordsTagsTitle">
                 <h3 id="d1RecordsTagsTitle">階層標籤篩選</h3>
-                <p>由上層逐級選擇；選上層會包含全部子標籤，可搭配搜尋關鍵字。筆數涵蓋全部工程紀錄。</p>
+                <p>由上層逐級選擇；選上層會包含全部子標籤。套用後標籤會顯示在搜尋框，可搭配關鍵字，按搜尋框「×」可全部清除。筆數涵蓋全部工程紀錄。</p>
                 <div id="d1RecordsTagLevels"></div>
                 <div id="d1RecordsTagPath" class="engineering-tag-path" aria-live="polite"></div>
                 <div id="d1RecordsTagError" class="engineering-records-settings-error" role="alert"></div>
@@ -6995,7 +6987,7 @@ init();
     <script src="/nail-excel-upload.js"></script>
     <script src="common-words.js"></script>
     <script src="vendor/katex/katex-0.19.0.min.js"></script>
-    <script src="engineering-records-d1.js?v=258"></script>
+    <script src="engineering-records-d1.js?v=259"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {

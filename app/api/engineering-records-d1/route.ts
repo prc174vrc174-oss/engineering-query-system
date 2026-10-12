@@ -1,5 +1,5 @@
 import { engineeringBacklinks, engineeringTags, listEngineeringD1, engineeringStatus, readEngineeringD1, refreshEngineeringD1, searchEngineeringD1 } from "../../../db/engineering-notes";
-import {normalizeRecordTag} from "../../../cloudflare/engineering-record-tags.mjs";
+import {normalizeRecordTag,parseRecordTagQuery} from "../../../cloudflare/engineering-record-tags.mjs";
 
 const origins = new Set(["https://engineering-query.prc174.chatgpt.site", "https://prc174vrc174-oss.github.io"]);
 function headers(request: Request) {
@@ -22,11 +22,11 @@ export async function GET(request: Request) {
     if (params.get("action") === "status") return reply(request, { ok: true, ...(await engineeringStatus()) });
     if (params.get("action") === "tags") return reply(request, {ok:true,tags:await engineeringTags()});
     if (params.get("action") === "search") {
-      const query = (params.get("query") || "").trim();
+      const rawQuery=(params.get("query") || '').trim(), parsed=parseRecordTagQuery(rawQuery), query=parsed.query;
       if (query.length > 120) return reply(request, { ok: false, error: "搜尋關鍵字最多 120 個字元。" }, 400);
-      const rawTag=(params.get("tag") || '').trim(), tag=normalizeRecordTag(rawTag);
-      if (rawTag && !tag) return reply(request,{ok:false,error:"標籤格式不正確。"},400);
-      if (!query) {
+      const rawTag=(params.get("tag") || '').trim(), tag=parsed.tag || normalizeRecordTag(rawTag);
+      if (parsed.invalidTag || (rawTag && !normalizeRecordTag(rawTag))) return reply(request,{ok:false,error:"標籤格式不正確。"},400);
+      if (!query && !parsed.tag) {
         const rawOffset = params.get("offset") || "0";
         const offset = Number(rawOffset);
         if (!/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset > 10_000_000)

@@ -8,7 +8,6 @@
   var query = byId('Query'), reload = byId('Reload'), gemini = byId('Gemini');
   var queryClear = byId('QueryClear');
   var tagButton = byId('Tags'), tagDialog = byId('TagsDialog'), tagLevels = byId('TagLevels');
-  var tagClear = byId('TagsClear');
   var tagPath = byId('TagPath'), tagError = byId('TagError'), tagApply = byId('TagApply');
   var selectedTag = '', draftTag = '', tagCatalog = [], tagRequest = 0;
   var recordHistory = byId('History'), recordHistoryKey = 'engineeringRecordsSearchHistoryV1';
@@ -97,16 +96,21 @@
   }
   function updateRecordTagLabel() {
     if (!tagButton) return;
-    var label = selectedTag ? '標籤：' + selectedTag.split('/').pop() : '標籤篩選';
-    tagButton.textContent = label;
+    tagButton.textContent = '標籤篩選';
     tagButton.title = selectedTag ? '#' + selectedTag : '依階層選擇標籤';
     tagButton.className = 'engineering-records-btn' + (selectedTag ? ' is-tag-active' : '');
     tagButton.setAttribute('aria-label', selectedTag ? '標籤篩選：#' + selectedTag : '標籤篩選');
-    if (tagClear) tagClear.hidden = !selectedTag;
   }
+  function recordQueryParts() {
+    var value = query.value.trim(), match = /(?:^|\s)#([^\s#]+)/.exec(value);
+    return match ? {tag:match[1].normalize('NFKC'),keyword:(value.slice(0,match.index)+' '+value.slice(match.index+match[0].length)).trim()} : {tag:'',keyword:value};
+  }
+  function syncRecordTagFromQuery() { selectedTag = recordQueryParts().tag; updateRecordTagLabel(); }
   function clearRecordTagFilter() {
+    query.value = recordQueryParts().keyword;
     selectedTag = ''; draftTag = ''; tagRequest++;
     updateRecordTagLabel();
+    updateRecordQueryClear();
     if (tagDialog.open) tagDialog.close();
     clearTimeout(timer);
     return search();
@@ -143,6 +147,7 @@
     if (!tagCatalog.length) tagPath.textContent = '目前工程紀錄沒有可篩選的標籤。';
   }
   async function showRecordTags() {
+    syncRecordTagFromQuery();
     draftTag = selectedTag; tagError.textContent = ''; tagLevels.textContent = '正在載入階層標籤…';
     tagPath.textContent = ''; tagApply.disabled = true;
     var version = ++tagRequest;
@@ -162,9 +167,10 @@
     tagButton.onclick = showRecordTags;
     byId('TagCancel').onclick = function () { tagDialog.close(); };
     byId('TagClear').onclick = clearRecordTagFilter;
-    if (tagClear) tagClear.onclick = clearRecordTagFilter;
     tagApply.onclick = function () {
-      selectedTag = draftTag; updateRecordTagLabel(); tagDialog.close(); clearTimeout(timer); search();
+      var keyword = recordQueryParts().keyword;
+      query.value = (draftTag ? '#' + draftTag : '') + (draftTag && keyword ? ' ' : '') + keyword;
+      syncRecordTagFromQuery(); updateRecordQueryClear(); tagDialog.close(); clearTimeout(timer); search();
     };
     updateRecordTagLabel();
   }
@@ -315,12 +321,14 @@
   function clearRecordQuery() {
     clearTimeout(timer);
     query.value = '';
+    selectedTag = ''; draftTag = ''; tagRequest++; updateRecordTagLabel();
     updateRecordQueryClear();
     query.focus();
     closeRecordSearchHistory();
     search();
   }
   async function search() {
+    syncRecordTagFromQuery();
     updateRecordQueryClear();
     var value = query.value.trim(), version = ++resultVersion;
     hasMore = false; loadingMore = false; more.hidden = true; loadMore.disabled = true;

@@ -34,6 +34,10 @@ test('hierarchical tags cover D1, page filtered results and stay current after D
   assert.equal(next.body.results.length,6);assert.equal(next.body.hasMore,false);
   const searched=await get('action=search&query=沙拉&tag='+encodeURIComponent('2-工程'));
   assert.equal(searched.body.results.length,21);
+  const visible=await get('action=search&query='+encodeURIComponent('#2-工程/02模具'));
+  assert.equal(visible.body.results.length,21);assert.equal(visible.body.hasMore,undefined);
+  const combined=await get('action=search&query='+encodeURIComponent('#2-工程/02模具 沙拉'));
+  assert.equal(combined.body.results.length,21);
   assert.equal((await get('action=search&tag=bad%20tag')).status,400);
   const changed={...notes[0],content:'#3-材料/AL',modifiedTime:'2026-10-12T00:00:00Z'};
   await refresh(db,true,source([changed,...notes.slice(2)]));
