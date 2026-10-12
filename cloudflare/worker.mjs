@@ -2,7 +2,7 @@ import { status, refresh as refreshRecords } from './engineering-record-sync.mjs
 import { engineeringSummaryUsesD1, summarizeEngineeringD1 } from './engineering-summary-d1.mjs';
 import { backlinkNeedles, referencingNotes } from "./engineering-record-links.mjs";
 import { completeEngineeringSummary } from "./engineering-summary-coverage.mjs";
-import {engineeringRecordTags, ensureRecordTagIndex, normalizeRecordTag, parseRecordTagQuery, parseRecordKeywordQuery, recordKeywordPredicate, RECORD_TAG_PREDICATE} from './engineering-record-tags.mjs';
+import {engineeringRecordTags, ensureRecordTagIndex, normalizeRecordTag, parseRecordTagQuery, recordSearchPredicate, RECORD_TAG_PREDICATE} from './engineering-record-tags.mjs';
 // GitHub Pages engineering records API, independently bound to janyu056's D1.
 export const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2WWjD9NKQKYNYLnVtU0E7xLKe69ELXw1FeIeEMUaFGY0zintiPAhwsnCC_figFrEScQ/exec';
 const ORIGIN = 'https://prc174vrc174-oss.github.io';
@@ -36,11 +36,10 @@ export async function list(db, offset = 0, tag = '') {
 
 export async function search(db, query, tag = '') {
   const tags=Array.isArray(tag)?tag:tag?[tag]:[];
-  if (tags.length) await ensureRecordTagIndex(db);
-  const keyword=recordKeywordPredicate(query),predicates=[keyword.predicate],params=keyword.params;
-  for(const tag of tags){predicates.push(RECORD_TAG_PREDICATE);params.push(tag,tag,tag);}
+  const expression=recordSearchPredicate(query,tags);
+  if (expression.hasTags) await ensureRecordTagIndex(db);
   const result = await db.prepare(`SELECT id,name,relative_path AS relativePath,modified_time AS modifiedTime
-    FROM engineering_notes WHERE ${predicates.join(' AND ')} LIMIT 500`).bind(...params).all();
+    FROM engineering_notes WHERE ${expression.predicate} LIMIT 500`).bind(...expression.params).all();
   return result.results;
 }
 export async function backlinks(db, id) {
@@ -95,16 +94,15 @@ export default {
         if (action==='search') {
           const rawQuery=(url.searchParams.get('query') || '').trim(),parsed=parseRecordTagQuery(rawQuery),query=parsed.query;
           if (query.length>120) return reply({ok:false,error:'搜尋關鍵字最多 120 個字元。'},400);
-          const keyword=parseRecordKeywordQuery(query);
-          if(keyword.error)return reply({ok:false,error:keyword.error},400);
-          const rawTag=(url.searchParams.get('tag') || '').trim(),tags=parsed.tags.length?parsed.tags:rawTag?[normalizeRecordTag(rawTag)]:[];
+          const rawTag=(url.searchParams.get('tag') || '').trim(),tags=parsed.tags.length?[]:rawTag?[normalizeRecordTag(rawTag)]:[];
           if(parsed.invalidTag||(rawTag&&!normalizeRecordTag(rawTag)))return reply({ok:false,error:'標籤格式不正確。'},400);
+          try { recordSearchPredicate(rawQuery,tags); } catch(error) { return reply({ok:false,error:error.message || '搜尋格式不正確。'},400); }
           if (!query && !parsed.tag) {
             const rawOffset=url.searchParams.get('offset') || '0', offset=Number(rawOffset);
             if (!/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset>10000000) return reply({ok:false,error:'載入位置不正確。'},400);
             return reply({ok:true,...await list(env.DB,offset,tags)});
           }
-          return reply({ok:true,results:await search(env.DB,query,tags)});
+          return reply({ok:true,results:await search(env.DB,rawQuery,tags)});
         }
         if (action==='backlinks') {
           const id=url.searchParams.get('id') || '';

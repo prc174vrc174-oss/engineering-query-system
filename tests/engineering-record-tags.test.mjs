@@ -36,6 +36,28 @@ test('uppercase OR searches either branch, preserves keyword AND and applies tag
     assert.equal((await response.json()).results.length,4);
   }finally{env.DB=saved;}
 });
+test('OR accepts complete tag operands, descendants and branch keywords without duplicate records',async()=>{
+  const {env}=await import('cloudflare:workers');
+  const {searchEngineeringD1}=await import('../db/engineering-notes.ts');
+  const a='#1-客戶/10160昇達', b='#1-客戶/10252全漢';
+  const db=database([a+' 沙拉',b+'/子項 沙拉',a+' '+b+' 沙拉',b+' 折床','#1-客戶/其他 沙拉']);
+  const saved=env.DB;env.DB=db;
+  try {
+    const ids=async q=>(await searchEngineeringD1(q)).map(n=>n.id).sort();
+    assert.deepEqual(await ids(a+' OR '+b),['record_tag_0','record_tag_1','record_tag_2','record_tag_3']);
+    assert.deepEqual(await ids(a+' '+b),['record_tag_2']);
+    assert.deepEqual(await ids(a+' 沙拉 OR '+b+' 沙拉'),['record_tag_0','record_tag_1','record_tag_2']);
+    assert.deepEqual(await ids(a+' OR '+a),['record_tag_0','record_tag_2']);
+    const {transpileModule,ModuleKind}=await import('typescript');
+    const source=(await readFile(new URL('../app/api/engineering-records-d1/route.ts',import.meta.url),'utf8'))
+      .replace('"../../../db/engineering-notes"',JSON.stringify(new URL('../db/engineering-notes.ts',import.meta.url).href))
+      .replace('"../../../cloudflare/engineering-record-tags.mjs"',JSON.stringify(new URL('../cloudflare/engineering-record-tags.mjs',import.meta.url).href));
+    const {GET}=await import('data:text/javascript,'+encodeURIComponent(transpileModule(source,{compilerOptions:{module:ModuleKind.ESNext}}).outputText));
+    const result=await GET(new Request('https://example.com/api?action=search&query='+encodeURIComponent(a+' OR '+b)+'&tag='+encodeURIComponent(b.slice(1))));
+    assert.equal(result.status,200);assert.equal((await result.json()).results.length,4);
+    for(const q of [a+' OR','OR '+b,a+' OR OR '+b])assert.equal((await GET(new Request('https://example.com/api?action=search&query='+encodeURIComponent(q)))).status,400);
+  }finally{env.DB=saved;}
+});
 test('OR button inserts at the caret or replaces selection, keeps text and focus, and operators are not highlighted',async()=>{
   const source=await readFile(new URL('../public/engineering-records-d1.js',import.meta.url),'utf8');
   const code=source.slice(source.indexOf('  function insertRecordOr('),source.indexOf('  function recordQueryParts('));
@@ -173,6 +195,11 @@ test('cascading picker includes descendants, applies one path, preserves keyword
   context.query.value='#2-工程/02模具 沙拉';context.syncRecordTagFromQuery();
   context.query.value='沙拉';context.syncRecordTagFromQuery();
   assert.equal(context.selectedTag,'');
+  context.query.value='#2-工程/02模具 OR';context.draftTag='3-材料/AL';context.tagApply.onclick();
+  assert.equal(context.query.value,'#2-工程/02模具 OR #3-材料/AL');
+  context.tagApply.onclick();assert.equal(context.query.value,'#2-工程/02模具 OR #3-材料/AL');
+  context.query.value='#3-材料/AL OR';context.tagApply.onclick();
+  assert.equal(context.query.value,'#3-材料/AL OR #3-材料/AL');
   const html=await readFile(new URL('../public/engineering-query.html',import.meta.url),'utf8');
   assert.ok(!html.includes('id="d1RecordsTagClear"'));
 });

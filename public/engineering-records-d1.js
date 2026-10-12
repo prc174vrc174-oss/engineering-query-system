@@ -181,8 +181,16 @@
     byId('TagCancel').onclick = function () { tagDialog.close(); };
     tagApply.onclick = function () {
       var current = recordQueryParts(), tags = current.tags;
-      if (draftTag && !tags.some(function (tag) { return tag.toLowerCase() === draftTag.toLowerCase(); })) tags.push(draftTag);
-      query.value = tags.map(function (tag) { return '#' + tag; }).concat(current.keyword ? [current.keyword] : []).join(' ');
+      if (/(?:^|\s)OR(?=\s|$)/.test(query.value)) {
+        // Keep OR and its operands in their original order. Append a selected
+        // tag to the last branch; deduplicate only inside that branch.
+        var last = query.value.split(/(?:^|\s)OR(?=\s|$)/).pop();
+        var branchTags = Array.from(last.matchAll(/(?:^|\s)#([^\s#]+)/g), function (m) { return m[1].normalize('NFKC').toLowerCase(); });
+        if (draftTag && branchTags.indexOf(draftTag.toLowerCase()) < 0) query.value = query.value.trim() + ' #' + draftTag;
+      } else {
+        if (draftTag && !tags.some(function (tag) { return tag.toLowerCase() === draftTag.toLowerCase(); })) tags.push(draftTag);
+        query.value = tags.map(function (tag) { return '#' + tag; }).concat(current.keyword ? [current.keyword] : []).join(' ');
+      }
       syncRecordTagFromQuery(); updateRecordQueryClear(); tagDialog.close(); clearTimeout(timer); search();
     };
     updateRecordTagLabel();

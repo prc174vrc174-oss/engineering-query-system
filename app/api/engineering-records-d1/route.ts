@@ -1,5 +1,5 @@
 import { engineeringBacklinks, engineeringTags, listEngineeringD1, engineeringStatus, readEngineeringD1, refreshEngineeringD1, searchEngineeringD1 } from "../../../db/engineering-notes";
-import {normalizeRecordTag,parseRecordTagQuery,parseRecordKeywordQuery} from "../../../cloudflare/engineering-record-tags.mjs";
+import {normalizeRecordTag,parseRecordTagQuery,recordSearchPredicate} from "../../../cloudflare/engineering-record-tags.mjs";
 
 const origins = new Set(["https://engineering-query.prc174.chatgpt.site", "https://prc174vrc174-oss.github.io"]);
 function headers(request: Request) {
@@ -24,10 +24,9 @@ export async function GET(request: Request) {
     if (params.get("action") === "search") {
       const rawQuery=(params.get("query") || '').trim(), parsed=parseRecordTagQuery(rawQuery), query=parsed.query;
       if (query.length > 120) return reply(request, { ok: false, error: "搜尋關鍵字最多 120 個字元。" }, 400);
-      const keyword=parseRecordKeywordQuery(query);
-      if(keyword.error)return reply(request,{ok:false,error:keyword.error},400);
-      const rawTag=(params.get("tag") || '').trim(), tags=parsed.tags.length ? parsed.tags : rawTag?[normalizeRecordTag(rawTag)]:[];
+      const rawTag=(params.get("tag") || '').trim(), tags=parsed.tags.length ? [] : rawTag?[normalizeRecordTag(rawTag)]:[];
       if (parsed.invalidTag || (rawTag && !normalizeRecordTag(rawTag))) return reply(request,{ok:false,error:"標籤格式不正確。"},400);
+      try { recordSearchPredicate(rawQuery,tags); } catch(error) { return reply(request,{ok:false,error:error instanceof Error?error.message:'搜尋格式不正確。'},400); }
       if (!query && !parsed.tag) {
         const rawOffset = params.get("offset") || "0";
         const offset = Number(rawOffset);
@@ -35,7 +34,7 @@ export async function GET(request: Request) {
           return reply(request, { ok: false, error: "載入位置不正確。" }, 400);
         return reply(request, { ok: true, ...(await listEngineeringD1(offset,tags)) });
       }
-      return reply(request, { ok: true, results: await searchEngineeringD1(query,tags) });
+      return reply(request, { ok: true, results: await searchEngineeringD1(rawQuery,tags) });
     }
     if (params.get("action") === "backlinks") {
       const id = params.get("id") || "";

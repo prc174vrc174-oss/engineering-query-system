@@ -87,6 +87,15 @@ test('OR keyword branches are unions within all tag constraints and invalid oper
   assert.equal(result.status,200);assert.equal((await result.json()).results.length,3);
   for(const q of ['OR','10258 OR','OR 10239','10258 OR OR 10239'])assert.equal((await get(q)).status,400);
 });
+test('tag OR accepts the exact screenshot query and does not impose the last tag on both branches',async()=>{
+  const a='#1-客戶/10160昇達',b='#1-客戶/10252全漢',db=database();
+  await seed(db,[note('tagor_record_01','第一.md',a+' 沙拉'),note('tagor_record_02','第二.md',b+'/子項 沙拉'),note('tagor_record_03','兩家.md',a+' '+b+' 沙拉'),note('tagor_record_04','其他.md','#1-客戶/其他 沙拉')]);
+  const get=q=>worker.fetch(new Request('https://api/api/engineering-records-d1?action=search&query='+encodeURIComponent(q)+'&tag='+encodeURIComponent(b.slice(1))),{DB:db});
+  const result=await get(a+' OR '+b);assert.equal(result.status,200);assert.equal((await result.json()).results.length,3);
+  assert.equal((await search(db,a+' '+b)).length,1);
+  assert.equal((await search(db,a+' 沙拉 OR '+b+' 沙拉')).length,3);
+  assert.equal((await get(a+' OR')).status,400);
+});
 test('recent sync skips repeated requests and concurrent lock is respected',async()=>{
   const db=database();await refresh(db,true,source([note('record_test_001')]));
   assert.equal((await refresh(db,false,async()=>{throw new Error('must skip');})).skipped,true);

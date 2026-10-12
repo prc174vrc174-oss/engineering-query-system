@@ -1,7 +1,7 @@
 import { status as recordStatus, refresh as refreshRecords } from "../cloudflare/engineering-record-sync.mjs";
 import { env } from "cloudflare:workers";
 import { backlinkNeedles, referencingNotes } from "../cloudflare/engineering-record-links.mjs";
-import {engineeringRecordTags, ensureRecordTagIndex, recordKeywordPredicate, RECORD_TAG_PREDICATE} from "../cloudflare/engineering-record-tags.mjs";
+import {engineeringRecordTags, ensureRecordTagIndex, recordSearchPredicate, RECORD_TAG_PREDICATE} from "../cloudflare/engineering-record-tags.mjs";
 
 type Note = { id: string; name: string; relativePath: string; modifiedTime: string; content: string };
 
@@ -37,11 +37,10 @@ export async function listEngineeringD1(offset: number, tag: string | string[] =
 
 export async function searchEngineeringD1(query: string, tag: string | string[] = '') {
   const tags=Array.isArray(tag)?tag:tag?[tag]:[];
-  if (tags.length) await ensureRecordTagIndex(database());
-  const keyword=recordKeywordPredicate(query), predicates=[keyword.predicate], params=keyword.params;
-  for (const tag of tags) { predicates.push(RECORD_TAG_PREDICATE);params.push(tag,tag,tag); }
+  const search=recordSearchPredicate(query,tags);
+  if (search.hasTags) await ensureRecordTagIndex(database());
   const rows = await database().prepare(`SELECT id, name, relative_path AS relativePath, modified_time AS modifiedTime
-    FROM engineering_notes WHERE ${predicates.join(" AND ")} LIMIT 500`).bind(...params)
+    FROM engineering_notes WHERE ${search.predicate} LIMIT 500`).bind(...search.params)
     .all<{ id: string; name: string; relativePath: string; modifiedTime: string }>();
   return rows.results;
 }

@@ -54,6 +54,29 @@ export function recordKeywordPredicate(value) {
   return {predicate:'('+branches.join(' OR ')+')',params};
 }
 
+export function recordSearchPredicate(value, globalTags = []) {
+  const raw=String(value || '').trim(), parsed=parseRecordTagQuery(raw);
+  if(parsed.invalidTag)throw new Error('標籤格式不正確。');
+  if(parsed.query.length>120)throw new Error('搜尋關鍵字最多 120 個字元。');
+  const branches=raw.split(/(?:^|\s)OR(?=\s|$)/).map(parseRecordTagQuery);
+  if(branches.length>1 && branches.some(b=>!b.query && !b.tags.length))throw new Error('請在 OR 前後輸入搜尋關鍵字或標籤。');
+  // A keyword OR with one common tag scope retains the existing behavior.
+  // When multiple branches contain tags, each branch has its own tag scope.
+  const tagOr=branches.filter(b=>b.tags.length).length>1;
+  const common=[...new Set([...globalTags,...(tagOr?[]:parsed.tags)])];
+  const params=[];
+  const predicates=branches.map(branch=>{
+    const keyword=recordKeywordPredicate(branch.query), parts=[keyword.predicate];
+    params.push(...keyword.params);
+    for(const tag of new Set([...common,...(tagOr?branch.tags:[])])){
+      parts.push(RECORD_TAG_PREDICATE);params.push(tag,tag,tag);
+    }
+    return '('+parts.join(' AND ')+')';
+  });
+  if(params.length>96)throw new Error('搜尋條件過多，請縮短搜尋內容。');
+  return {predicate:'('+predicates.join(' OR ')+')',params,hasTags:common.length>0 || parsed.tags.length>0};
+}
+
 export function extractRecordTags(content) {
   const source=String(content || '');
   // Binary files decoded as Markdown can contain random '#...' byte sequences.
