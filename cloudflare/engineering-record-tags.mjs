@@ -1,6 +1,9 @@
 // Derived tag metadata stays beside the notes in each site's own D1.
 const CREATE = `CREATE TABLE IF NOT EXISTS engineering_note_tags (
   note_id TEXT PRIMARY KEY, modified_time TEXT NOT NULL, tags_json TEXT NOT NULL)`;
+const PARSER_VERSION = '2';
+const CREATE_STATE = `CREATE TABLE IF NOT EXISTS engineering_tag_index_state (
+  id INTEGER PRIMARY KEY CHECK(id=1), parser_version TEXT NOT NULL)`;
 const UPSERT = `INSERT INTO engineering_note_tags (note_id,modified_time,tags_json)
   SELECT json_extract(value,'$.id'),json_extract(value,'$.modifiedTime'),json_extract(value,'$.tags')
   FROM json_each(?) WHERE EXISTS (SELECT 1 FROM engineering_notes
@@ -9,7 +12,7 @@ const UPSERT = `INSERT INTO engineering_note_tags (note_id,modified_time,tags_js
 
 export function normalizeRecordTag(value) {
   const tag=String(value || '').trim().replace(/^#/, '').normalize('NFKC');
-  if (!tag || tag.length>240 || /[\s#.,;:!?()[\]{}<>"'`\\，。；：、？！]/u.test(tag) || tag.split('/').some(part=>!part) || /^\d+$/.test(tag)) return '';
+  if (!tag || tag.length>240 || /[\p{Cc}\p{Cs}\uFFFD\s#.,;:!?()[\]{}<>"'`\\，。；：、？！]/u.test(tag) || tag.split('/').some(part=>!part) || /^\d+$/.test(tag)) return '';
   return tag;
 }
 export function parseRecordTagQuery(value) {
@@ -25,9 +28,15 @@ export function parseRecordTagQuery(value) {
 }
 
 export function extractRecordTags(content) {
+  const source=String(content || '');
+  // Binary files decoded as Markdown can contain random '#...' byte sequences.
+  // Leave the original note untouched, but do not index tags from that content.
+  const controls=(source.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g)||[]).length;
+  const replacements=(source.match(/\uFFFD/g)||[]).length;
+  if (controls>=4 || (replacements>=8 && replacements/source.length>0.02)) return [];
   const tags=new Set();
   const add=value=>{const tag=normalizeRecordTag(value);if(tag)tags.add(tag);};
-  let text=String(content || '').replace(/\r/g,''), fence='';
+  let text=source.replace(/\r/g,''), fence='';
   const front=/^---\n([\s\S]*?)\n---(?:\n|$)/.exec(text);
   if (front) {
     let inTags=false;
@@ -60,14 +69,21 @@ export function recordTagWrite(db, notes) {
 }
 export async function ensureRecordTagIndex(db) {
   await ensureRecordTagTable(db);
+  await db.prepare(CREATE_STATE).run();
+  const state=await db.prepare('SELECT parser_version FROM engineering_tag_index_state WHERE id=1').first();
+  const rebuild=state?.parser_version!==PARSER_VERSION;
   const stale=await db.prepare(`SELECT n.id,n.modified_time AS modifiedTime,n.content FROM engineering_notes n
-    LEFT JOIN engineering_note_tags t ON t.note_id=n.id WHERE t.note_id IS NULL OR t.modified_time<>n.modified_time`).all();
+    LEFT JOIN engineering_note_tags t ON t.note_id=n.id WHERE ${rebuild?'1=1':'t.note_id IS NULL OR t.modified_time<>n.modified_time'}`).all();
   // Chunk JSON parameters rather than one statement or binding per tag.
   for (let start=0;start<stale.results.length;start+=100) {
     const notes=stale.results.slice(start,start+100);
     await db.batch([recordTagWrite(db,notes)]);
   }
   await db.prepare('DELETE FROM engineering_note_tags WHERE note_id NOT IN (SELECT id FROM engineering_notes)').run();
+  // Record the parser version only after every chunk succeeds. Existing caches
+  // are rebuilt even when Drive modified_time has not changed.
+  if(rebuild)await db.prepare(`INSERT INTO engineering_tag_index_state(id,parser_version) VALUES(1,?)
+    ON CONFLICT(id) DO UPDATE SET parser_version=excluded.parser_version`).bind(PARSER_VERSION).run();
 }
 export const RECORD_TAG_PREDICATE = `id IN (SELECT note_id FROM engineering_note_tags, json_each(tags_json)
   WHERE value = ? COLLATE NOCASE OR substr(value,1,length(?) + 1) = ? || '/' COLLATE NOCASE)`;

@@ -27,6 +27,26 @@ test('visible tag query keeps keyword text separate and preserves literal descen
   });
   assert.equal(parseRecordTagQuery(Array.from({length:13},(_,i)=>'#工程/'+i).join(' ')).invalidTag,true);
 });
+test('corrupt decoded content and malformed tag characters never become catalog tags',()=>{
+  for(const tag of ['a\u001c�1&MK\u0012','T�K��D\u001f͒���','工程/\u0000範例','工程/\ud800'])assert.equal(normalizeRecordTag(tag),'');
+  for(const tag of ['1-客戶/10239德承','7-📣/國恩','9-⚙️/設定','工程/👩‍🔧'])assert.equal(normalizeRecordTag(tag),tag);
+  const binary='\u0000\u0002\u0003\u001c #a\u001c�1&MK\u0012 #T�K��D\u001f͒��� #randomASCII';
+  assert.deepEqual(extractRecordTags(binary),[]);
+  assert.deepEqual(extractRecordTags('�'.repeat(20)+' #randomASCII'),[]);
+  assert.deepEqual(extractRecordTags('#2-工程/16噴砂\n說明：舊資料有一個 � 字元。'),['2-工程/16噴砂']);
+});
+test('existing tag caches rebuild with unchanged note timestamps when the parser changes',async()=>{
+  const db=database(['#1-客戶/10239德承 #7-📣/國恩','\u0000\u0002\u0003\u001c #randomASCII']);
+  db.sqlite.exec('CREATE TABLE engineering_note_tags(note_id TEXT PRIMARY KEY,modified_time TEXT NOT NULL,tags_json TEXT NOT NULL)');
+  db.sqlite.prepare('INSERT INTO engineering_note_tags VALUES(?,?,?)').run('record_tag_0','v1',JSON.stringify(['a\u001c�1&MK\u0012']));
+  db.sqlite.prepare('INSERT INTO engineering_note_tags VALUES(?,?,?)').run('record_tag_1','v1',JSON.stringify(['randomASCII']));
+  const paths=(await engineeringRecordTags(db)).map(tag=>tag.path);
+  assert.deepEqual(paths,['1-客戶','1-客戶/10239德承','7-📣','7-📣/國恩']);
+  assert.deepEqual(JSON.parse(db.sqlite.prepare('SELECT tags_json FROM engineering_note_tags WHERE note_id=?').get('record_tag_1').tags_json),[]);
+  assert.equal(db.sqlite.prepare('SELECT parser_version FROM engineering_tag_index_state WHERE id=1').get().parser_version,'2');
+  assert.deepEqual((await engineeringRecordTags(db)).map(tag=>tag.path),paths);
+  assert.equal(db.sqlite.prepare('SELECT modified_time FROM engineering_notes WHERE id=?').get('record_tag_0').modified_time,'v1');
+});
 test('multiple tags intersect exact hierarchies and keywords on the same note',async()=>{
   const {env}=await import('cloudflare:workers');
   const {searchEngineeringD1}=await import('../db/engineering-notes.ts');
