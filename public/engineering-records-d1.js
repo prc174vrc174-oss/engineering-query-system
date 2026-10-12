@@ -8,6 +8,7 @@
   var query = byId('Query'), reload = byId('Reload'), gemini = byId('Gemini');
   var queryClear = byId('QueryClear');
   var tagButton = byId('Tags'), tagDialog = byId('TagsDialog'), tagLevels = byId('TagLevels');
+  var tagClear = byId('TagsClear');
   var tagPath = byId('TagPath'), tagError = byId('TagError'), tagApply = byId('TagApply');
   var selectedTag = '', draftTag = '', tagCatalog = [], tagRequest = 0;
   var recordHistory = byId('History'), recordHistoryKey = 'engineeringRecordsSearchHistoryV1';
@@ -101,6 +102,14 @@
     tagButton.title = selectedTag ? '#' + selectedTag : '依階層選擇標籤';
     tagButton.className = 'engineering-records-btn' + (selectedTag ? ' is-tag-active' : '');
     tagButton.setAttribute('aria-label', selectedTag ? '標籤篩選：#' + selectedTag : '標籤篩選');
+    if (tagClear) tagClear.hidden = !selectedTag;
+  }
+  function clearRecordTagFilter() {
+    selectedTag = ''; draftTag = ''; tagRequest++;
+    updateRecordTagLabel();
+    if (tagDialog.open) tagDialog.close();
+    clearTimeout(timer);
+    return search();
   }
   function recordTagParameter() { return selectedTag ? '&tag=' + encodeURIComponent(selectedTag) : ''; }
   function renderRecordTagLevels() {
@@ -152,7 +161,8 @@
   if (tagButton) {
     tagButton.onclick = showRecordTags;
     byId('TagCancel').onclick = function () { tagDialog.close(); };
-    byId('TagClear').onclick = function () { draftTag = ''; renderRecordTagLevels(); };
+    byId('TagClear').onclick = clearRecordTagFilter;
+    if (tagClear) tagClear.onclick = clearRecordTagFilter;
     tagApply.onclick = function () {
       selectedTag = draftTag; updateRecordTagLabel(); tagDialog.close(); clearTimeout(timer); search();
     };

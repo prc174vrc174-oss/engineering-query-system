@@ -60,9 +60,10 @@ test('cascading picker includes descendants, applies one path, preserves keyword
   }
   const tags=[{path:'2-工程',count:30},{path:'2-工程/02模具',count:20},{path:'2-工程/02模具/簡易模',count:12},{path:'3-材料',count:18},{path:'3-材料/AL',count:18}];
   const context={document:{createElement:()=>new Element(),getElementById:id=>ids.get(id)},selectedTag:'',draftTag:'',tagCatalog:[],tagRequest:0,
-    tagButton:new Element(),tagDialog:new Element(),tagLevels:new Element(),tagPath:new Element(),tagError:new Element(),tagApply:new Element(),
+    tagButton:new Element(),tagClear:new Element(),tagDialog:new Element(),tagLevels:new Element(),tagPath:new Element(),tagError:new Element(),tagApply:new Element(),
     byId:id=>{if(!ids.has(id))ids.set(id,new Element());return ids.get(id);},call:async()=>({tags}),api:'/api',timer:0,clearTimeout(){},query:{value:'沙拉'},search(){}};
   runInNewContext(code,context);
+  assert.equal(context.tagClear.hidden,true);
   await context.tagButton.onclick();
   assert.equal(context.tagLevels.children.length,1);
   const choose=(id,value)=>{const select=ids.get(id);select.value=value;select.onchange();};
@@ -70,9 +71,14 @@ test('cascading picker includes descendants, applies one path, preserves keyword
   choose('d1RecordsTagLevel2','2-工程/02模具');assert.equal(context.tagLevels.children.length,3);
   context.tagApply.onclick();
   assert.equal(context.selectedTag,'2-工程/02模具');assert.equal(context.query.value,'沙拉');
+  assert.equal(context.tagClear.hidden,false);
   assert.equal(context.recordTagParameter(),'&tag='+encodeURIComponent('2-工程/02模具'));
   await context.tagButton.onclick();choose('d1RecordsTagLevel3','2-工程/02模具/簡易模');context.tagApply.onclick();
   assert.equal(context.selectedTag,'2-工程/02模具/簡易模');
-  await context.tagButton.onclick();ids.get('TagClear').onclick();context.tagApply.onclick();
+  context.tagClear.onclick();
   assert.equal(context.selectedTag,'');assert.equal(context.recordTagParameter(),'');
+  assert.equal(context.tagClear.hidden,true);assert.equal(context.query.value,'沙拉');
+  await context.tagButton.onclick();choose('d1RecordsTagLevel1','2-工程');context.tagApply.onclick();
+  await context.tagButton.onclick();ids.get('TagClear').onclick();
+  assert.equal(context.selectedTag,'');assert.equal(context.tagDialog.open,false);assert.equal(context.query.value,'沙拉');
 });
